@@ -11,7 +11,7 @@
     "build": "expo export"
   },
   "dependencies": {
-    "@expo/metro-runtime": "~3.2.3",
+    "@expo/metro-runtime": "3.2.1",
     "@expo/vector-icons": "^14.1.0",
     "@react-navigation/bottom-tabs": "^6.5.20",
     "@react-navigation/native": "^6.1.17",
