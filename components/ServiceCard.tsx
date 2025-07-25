@@ -1,0 +1,261 @@
+import React from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+
+import { useTheme } from '../contexts/ThemeContext';
+
+interface Service {
+  id: string;
+  name: string;
+  issuer: string;
+  code: string;
+  timeRemaining: number;
+  isLocalOnly: boolean;
+  blockchainTxHash?: string;
+}
+
+interface ServiceCardProps {
+  service: Service;
+  onCopy: () => void;
+  onDelete: () => void;
+  onSync?: () => void;
+  onShare?: () => void;
+}
+
+export default function ServiceCard({ service, onCopy, onDelete, onSync, onShare }: ServiceCardProps) {
+  const { theme } = useTheme();
+  
+  const handleDelete = () => {
+    Alert.alert(
+      'Delete Service',
+      `Are you sure you want to remove ${service.name}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: onDelete },
+      ]
+    );
+  };
+
+  const progressPercentage = (service.timeRemaining / 30) * 100;
+  const isExpiringSoon = service.timeRemaining <= 10;
+  const styles = createStyles(theme);
+
+  return (
+    <View style={[styles.container, { backgroundColor: theme.colors.card }]}>
+      <View style={styles.header}>
+        <View style={styles.serviceInfo}>
+          <Text style={[styles.serviceName, { color: theme.colors.text }]}>{service.name}</Text>
+          <View style={styles.issuerRow}>
+            <Text style={[styles.issuer, { color: theme.colors.textSecondary }]}>{service.issuer}</Text>
+            {service.isLocalOnly ? (
+              <View style={[styles.localBadge, { backgroundColor: theme.colors.warning + '20' }]}>
+                <Text style={[styles.localBadgeText, { color: theme.colors.warning }]}>Local</Text>
+              </View>
+            ) : (
+             <View style={[styles.syncedIcon, { backgroundColor: theme.colors.success + '20' }]}>
+               <Ionicons name="library-outline" size={14} color={theme.colors.success} />
+             </View>
+            )}
+          </View>
+        </View>
+        <TouchableOpacity
+          style={styles.deleteButton}
+          onPress={handleDelete}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="trash-outline" size={20} color="#EF4444" />
+        </TouchableOpacity>
+      </View>
+
+      <TouchableOpacity
+        style={[styles.codeContainer, { backgroundColor: theme.colors.background }]}
+        onPress={onCopy}
+        activeOpacity={0.8}
+      >
+        <Text style={[styles.code, { color: theme.colors.text }, isExpiringSoon && { color: theme.colors.error }]}>
+          {service.code.slice(0, 3)} {service.code.slice(3)}
+        </Text>
+        <View style={styles.copyIcon}>
+          <Ionicons name="copy-outline" size={20} color={theme.colors.textSecondary} />
+        </View>
+      </TouchableOpacity>
+
+      <View style={styles.footer}>
+        <View style={styles.progressContainer}>
+          <View style={[styles.progressBackground, { backgroundColor: theme.colors.border }]}>
+            <View
+              style={[
+                styles.progressBar,
+                {
+                  width: `${progressPercentage}%`,
+                  backgroundColor: isExpiringSoon ? theme.colors.error : theme.colors.success,
+                },
+              ]}
+            />
+          </View>
+        </View>
+        <Text style={[styles.timeRemaining, { color: theme.colors.textSecondary }, isExpiringSoon && { color: theme.colors.error }]}>
+          {service.timeRemaining}s
+        </Text>
+      </View>
+
+      {!service.isLocalOnly && (
+        <View style={styles.actions}>
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: theme.colors.primaryLight }]}
+            onPress={onShare}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="share-outline" size={16} color={theme.colors.primary} />
+            <Text style={[styles.actionText, { color: theme.colors.primary }]}>Share (30s)</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {service.isLocalOnly && onSync && (
+        <View style={styles.actions}>
+          <TouchableOpacity
+            style={[styles.syncButton, { backgroundColor: theme.colors.primaryLight }]}
+            onPress={onSync}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="cloud-upload-outline" size={16} color={theme.colors.primary} />
+            <Text style={[styles.syncText, { color: theme.colors.primary }]}>Sync to Blockchain</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
+  );
+}
+
+const createStyles = (theme: any) => StyleSheet.create({
+  container: {
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    ...(Platform.OS === 'web' && {
+      transition: 'all 0.2s ease-in-out',
+    }),
+    elevation: 4,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  serviceInfo: {
+    flex: 1,
+  },
+  serviceName: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  issuer: {
+    fontSize: 14,
+  },
+  deleteButton: {
+    padding: 4,
+  },
+  codeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  code: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    fontFamily: 'monospace',
+    letterSpacing: 2,
+  },
+  copyIcon: {
+    opacity: 0.6,
+  },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  progressContainer: {
+    flex: 1,
+    marginRight: 12,
+  },
+  progressBackground: {
+    height: 4,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  timeRemaining: {
+    fontSize: 14,
+    fontWeight: '600',
+    minWidth: 30,
+    textAlign: 'right',
+  },
+  issuerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  localBadge: {
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 8,
+  },
+  localBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  syncedIcon: {
+    borderRadius: 8,
+    padding: 4,
+    marginLeft: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actions: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  actionText: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  syncButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  syncText: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+});
