@@ -11,9 +11,9 @@ import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
 
-import Header from '../components/Header';
-import { useWallet } from '../contexts/WalletContext';
-import { useTheme } from '../contexts/ThemeContext';
+import Header from '../../components/Header';
+import { useWallet } from '../../contexts/WalletContext';
+import { useTheme } from '../../contexts/ThemeContext';
 
 export default function WalletScreen() {
   const { wallet, balance, maxKeys, isLoading, refreshBalance } = useWallet();
@@ -49,7 +49,6 @@ export default function WalletScreen() {
     <View style={styles.container}>
       <Header title="Wallet" />
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Balance Card */}
         <View style={[styles.balanceCard, { backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border }]}>
           <View style={styles.balanceHeader}>
             <Ionicons name="wallet-outline" size={24} color={theme.colors.primary} />
@@ -71,30 +70,6 @@ export default function WalletScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Key Storage Info */}
-        {balance === 0 ? (
-          <View style={[styles.welcomeCard, { backgroundColor: theme.colors.primaryLight }]}>
-            <Ionicons name="wallet-outline" size={32} color={theme.colors.primary} />
-            <Text style={[styles.welcomeTitle, { color: theme.colors.primary }]}>Welcome to SecureAuth!</Text>
-            <Text style={[styles.welcomeText, { color: theme.colors.primary }]}>
-              Your wallet has been created with 0 CCX. To sync your 2FA keys to the blockchain, 
-              ask a friend to send you some CCX to your address below.
-            </Text>
-          </View>
-        ) : (
-          <View style={[styles.infoCard, { backgroundColor: theme.colors.primaryLight }]}>
-            <Ionicons name="information-circle-outline" size={24} color={theme.colors.primary} />
-            <View style={styles.infoContent}>
-              <Text style={[styles.infoTitle, { color: theme.colors.primary }]}>Blockchain Sync Available</Text>
-              <Text style={[styles.infoText, { color: theme.colors.primary }]}>
-                Each 2FA key sync costs {KEY_STORAGE_COST.toFixed(4)} CCX. 
-                You can currently sync {maxKeys} keys to the blockchain.
-              </Text>
-            </View>
-          </View>
-        )}
-
-        {/* Wallet Address Card */}
         <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
           <View style={styles.cardHeader}>
             <Ionicons name="qr-code-outline" size={24} color={theme.colors.text} />
@@ -128,20 +103,6 @@ export default function WalletScreen() {
             <Text style={[styles.copyButtonText, { color: theme.colors.primary }]}>Copy Address</Text>
           </TouchableOpacity>
         </View>
-
-        {/* Funding Info Card */}
-        {balance === 0 && (
-          <View style={[styles.fundingCard, { backgroundColor: theme.colors.primaryLight }]}>
-            <Ionicons name="people-outline" size={24} color={theme.colors.primary} />
-            <View style={styles.infoContent}>
-              <Text style={[styles.infoTitle, { color: theme.colors.primary }]}>Get Started</Text>
-              <Text style={[styles.infoText, { color: theme.colors.primary }]}>
-                Share your wallet address with a friend or colleague to receive CCX. 
-                Even a small amount (0.1 CCX) allows you to sync multiple keys!
-              </Text>
-            </View>
-          </View>
-        )}
       </ScrollView>
     </View>
   );
@@ -257,49 +218,5 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
-  },
-  infoCard: {
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    margin: 16,
-  },
-  infoContent: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  infoTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  infoText: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  welcomeCard: {
-    borderRadius: 16,
-    padding: 20,
-    alignItems: 'center',
-    margin: 16,
-  },
-  welcomeTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  welcomeText: {
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  fundingCard: {
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    margin: 16,
   },
 });

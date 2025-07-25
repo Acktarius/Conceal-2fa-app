@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -143,9 +144,6 @@ const createStyles = (theme: any) => StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
-    ...(Platform.OS === 'web' && {
-      transition: 'all 0.2s ease-in-out',
-    }),
     elevation: 4,
   },
   header: {

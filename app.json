@@ -1,5 +1,16 @@
 {
   "expo": {
+    "name": "SecureAuth",
+    "slug": "blockchain-2fa-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -14,7 +25,13 @@
         "CAMERA"
       ]
     },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/favicon.png"
+    },
     "plugins": [
+      "expo-router",
       [
         "expo-camera",
         {
@@ -22,6 +39,7 @@
         }
       ],
       "expo-secure-store"
-    ]
+    ],
+    "scheme": "secureauth"
   }
 }
