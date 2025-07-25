@@ -40,6 +40,7 @@ export default function AddServiceModal({ visible, onClose, onAdd }: AddServiceM
       secret: secret.trim(),
     });
 
+    // Reset form
     setName('');
     setIssuer('');
     setSecret('');
@@ -47,6 +48,7 @@ export default function AddServiceModal({ visible, onClose, onAdd }: AddServiceM
 
   const handleQRScan = (data: string) => {
     try {
+      // Parse TOTP URI format: otpauth://totp/Service:account?secret=XXXXX&issuer=Service
       const url = new URL(data);
       
       if (url.protocol === 'otpauth:' && url.hostname === 'totp') {
@@ -247,4 +249,5 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-});
+}
+)

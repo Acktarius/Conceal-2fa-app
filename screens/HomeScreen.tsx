@@ -11,14 +11,14 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 
-import ServiceCard from '../../components/ServiceCard';
-import AddServiceModal from '../../components/AddServiceModal';
-import Header from '../../components/Header';
-import FundingBanner from '../../components/FundingBanner';
-import { TOTPService } from '../../services/TOTPService';
-import { StorageService } from '../../services/StorageService';
-import { useWallet } from '../../contexts/WalletContext';
-import { useTheme } from '../../contexts/ThemeContext';
+import ServiceCard from '../components/ServiceCard';
+import AddServiceModal from '../components/AddServiceModal';
+import Header from '../components/Header';
+import FundingBanner from '../components/FundingBanner';
+import { TOTPService } from '../services/TOTPService';
+import { StorageService } from '../services/StorageService';
+import { useWallet } from '../contexts/WalletContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface Service {
   id: string;
@@ -79,7 +79,7 @@ export default function HomeScreen() {
         ...serviceData,
         code: TOTPService.generateTOTP(serviceData.secret),
         timeRemaining: TOTPService.getTimeRemaining(),
-        isLocalOnly: true,
+        isLocalOnly: true, // Always start as local-only
       };
 
       const updatedServices = [...services, newService];
@@ -108,6 +108,7 @@ export default function HomeScreen() {
     }
 
     try {
+      // Simulate blockchain sync
       const updatedServices = services.map(s => 
         s.id === serviceId 
           ? { ...s, isLocalOnly: false, blockchainTxHash: 'mock_tx_hash_' + Date.now() }
@@ -166,7 +167,7 @@ export default function HomeScreen() {
         <FundingBanner 
           balance={balance}
           maxKeys={maxKeys}
-          onPress={() => {}}
+          onPress={() => {/* Navigate to wallet tab or show funding info */}}
         />
 
         {services.length === 0 ? (
@@ -253,5 +254,14 @@ const createStyles = (theme: any) => StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
+    ...(Platform.OS === 'web' && {
+      transition: 'all 0.2s ease-in-out',
+    }),
+    ...(Platform.OS === 'web' && theme.isDark && {
+      ':hover': {
+        boxShadow: '0 0 20px rgba(255, 165, 0, 0.6), 0 0 40px rgba(255, 165, 0, 0.4)',
+        transform: 'scale(1.05)',
+      },
+    }),
   },
 });

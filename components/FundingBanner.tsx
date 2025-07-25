@@ -30,6 +30,7 @@ export default function FundingBanner({ balance, maxKeys, onPress }: FundingBann
   ];
 
   useEffect(() => {
+    // Only show banner if balance is 0 or insufficient for at least one key
     if (balance >= 0.0001) {
       setShowBanner(false);
       return;
@@ -42,6 +43,7 @@ export default function FundingBanner({ balance, maxKeys, onPress }: FundingBann
           setCycleCount(count => {
             const newCount = count + 1;
             if (newCount >= 2) {
+              // After 2 complete cycles, fade out and hide
               Animated.timing(fadeAnim, {
                 toValue: 0,
                 duration: 500,
@@ -55,7 +57,7 @@ export default function FundingBanner({ balance, maxKeys, onPress }: FundingBann
         }
         return next;
       });
-    }, 3000);
+    }, 3000); // Change text every 3 seconds
 
     return () => clearInterval(interval);
   }, [balance]);
