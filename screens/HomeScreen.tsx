@@ -136,7 +136,7 @@ export default function HomeScreen() {
     if (!sharedKey) return;
 
     try {
-      if (sharedKey.isLocalOnly) {
+      if (sharedKey.isLocalOnly()) {
         // Simply delete local-only SharedKeys
         const updatedSharedKeys = sharedKeys.filter(sk => sk !== sharedKey);
         setSharedKeys(updatedSharedKeys);

@@ -73,7 +73,7 @@ export default function ServiceCard({
           <Text style={[styles.serviceName, { color: theme.colors.text }]}>{sharedKey.name}</Text>
           <View style={styles.issuerRow}>
             <Text style={[styles.issuer, { color: theme.colors.textSecondary }]}>{sharedKey.issuer}</Text>
-            {sharedKey.isLocalOnly && (
+            {sharedKey.isLocalOnly() && (
               <View style={[styles.localBadge, { backgroundColor: theme.colors.warning + '20' }]}>
                 <Text style={[styles.localBadgeText, { color: theme.colors.warning }]}>Local</Text>
               </View>

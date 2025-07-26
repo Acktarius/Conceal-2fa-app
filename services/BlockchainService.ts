@@ -56,7 +56,6 @@ export class BlockchainService {
       
       // Update the SharedKey with blockchain data
       sharedKey.hash = txHash;
-      sharedKey.isLocalOnly = false;
       sharedKey.sharedKeySaved = true;
       sharedKey.timestamp = Date.now();
       sharedKey.extraType = sharedKey.getExtraData();

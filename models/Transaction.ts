@@ -72,7 +72,6 @@ export class SharedKey extends Transaction {
     sharedKey.name = serviceData.name;
     sharedKey.issuer = serviceData.issuer;
     sharedKey.secret = serviceData.secret;
-    sharedKey.isLocalOnly = true;
     sharedKey.timeStampSharedKeyCreate = Date.now();
     return sharedKey;
   }
@@ -82,7 +81,6 @@ export class SharedKey extends Transaction {
     sharedKey.hash = txData.hash;
     sharedKey.blockHeight = txData.blockHeight;
     sharedKey.timestamp = txData.timestamp;
-    sharedKey.isLocalOnly = false;
     sharedKey.sharedKeySaved = true;
     
     // Parse extra data (second byte indicates creation, rest contains name, issuer, secret)
@@ -104,8 +102,8 @@ export class SharedKey extends Transaction {
     return sharedKey;
   }
   
-  isOnBlockchain(): boolean {
-    return !this.isLocalOnly && this.hash !== '';
+  isLocalOnly(): boolean {
+    return this.hash === '';
   }
   
   getExtraData(): string {
