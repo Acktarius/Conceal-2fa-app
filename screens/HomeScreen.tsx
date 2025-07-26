@@ -148,47 +148,12 @@ export default function HomeScreen() {
         const updatedSharedKeys = sharedKeys.filter(sk => sk !== sharedKey);
         setSharedKeys(updatedSharedKeys);
         await StorageService.saveSharedKeys(updatedSharedKeys);
-        
-        Alert.alert('Deleted', `${sharedKey.name} has been removed.`);
       } else {
-        // SharedKey is on blockchain, handle revocation
-        const minTransactionAmount = 0.011;
-        const isWalletSynced = true;
-        let updatedSharedKeys;
-        
-        if (isWalletSynced && balance >= minTransactionAmount) {
-          try {
-            const revokeTxHash = await BlockchainService.revokeSharedKeyTransaction(sharedKey);
-            console.log('Revoke transaction submitted:', revokeTxHash);
-            
-            updatedSharedKeys = sharedKeys.filter(sk => sk !== sharedKey);
-            
-            Alert.alert(
-              'Key Revoked', 
-              `${sharedKey.name} has been removed and revoked on the blockchain.`
-            );
-          } catch (error) {
-            sharedKey.revokeInQueue = true;
-            updatedSharedKeys = sharedKeys.map(sk => 
-              sk === sharedKey ? sharedKey : sk
-            );
-            
-            Alert.alert(
-              'Revoke Queued', 
-              `${sharedKey.name} removal queued. Will be revoked when wallet syncs with sufficient balance.`
-            );
-          }
-        } else {
-          sharedKey.revokeInQueue = true;
-          updatedSharedKeys = sharedKeys.map(sk => 
-            sk === sharedKey ? sharedKey : sk
-          );
-          
-          Alert.alert(
-            'Revoke Queued', 
-            `${sharedKey.name} removal queued. Will be revoked when wallet syncs with sufficient balance (0.011 CCX required).`
-          );
-        }
+        // SharedKey is on blockchain, set revokeInQueue and hide from screen
+        sharedKey.revokeInQueue = true;
+        const updatedSharedKeys = sharedKeys.map(sk => 
+          sk === sharedKey ? sharedKey : sk
+        );
         
         setSharedKeys(updatedSharedKeys);
         await StorageService.saveSharedKeys(updatedSharedKeys);
@@ -201,7 +166,6 @@ export default function HomeScreen() {
       }
     } catch (error) {
       console.error('Error deleting SharedKey:', error);
-      Alert.alert('Error', 'Failed to delete SharedKey.');
     }
   };
 
