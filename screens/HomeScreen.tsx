@@ -77,6 +77,13 @@ export default function HomeScreen() {
       const newSharedKey = SharedKey.fromService(serviceData);
       newSharedKey.code = await TOTPService.generateTOTP(serviceData.secret);
       newSharedKey.timeRemaining = TOTPService.getTimeRemaining();
+      
+      console.log('Creating new SharedKey:', {
+        name: newSharedKey.name,
+        hash: newSharedKey.hash,
+        isLocal: newSharedKey.isLocalOnly(),
+        revokeInQueue: newSharedKey.revokeInQueue
+      });
 
       const updatedSharedKeys = [...sharedKeys, newSharedKey];
       setSharedKeys(updatedSharedKeys);
@@ -86,6 +93,7 @@ export default function HomeScreen() {
       
       Alert.alert('Success', 'Service added locally! Sync to blockchain when you have CCX balance.');
     } catch (error) {
+      console.error('Error adding service:', error);
       Alert.alert('Error', 'Failed to add service. Please try again.');
     }
   };
@@ -175,18 +183,30 @@ export default function HomeScreen() {
   };
 
   const shouldDisplaySharedKey = (sharedKey: SharedKey): boolean => {
+    console.log('Checking display for SharedKey:', {
+      name: sharedKey.name,
+      hash: sharedKey.hash,
+      isLocal: sharedKey.isLocalOnly(),
+      revokeInQueue: sharedKey.revokeInQueue,
+      extraStatus: sharedKey.extraStatus,
+      extraSharedKey: sharedKey.extraSharedKey
+    });
+    
     // 1. isLocal() (hash === '') and revokeInQueue = false -> Display
     if (sharedKey.isLocalOnly() && !sharedKey.revokeInQueue) {
+      console.log('Display: Local card, not in revoke queue');
       return true;
     }
     
     // 2. !isLocal() and revokeInQueue = true -> Hidden
     if (!sharedKey.isLocalOnly() && sharedKey.revokeInQueue) {
+      console.log('Hidden: Blockchain card in revoke queue');
       return false;
     }
     
     // 4. extraStatus = ff02 (revoke transactions) -> Never display
     if (!sharedKey.isLocalOnly() && sharedKey.extraStatus === 'ff02') {
+      console.log('Hidden: Revoke transaction (ff02)');
       return false;
     }
     
@@ -198,15 +218,18 @@ export default function HomeScreen() {
     );
     
     if (hasMatchingRevokeTransaction) {
+      console.log('Hidden: Has matching revoke transaction');
       return false;
     }
     
     // 3. !isLocal() and revokeInQueue = false -> Display (if not revoked)
     if (!sharedKey.isLocalOnly() && !sharedKey.revokeInQueue) {
+      console.log('Display: Blockchain card, not revoked');
       return true;
     }
     
     // Default: don't display
+    console.log('Hidden: Default case');
     return false;
   };
 

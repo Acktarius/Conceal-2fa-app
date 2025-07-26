@@ -71,6 +71,8 @@ export class SharedKey extends Transaction {
     sharedKey.issuer = serviceData.issuer;
     sharedKey.secret = serviceData.secret;
     sharedKey.timeStampSharedKeyCreate = Date.now();
+    sharedKey.hash = ''; // Ensure it starts as local
+    sharedKey.revokeInQueue = false; // Ensure it's not in revoke queue
     return sharedKey;
   }
   
