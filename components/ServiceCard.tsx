@@ -261,6 +261,7 @@ const createStyles = (theme: any) => StyleSheet.create({
   container: {
     borderRadius: 16,
     marginBottom: 12,
+    minHeight: 200,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -277,6 +278,8 @@ const createStyles = (theme: any) => StyleSheet.create({
     height: '100%',
     backfaceVisibility: 'hidden',
     borderRadius: 16,
+    backfaceVisibility: 'hidden',
+    borderRadius: 16,
   },
   cardBack: {
     backgroundColor: 'transparent',
@@ -286,6 +289,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     pointerEvents: 'none',
   },
   cardContent: {
+    height: '100%',
     padding: 16,
   },
   header: {
@@ -375,7 +379,7 @@ const createStyles = (theme: any) => StyleSheet.create({
   actions: {
     flexDirection: 'row',
     marginTop: 12,
-    gap: 8,
+    paddingHorizontal: 4,
   },
   actionButton: {
     flex: 1,
@@ -383,11 +387,12 @@ const createStyles = (theme: any) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 8,
-    paddingHorizontal: 8,
+    paddingHorizontal: 6,
     paddingVertical: 8,
+    marginHorizontal: 2,
   },
   actionText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
     marginLeft: 4,
     textAlign: 'center',
