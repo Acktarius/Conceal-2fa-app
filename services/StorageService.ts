@@ -35,18 +35,20 @@ export class StorageService {
       const parsed = JSON.parse(data);
       return parsed.map((item: any) => {
         const sharedKey = new SharedKey();
-        // Copy all properties from the stored item
-        sharedKey.hash = item.hash || '';
-        sharedKey.amount = item.amount || 0;
-        sharedKey.fee = item.fee || 0;
-        sharedKey.extraType = item.extraType || '';
-        sharedKey.revokeInQueue = item.revokeInQueue || false;
-        sharedKey.name = item.name || '';
-        sharedKey.issuer = item.issuer || '';
-        sharedKey.secret = item.secret || '';
-        sharedKey.code = item.code || '';
-        sharedKey.timeRemaining = item.timeRemaining || 0;
-        sharedKey.timeStampSharedKeyCreate = item.timeStampSharedKeyCreate || Date.now();
+        // Use Object.assign to copy all properties from the stored item
+        Object.assign(sharedKey, {
+          hash: item.hash || '',
+          amount: item.amount || 0,
+          fee: item.fee || 0,
+          extraType: item.extraType || '',
+          revokeInQueue: item.revokeInQueue || false,
+          name: item.name || '',
+          issuer: item.issuer || '',
+          secret: item.secret || '',
+          code: item.code || '',
+          timeRemaining: item.timeRemaining || 0,
+          timeStampSharedKeyCreate: item.timeStampSharedKeyCreate || Date.now()
+        });
         return sharedKey;
       });
     } catch (error) {
