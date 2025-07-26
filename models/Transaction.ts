@@ -63,7 +63,6 @@ export class SharedKey extends Transaction {
   secret: string = '';
   code: string = '';
   timeRemaining: number = 0;
-  isLocalOnly: boolean = true;
   revokeInQueue: boolean = false;
   
   static fromService(serviceData: { name: string; issuer: string; secret: string }): SharedKey {
