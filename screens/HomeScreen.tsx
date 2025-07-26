@@ -174,6 +174,43 @@ export default function HomeScreen() {
     setSelectedServiceId(selectedServiceId === sharedKeyId ? null : sharedKeyId);
   };
 
+  const shouldDisplaySharedKey = (sharedKey: SharedKey): boolean => {
+    // 1. isLocal() (hash === '') and revokeInQueue = false -> Display
+    if (sharedKey.isLocalOnly() && !sharedKey.revokeInQueue) {
+      return true;
+    }
+    
+    // 2. !isLocal() and revokeInQueue = true -> Hidden
+    if (!sharedKey.isLocalOnly() && sharedKey.revokeInQueue) {
+      return false;
+    }
+    
+    // 3. !isLocal() and revokeInQueue = false -> Display
+    if (!sharedKey.isLocalOnly() && !sharedKey.revokeInQueue) {
+      return true;
+    }
+    
+    // 4. !isLocal() and extraStatus = ff02 (revoke transaction) -> Hidden
+    // Also hide matching transactions with same extraSharedKey
+    if (!sharedKey.isLocalOnly() && sharedKey.extraStatus === 'ff02') {
+      return false;
+    }
+    
+    // Check if there's a revoke transaction (ff02) that matches this key's extraSharedKey
+    const hasMatchingRevokeTransaction = sharedKeys.some(sk => 
+      sk.extraStatus === 'ff02' && 
+      sk.extraSharedKey === sharedKey.extraSharedKey &&
+      sk.extraSharedKey !== ''
+    );
+    
+    if (hasMatchingRevokeTransaction) {
+      return false;
+    }
+    
+    // Default: don't display if none of the above conditions are met
+    return false;
+  };
+
   // Mock wallet sync status - in real app this would come from wallet context
   const isWalletSynced = true;
 
@@ -189,7 +226,7 @@ export default function HomeScreen() {
           onPress={() => {/* Navigate to wallet tab or show funding info */}}
         />
 
-        {sharedKeys.filter(sk => !sk.revokeInQueue).length === 0 ? (
+        {sharedKeys.filter(shouldDisplaySharedKey).length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="shield-checkmark-outline" size={64} color={theme.colors.textSecondary} />
             <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No Services Added</Text>
@@ -199,7 +236,7 @@ export default function HomeScreen() {
           </View>
         ) : (
           <View style={styles.servicesList}>
-            {sharedKeys.filter(sk => !sk.revokeInQueue).map((sharedKey) => {
+            {sharedKeys.filter(shouldDisplaySharedKey).map((sharedKey) => {
               const sharedKeyId = sharedKey.hash || sharedKey.name + '_' + sharedKey.timeStampSharedKeyCreate;
               return (
                 <ServiceCard
