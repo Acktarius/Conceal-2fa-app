@@ -80,6 +80,16 @@ export default function HomeScreen() {
       // Return current state while async operations complete
       return prevSharedKeys;
     });
+  };
+
+  const handleAddService = async (serviceData: any) => {
+    try {
+      const newSharedKey = new SharedKey(
+        serviceData.name,
+        serviceData.secret,
+        Date.now()
+      );
+      
       newSharedKey.code = await TOTPService.generateTOTP(serviceData.secret);
       newSharedKey.timeRemaining = TOTPService.getTimeRemaining();
       
@@ -211,35 +221,16 @@ export default function HomeScreen() {
     
     // 4. extraStatus = ff02 (revoke transactions) -> Never display
     if (!sharedKey.isLocalOnly() && sharedKey.extraStatus === 'ff02') {
-        console.log('Updating SharedKey:', {
-          name: sharedKey.name,
-          hash: sharedKey.hash,
-          isLocal: sharedKey.isLocalOnly(),
-          revokeInQueue: sharedKey.revokeInQueue
-        });
-        
-        // Update code and time remaining
-        const updatedCode = await TOTPService.generateTOTP(sharedKey.secret);
-        const updatedTimeRemaining = TOTPService.getTimeRemaining();
-        
-        // Create new SharedKey with all existing properties preserved
-        const updatedSharedKey = Object.create(Object.getPrototypeOf(sharedKey));
-        Object.assign(updatedSharedKey, sharedKey, {
-          code: updatedCode,
-          timeRemaining: updatedTimeRemaining
-        });
-        
-        console.log('Updated SharedKey:', {
-          name: updatedSharedKey.name,
-          hash: updatedSharedKey.hash,
-          isLocal: updatedSharedKey.isLocalOnly(),
-          revokeInQueue: updatedSharedKey.revokeInQueue
-        });
-        
-        return updatedSharedKey;
+      console.log('Hidden: Revoke transaction');
+      return false;
+    }
+    
+    // 5. Check if there's a matching revoke transaction
+    const hasMatchingRevokeTransaction = sharedKeys.some(sk => 
+      sk.extraStatus === 'ff02' && 
       sk.extraSharedKey !== ''
     );
-    console.log('Setting updated sharedKeys, count:', updatedSharedKeys.length);
+    console.log('Setting updated sharedKeys, count:', sharedKeys.length);
     
     if (hasMatchingRevokeTransaction) {
       console.log('Hidden: Has matching revoke transaction');
