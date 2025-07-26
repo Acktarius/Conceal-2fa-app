@@ -270,7 +270,6 @@ const createStyles = (theme: any) => StyleSheet.create({
     }),
     elevation: 4,
     position: 'relative',
-    minHeight: 200,
   },
   cardFace: {
     position: 'absolute',
@@ -287,8 +286,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     pointerEvents: 'none',
   },
   cardContent: {
-    padding: 20,
-    height: '100%',
+    padding: 16,
   },
   header: {
     flexDirection: 'row',
