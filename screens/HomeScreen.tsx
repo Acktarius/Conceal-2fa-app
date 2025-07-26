@@ -185,18 +185,12 @@ export default function HomeScreen() {
       return false;
     }
     
-    // 3. !isLocal() and revokeInQueue = false -> Display
-    if (!sharedKey.isLocalOnly() && !sharedKey.revokeInQueue) {
-      return true;
-    }
-    
-    // 4. !isLocal() and extraStatus = ff02 (revoke transaction) -> Hidden
-    // Also hide matching transactions with same extraSharedKey
+    // 4. extraStatus = ff02 (revoke transactions) -> Never display
     if (!sharedKey.isLocalOnly() && sharedKey.extraStatus === 'ff02') {
       return false;
     }
     
-    // Check if there's a revoke transaction (ff02) that matches this key's extraSharedKey
+    // 4. Check if there's a revoke transaction (ff02) that matches this key's extraSharedKey
     const hasMatchingRevokeTransaction = sharedKeys.some(sk => 
       sk.extraStatus === 'ff02' && 
       sk.extraSharedKey === sharedKey.extraSharedKey &&
@@ -207,7 +201,12 @@ export default function HomeScreen() {
       return false;
     }
     
-    // Default: don't display if none of the above conditions are met
+    // 3. !isLocal() and revokeInQueue = false -> Display (if not revoked)
+    if (!sharedKey.isLocalOnly() && !sharedKey.revokeInQueue) {
+      return true;
+    }
+    
+    // Default: don't display
     return false;
   };
 
