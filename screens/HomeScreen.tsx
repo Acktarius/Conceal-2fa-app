@@ -129,37 +129,38 @@ export default function HomeScreen() {
   };
 
   const handleDeleteSharedKey = async (sharedKeyId: string) => {
-    const sharedKey = sharedKeys.find(sk => sk.hash === sharedKeyId || sk.name + '_' + sk.timeStampSharedKeyCreate === sharedKeyId);
+    const sharedKey = sharedKeys.find(sk => {
+      const localId = sk.name + '_' + sk.timeStampSharedKeyCreate;
+      return sk.hash === sharedKeyId || localId === sharedKeyId;
+    });
     if (!sharedKey) return;
 
     try {
-      let updatedSharedKeys;
-      
       if (sharedKey.isLocalOnly) {
-        // Simply delete local-only SharedKeys (transaction objects)
-        updatedSharedKeys = sharedKeys.filter(sk => sk !== sharedKey);
+        // Simply delete local-only SharedKeys
+        const updatedSharedKeys = sharedKeys.filter(sk => sk !== sharedKey);
+        setSharedKeys(updatedSharedKeys);
+        await StorageService.saveSharedKeys(updatedSharedKeys);
         
         Alert.alert('Deleted', `${sharedKey.name} has been removed.`);
       } else {
-        // SharedKey was saved on blockchain, need to handle revocation
+        // SharedKey is on blockchain, handle revocation
         const minTransactionAmount = 0.011;
-        const isWalletSynced = true; // Mock - replace with actual wallet sync status
+        const isWalletSynced = true;
+        let updatedSharedKeys;
         
         if (isWalletSynced && balance >= minTransactionAmount) {
           try {
-            // Submit revoke transaction to blockchain
             const revokeTxHash = await BlockchainService.revokeSharedKeyTransaction(sharedKey);
             console.log('Revoke transaction submitted:', revokeTxHash);
             
-            // Remove the SharedKey after successful revocation
             updatedSharedKeys = sharedKeys.filter(sk => sk !== sharedKey);
             
             Alert.alert(
-              'SharedKey Revoked', 
+              'Key Revoked', 
               `${sharedKey.name} has been removed and revoked on the blockchain.`
             );
           } catch (error) {
-            // If revoke transaction fails, mark as inQueue
             sharedKey.revokeInQueue = true;
             updatedSharedKeys = sharedKeys.map(sk => 
               sk === sharedKey ? sharedKey : sk
@@ -171,7 +172,6 @@ export default function HomeScreen() {
             );
           }
         } else {
-          // Insufficient balance or not synced, mark as inQueue
           sharedKey.revokeInQueue = true;
           updatedSharedKeys = sharedKeys.map(sk => 
             sk === sharedKey ? sharedKey : sk
@@ -182,11 +182,12 @@ export default function HomeScreen() {
             `${sharedKey.name} removal queued. Will be revoked when wallet syncs with sufficient balance (0.011 CCX required).`
           );
         }
+        
+        setSharedKeys(updatedSharedKeys);
+        await StorageService.saveSharedKeys(updatedSharedKeys);
       }
       
-      setSharedKeys(updatedSharedKeys);
-      await StorageService.saveSharedKeys(updatedSharedKeys);
-      
+      // Clear selection if deleted item was selected
       const selectedId = sharedKey.hash || sharedKey.name + '_' + sharedKey.timeStampSharedKeyCreate;
       if (selectedServiceId === selectedId) {
         setSelectedServiceId(null);
@@ -229,18 +230,18 @@ export default function HomeScreen() {
             {sharedKeys.filter(sk => !sk.revokeInQueue).map((sharedKey) => {
               const sharedKeyId = sharedKey.hash || sharedKey.name + '_' + sharedKey.timeStampSharedKeyCreate;
               return (
-              <ServiceCard
-                key={sharedKeyId}
-                sharedKey={sharedKey}
-                isSelected={selectedServiceId === sharedKeyId}
-                walletBalance={balance}
-                isWalletSynced={isWalletSynced}
-                onCopy={() => handleCopyCode(sharedKey.code, sharedKey.name)}
-                onDelete={() => handleDeleteSharedKey(sharedKeyId)}
-                onSelect={() => handleSelectSharedKey(sharedKeyId)}
-                onBroadcast={() => handleBroadcastToMyself(sharedKeyId)}
-                onSaveToBlockchain={() => handleSaveToBlockchain(sharedKeyId)}
-              />
+                <ServiceCard
+                  key={sharedKeyId}
+                  sharedKey={sharedKey}
+                  isSelected={selectedServiceId === sharedKeyId}
+                  walletBalance={balance}
+                  isWalletSynced={isWalletSynced}
+                  onCopy={() => handleCopyCode(sharedKey.code, sharedKey.name)}
+                  onDelete={() => handleDeleteSharedKey(sharedKeyId)}
+                  onSelect={() => handleSelectSharedKey(sharedKeyId)}
+                  onBroadcast={() => handleBroadcastToMyself(sharedKeyId)}
+                  onSaveToBlockchain={() => handleSaveToBlockchain(sharedKeyId)}
+                />
               );
             })}
           </View>
