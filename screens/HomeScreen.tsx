@@ -87,6 +87,7 @@ export default function HomeScreen() {
       
       return prevSharedKeys;
     });
+  };
 
   const handleAddService = async (serviceData: any) => {
     try {
@@ -236,7 +237,6 @@ export default function HomeScreen() {
       sk.extraStatus === 'ff02' && 
       sk.extraSharedKey !== ''
     );
-    console.log('Setting updated sharedKeys, count:', sharedKeys.length);
     
     if (hasMatchingRevokeTransaction) {
       console.log('Hidden: Has matching revoke transaction');
