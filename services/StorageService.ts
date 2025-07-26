@@ -9,6 +9,8 @@ interface Service {
   isLocalOnly: boolean;
   blockchainTxHash?: string;
   lastSyncAttempt?: number;
+  inQueue?: boolean;
+  revokeInQueue?: boolean;
 }
 
 export class StorageService {

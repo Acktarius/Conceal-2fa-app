@@ -17,6 +17,7 @@ import Header from '../components/Header';
 import FundingBanner from '../components/FundingBanner';
 import { TOTPService } from '../services/TOTPService';
 import { StorageService } from '../services/StorageService';
+import { BlockchainService } from '../services/BlockchainService';
 import { useWallet } from '../contexts/WalletContext';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -142,14 +143,69 @@ export default function HomeScreen() {
   };
 
   const handleDeleteService = async (serviceId: string) => {
+    const service = services.find(s => s.id === serviceId);
+    if (!service) return;
+
     try {
-      const updatedServices = services.filter(service => service.id !== serviceId);
+      let updatedServices;
+      
+      if (service.isLocalOnly) {
+        // Simply delete local-only services
+        updatedServices = services.filter(s => s.id !== serviceId);
+      } else {
+        // Service was saved on blockchain, need to handle revocation
+        const minTransactionAmount = 0.011;
+        const isWalletSynced = true; // Mock - replace with actual wallet sync status
+        
+        if (isWalletSynced && balance >= minTransactionAmount) {
+          try {
+            // Submit revoke transaction to blockchain
+            const revokeTxHash = await BlockchainService.revokeKeyTransaction(serviceId);
+            console.log('Revoke transaction submitted:', revokeTxHash);
+            
+            // Remove the service after successful revocation
+            updatedServices = services.filter(s => s.id !== serviceId);
+            
+            Alert.alert(
+              'Service Revoked', 
+              `${service.name} has been removed and revoked on the blockchain.`
+            );
+          } catch (error) {
+            // If revoke transaction fails, mark as inQueue
+            updatedServices = services.map(s => 
+              s.id === serviceId 
+                ? { ...s, revokeInQueue: true }
+                : s
+            );
+            
+            Alert.alert(
+              'Revoke Queued', 
+              `${service.name} removal queued. Will be revoked when wallet syncs with sufficient balance.`
+            );
+          }
+        } else {
+          // Insufficient balance or not synced, mark as inQueue
+          updatedServices = services.map(s => 
+            s.id === serviceId 
+              ? { ...s, revokeInQueue: true }
+              : s
+          );
+          
+          Alert.alert(
+            'Revoke Queued', 
+            `${service.name} removal queued. Will be revoked when wallet syncs with sufficient balance (0.011 CCX required).`
+          );
+        }
+      }
+      
       setServices(updatedServices);
       await StorageService.saveServices(updatedServices);
+      
       if (selectedServiceId === serviceId) {
         setSelectedServiceId(null);
       }
     } catch (error) {
+      console.error('Error deleting service:', error);
       Alert.alert('Error', 'Failed to delete service.');
     }
   };

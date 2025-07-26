@@ -19,6 +19,8 @@ interface Service {
   timeRemaining: number;
   isLocalOnly: boolean;
   blockchainTxHash?: string;
+  inQueue?: boolean;
+  revokeInQueue?: boolean;
 }
 
 interface ServiceCardProps {
@@ -47,9 +49,13 @@ export default function ServiceCard({
   const { theme } = useTheme();
   
   const handleDelete = () => {
+    const deleteMessage = service.revokeInQueue 
+      ? `${service.name} is queued for revocation. Delete anyway?`
+      : `Are you sure you want to remove ${service.name}?`;
+      
     Alert.alert(
       'Delete Service',
-      `Are you sure you want to remove ${service.name}?`,
+      deleteMessage,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Delete', style: 'destructive', onPress: onDelete },
@@ -78,7 +84,11 @@ export default function ServiceCard({
           <Text style={[styles.serviceName, { color: theme.colors.text }]}>{service.name}</Text>
           <View style={styles.issuerRow}>
             <Text style={[styles.issuer, { color: theme.colors.textSecondary }]}>{service.issuer}</Text>
-            {service.isLocalOnly ? (
+            {service.revokeInQueue ? (
+              <View style={[styles.queueBadge, { backgroundColor: theme.colors.error + '20' }]}>
+                <Text style={[styles.queueBadgeText, { color: theme.colors.error }]}>Revoke Queued</Text>
+              </View>
+            ) : service.isLocalOnly ? (
               <View style={[styles.localBadge, { backgroundColor: theme.colors.warning + '20' }]}>
                 <Text style={[styles.localBadgeText, { color: theme.colors.warning }]}>Local</Text>
               </View>
@@ -273,6 +283,16 @@ const createStyles = (theme: any) => StyleSheet.create({
     marginLeft: 8,
   },
   localBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  queueBadge: {
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 8,
+  },
+  queueBadgeText: {
     fontSize: 10,
     fontWeight: '600',
   },
