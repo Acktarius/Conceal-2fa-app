@@ -23,13 +23,27 @@ interface Service {
 
 interface ServiceCardProps {
   service: Service;
+  isSelected: boolean;
+  walletBalance: number;
+  isWalletSynced: boolean;
   onCopy: () => void;
   onDelete: () => void;
-  onSync?: () => void;
-  onShare?: () => void;
+  onSelect: () => void;
+  onBroadcast: () => void;
+  onSaveToBlockchain: () => void;
 }
 
-export default function ServiceCard({ service, onCopy, onDelete, onSync, onShare }: ServiceCardProps) {
+export default function ServiceCard({ 
+  service, 
+  isSelected, 
+  walletBalance, 
+  isWalletSynced, 
+  onCopy, 
+  onDelete, 
+  onSelect, 
+  onBroadcast, 
+  onSaveToBlockchain 
+}: ServiceCardProps) {
   const { theme } = useTheme();
   
   const handleDelete = () => {
@@ -45,10 +59,20 @@ export default function ServiceCard({ service, onCopy, onDelete, onSync, onShare
 
   const progressPercentage = (service.timeRemaining / 30) * 100;
   const isExpiringSoon = service.timeRemaining <= 10;
+  const minTransactionAmount = 0.011;
+  const canUseBlockchainFeatures = isWalletSynced && walletBalance >= minTransactionAmount;
   const styles = createStyles(theme);
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.card }]}>
+    <TouchableOpacity 
+      style={[
+        styles.container, 
+        { backgroundColor: theme.colors.card },
+        isSelected && { borderWidth: 2, borderColor: theme.colors.primary }
+      ]}
+      onPress={onSelect}
+      activeOpacity={0.9}
+    >
       <View style={styles.header}>
         <View style={styles.serviceInfo}>
           <Text style={[styles.serviceName, { color: theme.colors.text }]}>{service.name}</Text>
@@ -106,32 +130,61 @@ export default function ServiceCard({ service, onCopy, onDelete, onSync, onShare
         </Text>
       </View>
 
-      {!service.isLocalOnly && (
+      {isSelected && (
         <View style={styles.actions}>
           <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: theme.colors.primaryLight }]}
-            onPress={onShare}
-            activeOpacity={0.7}
+            style={[
+              styles.actionButton, 
+              { 
+                backgroundColor: canUseBlockchainFeatures ? theme.colors.primaryLight : theme.colors.border,
+                opacity: canUseBlockchainFeatures ? 1 : 0.5 
+              }
+            ]}
+            onPress={canUseBlockchainFeatures ? onBroadcast : undefined}
+            disabled={!canUseBlockchainFeatures}
+            activeOpacity={canUseBlockchainFeatures ? 0.7 : 1}
           >
-            <Ionicons name="share-outline" size={16} color={theme.colors.primary} />
-            <Text style={[styles.actionText, { color: theme.colors.primary }]}>Share (30s)</Text>
+            <Ionicons 
+              name="radio-outline" 
+              size={16} 
+              color={canUseBlockchainFeatures ? theme.colors.primary : theme.colors.textSecondary} 
+            />
+            <Text style={[
+              styles.actionText, 
+              { color: canUseBlockchainFeatures ? theme.colors.primary : theme.colors.textSecondary }
+            ]}>
+              Broadcast to myself
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[
+              styles.actionButton, 
+              { 
+                backgroundColor: canUseBlockchainFeatures ? theme.colors.primaryLight : theme.colors.border,
+                opacity: canUseBlockchainFeatures ? 1 : 0.5,
+                marginLeft: 8
+              }
+            ]}
+            onPress={canUseBlockchainFeatures ? onSaveToBlockchain : undefined}
+            disabled={!canUseBlockchainFeatures}
+            activeOpacity={canUseBlockchainFeatures ? 0.7 : 1}
+          >
+            <Ionicons 
+              name="link-outline" 
+              size={16} 
+              color={canUseBlockchainFeatures ? theme.colors.primary : theme.colors.textSecondary} 
+            />
+            <Text style={[
+              styles.actionText, 
+              { color: canUseBlockchainFeatures ? theme.colors.primary : theme.colors.textSecondary }
+            ]}>
+              Save on Blockchain
+            </Text>
           </TouchableOpacity>
         </View>
       )}
-
-      {service.isLocalOnly && onSync && (
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={[styles.syncButton, { backgroundColor: theme.colors.primaryLight }]}
-            onPress={onSync}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="cloud-upload-outline" size={16} color={theme.colors.primary} />
-            <Text style={[styles.syncText, { color: theme.colors.primary }]}>Sync to Blockchain</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-    </View>
+    </TouchableOpacity>
   );
 }
 

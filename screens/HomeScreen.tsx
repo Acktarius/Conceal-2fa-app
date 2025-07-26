@@ -35,6 +35,7 @@ export default function HomeScreen() {
   const [services, setServices] = useState<Service[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [currentTime, setCurrentTime] = useState(Date.now());
+  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const { balance, maxKeys } = useWallet();
   const { theme } = useTheme();
 
@@ -94,21 +95,28 @@ export default function HomeScreen() {
     }
   };
 
-  const handleSyncToBlockchain = async (serviceId: string) => {
+  const handleBroadcastToMyself = async (serviceId: string) => {
     const service = services.find(s => s.id === serviceId);
-    if (!service || !service.isLocalOnly) return;
-
-    if (balance < 0.0001) {
-      Alert.alert(
-        'Insufficient Balance',
-        `You need 0.0011 CCX to sync this key to the blockchain. Current balance: ${balance.toFixed(4)} CCX`,
-        [{ text: 'OK' }]
-      );
-      return;
-    }
+    if (!service) return;
 
     try {
-      // Simulate blockchain sync
+      // Simulate broadcasting to blockchain mempool with 30s TTL
+      Alert.alert(
+        'Code Broadcasted',
+        `${service.name} code (${service.code}) broadcasted to blockchain mempool for 30 seconds. Your other devices can now access it.`,
+        [{ text: 'OK' }]
+      );
+    } catch (error) {
+      Alert.alert('Error', 'Failed to broadcast code.');
+    }
+  };
+
+  const handleSaveToBlockchain = async (serviceId: string) => {
+    const service = services.find(s => s.id === serviceId);
+    if (!service) return;
+
+    try {
+      // Simulate saving to blockchain
       const updatedServices = services.map(s => 
         s.id === serviceId 
           ? { ...s, isLocalOnly: false, blockchainTxHash: 'mock_tx_hash_' + Date.now() }
@@ -118,24 +126,9 @@ export default function HomeScreen() {
       setServices(updatedServices);
       await StorageService.saveServices(updatedServices);
       
-      Alert.alert('Success', 'Key synced to blockchain successfully!');
+      Alert.alert('Success', `${service.name} key saved to blockchain successfully!`);
     } catch (error) {
-      Alert.alert('Error', 'Failed to sync key to blockchain.');
-    }
-  };
-
-  const handleShareCode = async (serviceId: string) => {
-    const service = services.find(s => s.id === serviceId);
-    if (!service || service.isLocalOnly) return;
-
-    try {
-      Alert.alert(
-        'Code Shared',
-        `${service.name} code shared to blockchain mempool for 30 seconds. Other devices with your wallet can now access it.`,
-        [{ text: 'OK' }]
-      );
-    } catch (error) {
-      Alert.alert('Error', 'Failed to share code.');
+      Alert.alert('Error', 'Failed to save key to blockchain.');
     }
   };
 
@@ -153,10 +146,20 @@ export default function HomeScreen() {
       const updatedServices = services.filter(service => service.id !== serviceId);
       setServices(updatedServices);
       await StorageService.saveServices(updatedServices);
+      if (selectedServiceId === serviceId) {
+        setSelectedServiceId(null);
+      }
     } catch (error) {
       Alert.alert('Error', 'Failed to delete service.');
     }
   };
+
+  const handleSelectService = (serviceId: string) => {
+    setSelectedServiceId(selectedServiceId === serviceId ? null : serviceId);
+  };
+
+  // Mock wallet sync status - in real app this would come from wallet context
+  const isWalletSynced = true;
 
   const styles = createStyles(theme);
 
@@ -184,10 +187,14 @@ export default function HomeScreen() {
               <ServiceCard
                 key={service.id}
                 service={service}
+                isSelected={selectedServiceId === service.id}
+                walletBalance={balance}
+                isWalletSynced={isWalletSynced}
                 onCopy={() => handleCopyCode(service.code, service.name)}
                 onDelete={() => handleDeleteService(service.id)}
-                onSync={service.isLocalOnly ? () => handleSyncToBlockchain(service.id) : undefined}
-                onShare={!service.isLocalOnly ? () => handleShareCode(service.id) : undefined}
+                onSelect={() => handleSelectService(service.id)}
+                onBroadcast={() => handleBroadcastToMyself(service.id)}
+                onSaveToBlockchain={() => handleSaveToBlockchain(service.id)}
               />
             ))}
           </View>
