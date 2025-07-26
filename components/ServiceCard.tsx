@@ -192,7 +192,6 @@ export default function ServiceCard({
                   { 
                     backgroundColor: canUseBlockchainFeatures ? theme.colors.primaryLight : theme.colors.border,
                     opacity: canUseBlockchainFeatures ? 1 : 0.5,
-                    marginLeft: 8
                   }
                 ]}
                 onPress={canUseBlockchainFeatures ? onSaveToBlockchain : undefined}
@@ -376,16 +375,18 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontWeight: '600',
   },
   actions: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 8,
+    flexDirection: 'column',
+    marginTop: 12,
+    paddingHorizontal: 4,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 6,
+    marginBottom: 6,
   },
   actionText: {
     fontSize: 12,
