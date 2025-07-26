@@ -1,48 +1,45 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
-
-interface Service {
-  id: string;
-  name: string;
-  issuer: string;
-  secret: string;
-  isLocalOnly: boolean;
-  blockchainTxHash?: string;
-  lastSyncAttempt?: number;
-  inQueue?: boolean;
-  revokeInQueue?: boolean;
-}
+import { SharedKey } from '../models/Transaction';
 
 export class StorageService {
-  private static readonly SERVICES_KEY = 'totp_services';
+  private static readonly SHARED_KEYS_KEY = 'shared_keys';
   private static readonly WALLET_KEY = 'wallet_data';
   private static readonly SETTINGS_KEY = 'app_settings';
 
-  static async saveServices(services: Service[]): Promise<void> {
+  static async saveSharedKeys(sharedKeys: SharedKey[]): Promise<void> {
     try {
-      const data = JSON.stringify(services);
+      const data = JSON.stringify(sharedKeys);
       if (Platform.OS === 'web') {
-        localStorage.setItem(this.SERVICES_KEY, data);
+        localStorage.setItem(this.SHARED_KEYS_KEY, data);
       } else {
-        await SecureStore.setItemAsync(this.SERVICES_KEY, data);
+        await SecureStore.setItemAsync(this.SHARED_KEYS_KEY, data);
       }
     } catch (error) {
-      console.error('Error saving services:', error);
-      throw new Error('Failed to save services');
+      console.error('Error saving shared keys:', error);
+      throw new Error('Failed to save shared keys');
     }
   }
 
-  static async getServices(): Promise<Service[]> {
+  static async getSharedKeys(): Promise<SharedKey[]> {
     try {
       let data: string | null;
       if (Platform.OS === 'web') {
-        data = localStorage.getItem(this.SERVICES_KEY);
+        data = localStorage.getItem(this.SHARED_KEYS_KEY);
       } else {
-        data = await SecureStore.getItemAsync(this.SERVICES_KEY);
+        data = await SecureStore.getItemAsync(this.SHARED_KEYS_KEY);
       }
-      return data ? JSON.parse(data) : [];
+      
+      if (!data) return [];
+      
+      const parsed = JSON.parse(data);
+      return parsed.map((item: any) => {
+        const sharedKey = new SharedKey();
+        Object.assign(sharedKey, item);
+        return sharedKey;
+      });
     } catch (error) {
-      console.error('Error loading services:', error);
+      console.error('Error loading shared keys:', error);
       return [];
     }
   }

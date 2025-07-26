@@ -10,21 +10,10 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '../contexts/ThemeContext';
-
-interface Service {
-  id: string;
-  name: string;
-  issuer: string;
-  code: string;
-  timeRemaining: number;
-  isLocalOnly: boolean;
-  blockchainTxHash?: string;
-  inQueue?: boolean;
-  revokeInQueue?: boolean;
-}
+import { SharedKey } from '../models/Transaction';
 
 interface ServiceCardProps {
-  service: Service;
+  sharedKey: SharedKey;
   isSelected: boolean;
   walletBalance: number;
   isWalletSynced: boolean;
@@ -36,7 +25,7 @@ interface ServiceCardProps {
 }
 
 export default function ServiceCard({ 
-  service, 
+  sharedKey, 
   isSelected, 
   walletBalance, 
   isWalletSynced, 
@@ -49,9 +38,9 @@ export default function ServiceCard({
   const { theme } = useTheme();
   
   const handleDelete = () => {
-    const deleteMessage = service.revokeInQueue 
-      ? `${service.name} is queued for revocation. Delete anyway?`
-      : `Are you sure you want to remove ${service.name}?`;
+    const deleteMessage = sharedKey.revokeInQueue 
+      ? `${sharedKey.name} is queued for revocation. Delete anyway?`
+      : `Are you sure you want to remove ${sharedKey.name}?`;
       
     Alert.alert(
       'Delete Service',
@@ -63,8 +52,8 @@ export default function ServiceCard({
     );
   };
 
-  const progressPercentage = (service.timeRemaining / 30) * 100;
-  const isExpiringSoon = service.timeRemaining <= 10;
+  const progressPercentage = (sharedKey.timeRemaining / 30) * 100;
+  const isExpiringSoon = sharedKey.timeRemaining <= 10;
   const minTransactionAmount = 0.011;
   const canUseBlockchainFeatures = isWalletSynced && walletBalance >= minTransactionAmount;
   const styles = createStyles(theme);
@@ -81,10 +70,10 @@ export default function ServiceCard({
     >
       <View style={styles.header}>
         <View style={styles.serviceInfo}>
-          <Text style={[styles.serviceName, { color: theme.colors.text }]}>{service.name}</Text>
+          <Text style={[styles.serviceName, { color: theme.colors.text }]}>{sharedKey.name}</Text>
           <View style={styles.issuerRow}>
-            <Text style={[styles.issuer, { color: theme.colors.textSecondary }]}>{service.issuer}</Text>
-            {service.isLocalOnly ? (
+            <Text style={[styles.issuer, { color: theme.colors.textSecondary }]}>{sharedKey.issuer}</Text>
+            {sharedKey.isLocalOnly && (
               <View style={[styles.localBadge, { backgroundColor: theme.colors.warning + '20' }]}>
                 <Text style={[styles.localBadgeText, { color: theme.colors.warning }]}>Local</Text>
               </View>
@@ -106,7 +95,7 @@ export default function ServiceCard({
         activeOpacity={0.8}
       >
         <Text style={[styles.code, { color: theme.colors.text }, isExpiringSoon && { color: theme.colors.error }]}>
-          {service.code.slice(0, 3)} {service.code.slice(3)}
+          {sharedKey.code.slice(0, 3)} {sharedKey.code.slice(3)}
         </Text>
         <View style={styles.copyIcon}>
           <Ionicons name="copy-outline" size={20} color={theme.colors.textSecondary} />
@@ -128,7 +117,7 @@ export default function ServiceCard({
           </View>
         </View>
         <Text style={[styles.timeRemaining, { color: theme.colors.textSecondary }, isExpiringSoon && { color: theme.colors.error }]}>
-          {service.timeRemaining}s
+          {sharedKey.timeRemaining}s
         </Text>
       </View>
 

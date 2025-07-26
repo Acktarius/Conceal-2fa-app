@@ -1,3 +1,5 @@
+import { SharedKey } from '../models/Transaction';
+
 interface Transaction {
   type: 'create' | 'revoke' | 'share';
   serviceId: string;
@@ -39,6 +41,54 @@ export class BlockchainService {
     }
   }
 
+  static async createSharedKeyTransaction(sharedKey: SharedKey): Promise<string> {
+    try {
+      const transaction: Transaction = {
+        type: 'create',
+        serviceId: sharedKey.name + '_' + Date.now(),
+        encryptedKey: this.encryptData(sharedKey.secret, 'wallet_key'), // Use wallet key for encryption
+        amount: 0.0001, // 0.0001 CCX
+        paymentId: this.generatePaymentId(sharedKey.name),
+      };
+
+      const txHash = await this.submitTransaction(transaction);
+      console.log('SharedKey creation transaction submitted:', txHash);
+      
+      // Update the SharedKey with blockchain data
+      sharedKey.hash = txHash;
+      sharedKey.isLocalOnly = false;
+      sharedKey.sharedKeySaved = true;
+      sharedKey.timestamp = Date.now();
+      sharedKey.extraType = sharedKey.getExtraData();
+      
+      return txHash;
+    } catch (error) {
+      console.error('Error creating SharedKey transaction:', error);
+      throw new Error('Failed to create blockchain transaction');
+    }
+  }
+
+  static async revokeSharedKeyTransaction(sharedKey: SharedKey): Promise<string> {
+    try {
+      const transaction: Transaction = {
+        type: 'revoke',
+        serviceId: sharedKey.hash, // Use original tx hash as reference
+        amount: 0.0001, // 0.0001 CCX
+        paymentId: this.generatePaymentId(sharedKey.hash),
+      };
+
+      const txHash = await this.submitTransaction(transaction);
+      console.log('SharedKey revocation transaction submitted:', txHash);
+      
+      // Update timestamps
+      sharedKey.timeStampSharedKeyRevoke = Date.now();
+      
+      return txHash;
+    } catch (error) {
+      console.error('Error revoking SharedKey transaction:', error);
+      throw new Error('Failed to revoke key on blockchain');
+    }
+  }
   static async revokeKeyTransaction(serviceId: string): Promise<string> {
     try {
       const transaction: Transaction = {

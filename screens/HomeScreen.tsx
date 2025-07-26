@@ -18,22 +18,12 @@ import FundingBanner from '../components/FundingBanner';
 import { TOTPService } from '../services/TOTPService';
 import { StorageService } from '../services/StorageService';
 import { BlockchainService } from '../services/BlockchainService';
+import { SharedKey } from '../models/Transaction';
 import { useWallet } from '../contexts/WalletContext';
 import { useTheme } from '../contexts/ThemeContext';
 
-interface Service {
-  id: string;
-  name: string;
-  issuer: string;
-  secret: string;
-  code: string;
-  timeRemaining: number;
-  isLocalOnly: boolean;
-  blockchainTxHash?: string;
-}
-
 export default function HomeScreen() {
-  const [services, setServices] = useState<Service[]>([]);
+  const [sharedKeys, setSharedKeys] = useState<SharedKey[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [currentTime, setCurrentTime] = useState(Date.now());
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
@@ -41,7 +31,7 @@ export default function HomeScreen() {
   const { theme } = useTheme();
 
   useEffect(() => {
-    loadServices();
+    loadSharedKeys();
     
     const interval = setInterval(() => {
       setCurrentTime(Date.now());
@@ -51,24 +41,24 @@ export default function HomeScreen() {
     return () => clearInterval(interval);
   }, []);
 
-  const loadServices = async () => {
+  const loadSharedKeys = async () => {
     try {
-      const savedServices = await StorageService.getServices();
-      setServices(savedServices.map(service => ({
-        ...service,
-        code: TOTPService.generateTOTP(service.secret),
+      const savedSharedKeys = await StorageService.getSharedKeys();
+      setSharedKeys(savedSharedKeys.map(sharedKey => ({
+        ...sharedKey,
+        code: TOTPService.generateTOTP(sharedKey.secret),
         timeRemaining: TOTPService.getTimeRemaining(),
       })));
     } catch (error) {
-      console.error('Error loading services:', error);
+      console.error('Error loading shared keys:', error);
     }
   };
 
   const updateCodes = () => {
-    setServices(prevServices => 
-      prevServices.map(service => ({
-        ...service,
-        code: TOTPService.generateTOTP(service.secret),
+    setSharedKeys(prevSharedKeys => 
+      prevSharedKeys.map(sharedKey => ({
+        ...sharedKey,
+        code: TOTPService.generateTOTP(sharedKey.secret),
         timeRemaining: TOTPService.getTimeRemaining(),
       }))
     );
@@ -76,18 +66,14 @@ export default function HomeScreen() {
 
   const handleAddService = async (serviceData: { name: string; issuer: string; secret: string }) => {
     try {
-      const newService = {
-        id: Date.now().toString(),
-        ...serviceData,
-        code: TOTPService.generateTOTP(serviceData.secret),
-        timeRemaining: TOTPService.getTimeRemaining(),
-        isLocalOnly: true, // Always start as local-only
-      };
+      const newSharedKey = SharedKey.fromService(serviceData);
+      newSharedKey.code = TOTPService.generateTOTP(serviceData.secret);
+      newSharedKey.timeRemaining = TOTPService.getTimeRemaining();
 
-      const updatedServices = [...services, newService];
-      setServices(updatedServices);
+      const updatedSharedKeys = [...sharedKeys, newSharedKey];
+      setSharedKeys(updatedSharedKeys);
       
-      await StorageService.saveServices(updatedServices);
+      await StorageService.saveSharedKeys(updatedSharedKeys);
       setShowAddModal(false);
       
       Alert.alert('Success', 'Service added locally! Sync to blockchain when you have CCX balance.');
@@ -96,15 +82,15 @@ export default function HomeScreen() {
     }
   };
 
-  const handleBroadcastToMyself = async (serviceId: string) => {
-    const service = services.find(s => s.id === serviceId);
-    if (!service) return;
+  const handleBroadcastToMyself = async (sharedKeyHash: string) => {
+    const sharedKey = sharedKeys.find(sk => sk.hash === sharedKeyHash || sk.name + '_' + sk.timeStampSharedKeyCreate === sharedKeyHash);
+    if (!sharedKey) return;
 
     try {
       // Simulate broadcasting to blockchain mempool with 30s TTL
       Alert.alert(
         'Code Broadcasted',
-        `${service.name} code (${service.code}) broadcasted to blockchain mempool for 30 seconds. Your other devices can now access it.`,
+        `${sharedKey.name} code (${sharedKey.code}) broadcasted to blockchain mempool for 30 seconds. Your other devices can now access it.`,
         [{ text: 'OK' }]
       );
     } catch (error) {
@@ -112,106 +98,107 @@ export default function HomeScreen() {
     }
   };
 
-  const handleSaveToBlockchain = async (serviceId: string) => {
-    const service = services.find(s => s.id === serviceId);
-    if (!service) return;
+  const handleSaveToBlockchain = async (sharedKeyId: string) => {
+    const sharedKey = sharedKeys.find(sk => sk.hash === sharedKeyId || sk.name + '_' + sk.timeStampSharedKeyCreate === sharedKeyId);
+    if (!sharedKey) return;
 
     try {
-      // Simulate saving to blockchain
-      const updatedServices = services.map(s => 
-        s.id === serviceId 
-          ? { ...s, isLocalOnly: false, blockchainTxHash: 'mock_tx_hash_' + Date.now() }
-          : s
+      // Create blockchain transaction
+      const txHash = await BlockchainService.createSharedKeyTransaction(sharedKey);
+      
+      const updatedSharedKeys = sharedKeys.map(sk => 
+        sk === sharedKey ? sharedKey : sk
       );
       
-      setServices(updatedServices);
-      await StorageService.saveServices(updatedServices);
+      setSharedKeys(updatedSharedKeys);
+      await StorageService.saveSharedKeys(updatedSharedKeys);
       
-      Alert.alert('Success', `${service.name} key saved to blockchain successfully!`);
+      Alert.alert('Success', `${sharedKey.name} key saved to blockchain successfully!`);
     } catch (error) {
       Alert.alert('Error', 'Failed to save key to blockchain.');
     }
   };
 
-  const handleCopyCode = async (code: string, serviceName: string) => {
+  const handleCopyCode = async (code: string, sharedKeyName: string) => {
     try {
       await Clipboard.setStringAsync(code);
-      Alert.alert('Copied', `${serviceName} code copied to clipboard!`);
+      Alert.alert('Copied', `${sharedKeyName} code copied to clipboard!`);
     } catch (error) {
       Alert.alert('Error', 'Failed to copy code to clipboard.');
     }
   };
 
-  const handleDeleteService = async (serviceId: string) => {
-    const service = services.find(s => s.id === serviceId);
-    if (!service) return;
+  const handleDeleteSharedKey = async (sharedKeyId: string) => {
+    const sharedKey = sharedKeys.find(sk => sk.hash === sharedKeyId || sk.name + '_' + sk.timeStampSharedKeyCreate === sharedKeyId);
+    if (!sharedKey) return;
 
     try {
-      let updatedServices;
+      let updatedSharedKeys;
       
-      if (service.isLocalOnly) {
-        // Simply delete local-only services
-        updatedServices = services.filter(s => s.id !== serviceId);
+      if (sharedKey.isLocalOnly) {
+        // Simply delete local-only SharedKeys (transaction objects)
+        updatedSharedKeys = sharedKeys.filter(sk => sk !== sharedKey);
+        
+        Alert.alert('Deleted', `${sharedKey.name} has been removed.`);
       } else {
-        // Service was saved on blockchain, need to handle revocation
+        // SharedKey was saved on blockchain, need to handle revocation
         const minTransactionAmount = 0.011;
         const isWalletSynced = true; // Mock - replace with actual wallet sync status
         
         if (isWalletSynced && balance >= minTransactionAmount) {
           try {
             // Submit revoke transaction to blockchain
-            const revokeTxHash = await BlockchainService.revokeKeyTransaction(serviceId);
+            const revokeTxHash = await BlockchainService.revokeSharedKeyTransaction(sharedKey);
             console.log('Revoke transaction submitted:', revokeTxHash);
             
-            // Remove the service after successful revocation
-            updatedServices = services.filter(s => s.id !== serviceId);
+            // Remove the SharedKey after successful revocation
+            updatedSharedKeys = sharedKeys.filter(sk => sk !== sharedKey);
             
             Alert.alert(
-              'Service Revoked', 
-              `${service.name} has been removed and revoked on the blockchain.`
+              'SharedKey Revoked', 
+              `${sharedKey.name} has been removed and revoked on the blockchain.`
             );
           } catch (error) {
             // If revoke transaction fails, mark as inQueue
-            updatedServices = services.map(s => 
-              s.id === serviceId 
-                ? { ...s, revokeInQueue: true }
-                : s
+            sharedKey.revokeInQueue = true;
+            updatedSharedKeys = sharedKeys.map(sk => 
+              sk === sharedKey ? sharedKey : sk
             );
             
             Alert.alert(
               'Revoke Queued', 
-              `${service.name} removal queued. Will be revoked when wallet syncs with sufficient balance.`
+              `${sharedKey.name} removal queued. Will be revoked when wallet syncs with sufficient balance.`
             );
           }
         } else {
           // Insufficient balance or not synced, mark as inQueue
-          updatedServices = services.map(s => 
-            s.id === serviceId 
-              ? { ...s, revokeInQueue: true }
-              : s
+          sharedKey.revokeInQueue = true;
+          updatedSharedKeys = sharedKeys.map(sk => 
+            sk === sharedKey ? sharedKey : sk
           );
           
           Alert.alert(
             'Revoke Queued', 
-            `${service.name} removal queued. Will be revoked when wallet syncs with sufficient balance (0.011 CCX required).`
+            `${sharedKey.name} removal queued. Will be revoked when wallet syncs with sufficient balance (0.011 CCX required).`
           );
         }
       }
       
-      setServices(updatedServices);
-      await StorageService.saveServices(updatedServices);
+      setSharedKeys(updatedSharedKeys);
+      await StorageService.saveSharedKeys(updatedSharedKeys);
       
-      if (selectedServiceId === serviceId) {
+      const selectedId = sharedKey.hash || sharedKey.name + '_' + sharedKey.timeStampSharedKeyCreate;
+      if (selectedServiceId === selectedId) {
         setSelectedServiceId(null);
       }
     } catch (error) {
-      console.error('Error deleting service:', error);
-      Alert.alert('Error', 'Failed to delete service.');
+      console.error('Error deleting SharedKey:', error);
+      Alert.alert('Error', 'Failed to delete SharedKey.');
     }
   };
 
-  const handleSelectService = (serviceId: string) => {
-    setSelectedServiceId(selectedServiceId === serviceId ? null : serviceId);
+  const handleSelectSharedKey = (sharedKeyId: string) => {
+    setSelectedServiceId(selectedServiceId === sharedKeyId ? null : sharedKeyId);
   };
 
   // Mock wallet sync status - in real app this would come from wallet context
@@ -229,7 +216,7 @@ export default function HomeScreen() {
           onPress={() => {/* Navigate to wallet tab or show funding info */}}
         />
 
-        {services.length === 0 ? (
+        {sharedKeys.filter(sk => !sk.revokeInQueue).length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="shield-checkmark-outline" size={64} color={theme.colors.textSecondary} />
             <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No Services Added</Text>
@@ -239,20 +226,23 @@ export default function HomeScreen() {
           </View>
         ) : (
           <View style={styles.servicesList}>
-            {services.filter(service => !service.revokeInQueue).map((service) => (
+            {sharedKeys.filter(sk => !sk.revokeInQueue).map((sharedKey) => {
+              const sharedKeyId = sharedKey.hash || sharedKey.name + '_' + sharedKey.timeStampSharedKeyCreate;
+              return (
               <ServiceCard
-                key={service.id}
-                service={service}
-                isSelected={selectedServiceId === service.id}
+                key={sharedKeyId}
+                sharedKey={sharedKey}
+                isSelected={selectedServiceId === sharedKeyId}
                 walletBalance={balance}
                 isWalletSynced={isWalletSynced}
-                onCopy={() => handleCopyCode(service.code, service.name)}
-                onDelete={() => handleDeleteService(service.id)}
-                onSelect={() => handleSelectService(service.id)}
-                onBroadcast={() => handleBroadcastToMyself(service.id)}
-                onSaveToBlockchain={() => handleSaveToBlockchain(service.id)}
+                onCopy={() => handleCopyCode(sharedKey.code, sharedKey.name)}
+                onDelete={() => handleDeleteSharedKey(sharedKeyId)}
+                onSelect={() => handleSelectSharedKey(sharedKeyId)}
+                onBroadcast={() => handleBroadcastToMyself(sharedKeyId)}
+                onSaveToBlockchain={() => handleSaveToBlockchain(sharedKeyId)}
               />
-            ))}
+              );
+            })}
           </View>
         )}
       </ScrollView>
