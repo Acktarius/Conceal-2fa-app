@@ -44,8 +44,10 @@ export default function HomeScreen() {
   const loadSharedKeys = async () => {
     try {
       const savedSharedKeys = await StorageService.getSharedKeys();
-      const sharedKeysWithCodes = await Promise.all(savedSharedKeys.map(async sharedKey => {
-        // Preserve the SharedKey instance and update properties directly
+      const sharedKeysWithCodes = await Promise.all(savedSharedKeys.map(async savedKey => {
+        // Create proper SharedKey instance
+        const sharedKey = new SharedKey();
+        Object.assign(sharedKey, savedKey);
         sharedKey.code = await TOTPService.generateTOTP(sharedKey.secret);
         sharedKey.timeRemaining = TOTPService.getTimeRemaining();
         return sharedKey;
@@ -59,28 +61,32 @@ export default function HomeScreen() {
   const updateCodes = async () => {
     console.log('updateCodes called, current sharedKeys count:', sharedKeys.length);
     setSharedKeys(prevSharedKeys => {
-      const updatePromises = prevSharedKeys.map(async sharedKey => {
-        // Update code and time remaining directly on the existing object
+      Promise.all(prevSharedKeys.map(async sharedKey => {
+        console.log('Updating SharedKey:', {
+          name: sharedKey.name,
+          hash: sharedKey.hash,
+          isLocal: sharedKey.isLocalOnly(),
+          revokeInQueue: sharedKey.revokeInQueue
+        });
+        
         const updatedCode = await TOTPService.generateTOTP(sharedKey.secret);
         const updatedTimeRemaining = TOTPService.getTimeRemaining();
         
-        // Return a new object with all existing properties plus updated values
-        return {
-          ...sharedKey,
+        // Create new SharedKey instance with all properties preserved
+        const updatedSharedKey = new SharedKey();
+        Object.assign(updatedSharedKey, sharedKey, {
           code: updatedCode,
           timeRemaining: updatedTimeRemaining
-        };
-      });
-      
-      // Handle the async operations
-      Promise.all(updatePromises).then(updatedSharedKeys => {
+        });
+        
+        return updatedSharedKey;
+      })).then(updatedSharedKeys => {
+        console.log('Setting updated sharedKeys, count:', updatedSharedKeys.length);
         setSharedKeys(updatedSharedKeys);
       });
       
-      // Return current state while async operations complete
       return prevSharedKeys;
     });
-  };
 
   const handleAddService = async (serviceData: any) => {
     try {
