@@ -363,11 +363,5 @@ const createStyles = (theme: any) => StyleSheet.create({
     ...(Platform.OS === 'web' && {
       transition: 'all 0.2s ease-in-out',
     }),
-    ...(Platform.OS === 'web' && theme.isDark && {
-      ':hover': {
-        boxShadow: '0 0 20px rgba(255, 165, 0, 0.6), 0 0 40px rgba(255, 165, 0, 0.4)',
-        transform: 'scale(1.05)',
-      },
-    }),
   },
 });
