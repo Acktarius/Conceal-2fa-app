@@ -44,37 +44,38 @@ export default function HomeScreen() {
   const loadSharedKeys = async () => {
     try {
       const savedSharedKeys = await StorageService.getSharedKeys();
-      const sharedKeysWithCodes = savedSharedKeys.map(sharedKey => {
+      const sharedKeysWithCodes = await Promise.all(savedSharedKeys.map(async sharedKey => {
         // Preserve the SharedKey instance and update properties directly
-        sharedKey.code = TOTPService.generateTOTP(sharedKey.secret);
+        sharedKey.code = await TOTPService.generateTOTP(sharedKey.secret);
         sharedKey.timeRemaining = TOTPService.getTimeRemaining();
         return sharedKey;
-      });
+      }));
       setSharedKeys(sharedKeysWithCodes);
     } catch (error) {
       console.error('Error loading shared keys:', error);
     }
   };
 
-  const updateCodes = () => {
-    setSharedKeys(prevSharedKeys => 
-      prevSharedKeys.map(sharedKey => {
+  const updateCodes = async () => {
+    const updatedSharedKeys = await Promise.all(
+      sharedKeys.map(async sharedKey => {
         // Create new SharedKey instance to preserve class methods
         const newSharedKey = new SharedKey();
         // Copy all properties from the previous SharedKey
         Object.assign(newSharedKey, sharedKey);
         // Update the code and time remaining
-        newSharedKey.code = TOTPService.generateTOTP(sharedKey.secret);
+        newSharedKey.code = await TOTPService.generateTOTP(sharedKey.secret);
         newSharedKey.timeRemaining = TOTPService.getTimeRemaining();
         return newSharedKey;
       })
     );
+    setSharedKeys(updatedSharedKeys);
   };
 
   const handleAddService = async (serviceData: { name: string; issuer: string; secret: string }) => {
     try {
       const newSharedKey = SharedKey.fromService(serviceData);
-      newSharedKey.code = TOTPService.generateTOTP(serviceData.secret);
+      newSharedKey.code = await TOTPService.generateTOTP(serviceData.secret);
       newSharedKey.timeRemaining = TOTPService.getTimeRemaining();
 
       const updatedSharedKeys = [...sharedKeys, newSharedKey];
