@@ -84,18 +84,10 @@ export default function ServiceCard({
           <Text style={[styles.serviceName, { color: theme.colors.text }]}>{service.name}</Text>
           <View style={styles.issuerRow}>
             <Text style={[styles.issuer, { color: theme.colors.textSecondary }]}>{service.issuer}</Text>
-            {service.revokeInQueue ? (
-              <View style={[styles.queueBadge, { backgroundColor: theme.colors.error + '20' }]}>
-                <Text style={[styles.queueBadgeText, { color: theme.colors.error }]}>Revoke Queued</Text>
-              </View>
-            ) : service.isLocalOnly ? (
+            {service.isLocalOnly ? (
               <View style={[styles.localBadge, { backgroundColor: theme.colors.warning + '20' }]}>
                 <Text style={[styles.localBadgeText, { color: theme.colors.warning }]}>Local</Text>
               </View>
-            ) : (
-             <View style={[styles.syncedIcon, { backgroundColor: theme.colors.success + '20' }]}>
-               <Ionicons name="library-outline" size={14} color={theme.colors.success} />
-             </View>
             )}
           </View>
         </View>
@@ -295,13 +287,6 @@ const createStyles = (theme: any) => StyleSheet.create({
   queueBadgeText: {
     fontSize: 10,
     fontWeight: '600',
-  },
-  syncedIcon: {
-    borderRadius: 8,
-    padding: 4,
-    marginLeft: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   actions: {
     flexDirection: 'row',

@@ -239,7 +239,7 @@ export default function HomeScreen() {
           </View>
         ) : (
           <View style={styles.servicesList}>
-            {services.map((service) => (
+            {services.filter(service => !service.revokeInQueue).map((service) => (
               <ServiceCard
                 key={service.id}
                 service={service}
