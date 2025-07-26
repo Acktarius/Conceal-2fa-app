@@ -57,24 +57,29 @@ export default function HomeScreen() {
   };
 
   const updateCodes = async () => {
-    const updatedSharedKeys = await Promise.all(
-      sharedKeys.map(async sharedKey => {
-        // Create new SharedKey instance to preserve class methods
-        const newSharedKey = new SharedKey();
-        // Copy all properties from the previous SharedKey
-        Object.assign(newSharedKey, sharedKey);
-        // Update the code and time remaining
-        newSharedKey.code = await TOTPService.generateTOTP(sharedKey.secret);
-        newSharedKey.timeRemaining = TOTPService.getTimeRemaining();
-        return newSharedKey;
-      })
-    );
-    setSharedKeys(updatedSharedKeys);
-  };
-
-  const handleAddService = async (serviceData: { name: string; issuer: string; secret: string }) => {
-    try {
-      const newSharedKey = SharedKey.fromService(serviceData);
+    console.log('updateCodes called, current sharedKeys count:', sharedKeys.length);
+    setSharedKeys(prevSharedKeys => {
+      const updatePromises = prevSharedKeys.map(async sharedKey => {
+        // Update code and time remaining directly on the existing object
+        const updatedCode = await TOTPService.generateTOTP(sharedKey.secret);
+        const updatedTimeRemaining = TOTPService.getTimeRemaining();
+        
+        // Return a new object with all existing properties plus updated values
+        return {
+          ...sharedKey,
+          code: updatedCode,
+          timeRemaining: updatedTimeRemaining
+        };
+      });
+      
+      // Handle the async operations
+      Promise.all(updatePromises).then(updatedSharedKeys => {
+        setSharedKeys(updatedSharedKeys);
+      });
+      
+      // Return current state while async operations complete
+      return prevSharedKeys;
+    });
       newSharedKey.code = await TOTPService.generateTOTP(serviceData.secret);
       newSharedKey.timeRemaining = TOTPService.getTimeRemaining();
       
@@ -206,16 +211,35 @@ export default function HomeScreen() {
     
     // 4. extraStatus = ff02 (revoke transactions) -> Never display
     if (!sharedKey.isLocalOnly() && sharedKey.extraStatus === 'ff02') {
-      console.log('Hidden: Revoke transaction (ff02)');
-      return false;
-    }
-    
-    // 4. Check if there's a revoke transaction (ff02) that matches this key's extraSharedKey
-    const hasMatchingRevokeTransaction = sharedKeys.some(sk => 
-      sk.extraStatus === 'ff02' && 
-      sk.extraSharedKey === sharedKey.extraSharedKey &&
+        console.log('Updating SharedKey:', {
+          name: sharedKey.name,
+          hash: sharedKey.hash,
+          isLocal: sharedKey.isLocalOnly(),
+          revokeInQueue: sharedKey.revokeInQueue
+        });
+        
+        // Update code and time remaining
+        const updatedCode = await TOTPService.generateTOTP(sharedKey.secret);
+        const updatedTimeRemaining = TOTPService.getTimeRemaining();
+        
+        // Create new SharedKey with all existing properties preserved
+        const updatedSharedKey = Object.create(Object.getPrototypeOf(sharedKey));
+        Object.assign(updatedSharedKey, sharedKey, {
+          code: updatedCode,
+          timeRemaining: updatedTimeRemaining
+        });
+        
+        console.log('Updated SharedKey:', {
+          name: updatedSharedKey.name,
+          hash: updatedSharedKey.hash,
+          isLocal: updatedSharedKey.isLocalOnly(),
+          revokeInQueue: updatedSharedKey.revokeInQueue
+        });
+        
+        return updatedSharedKey;
       sk.extraSharedKey !== ''
     );
+    console.log('Setting updated sharedKeys, count:', updatedSharedKeys.length);
     
     if (hasMatchingRevokeTransaction) {
       console.log('Hidden: Has matching revoke transaction');
