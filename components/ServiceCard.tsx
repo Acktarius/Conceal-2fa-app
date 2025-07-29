@@ -120,7 +120,9 @@ export default function ServiceCard({
         >
           <View style={styles.header}>
             <View style={styles.serviceInfo}>
-              <Text style={[styles.serviceName, { color: theme.colors.text }]}>{sharedKey.name}</Text>
+              <Text style={[styles.serviceName, { color: theme.colors.text }]} numberOfLines={1}>
+                {sharedKey.name}
+              </Text>
               <View style={styles.issuerRow}>
                 <Text style={[styles.issuer, { color: theme.colors.textSecondary }]}>{sharedKey.issuer}</Text>
                 {sharedKey.isLocalOnly() && (
