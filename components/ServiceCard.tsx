@@ -120,6 +120,9 @@ export default function ServiceCard({
         >
           <View style={styles.header}>
             <View style={styles.serviceInfo}>
+             <Text style={[styles.serviceName, { color: theme.colors.text }]} numberOfLines={1}>
+               {sharedKey.name}
+             </Text>
               <Text style={[styles.serviceName, { color: theme.colors.text }]} numberOfLines={1}>
                 {sharedKey.name}
               </Text>
