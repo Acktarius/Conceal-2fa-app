@@ -151,7 +151,7 @@ export default function ServiceCard({
                     styles.progressBar,
                     {
                       width: `${progressPercentage}%`,
-                      backgroundColor: theme.colors.success,
+                      backgroundColor: '#3B82F6',
                       opacity: codeOpacity,
                     },
                   ]}
