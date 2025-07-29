@@ -75,6 +75,8 @@ export default function ServiceCard({
   // Calculate opacity based on time remaining (100% to 70%)
   const codeOpacity = 0.7 + (sharedKey.timeRemaining / 30) * 0.3;
   
+  const isExpiringSoon = sharedKey.timeRemaining <= 10;
+  
   const minTransactionAmount = 0.011;
   const canUseBlockchainFeatures = isWalletSynced && walletBalance >= minTransactionAmount;
   const styles = createStyles(theme);
