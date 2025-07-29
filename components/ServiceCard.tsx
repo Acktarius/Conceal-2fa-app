@@ -71,7 +71,10 @@ export default function ServiceCard({
   };
 
   const progressPercentage = (sharedKey.timeRemaining / 30) * 100;
-  const isExpiringSoon = sharedKey.timeRemaining <= 10;
+  
+  // Calculate opacity based on time remaining (100% to 70%)
+  const codeOpacity = 0.7 + (sharedKey.timeRemaining / 30) * 0.3;
+  
   const minTransactionAmount = 0.011;
   const canUseBlockchainFeatures = isWalletSynced && walletBalance >= minTransactionAmount;
   const styles = createStyles(theme);
@@ -132,7 +135,7 @@ export default function ServiceCard({
             onPress={onCopy}
             activeOpacity={0.8}
           >
-            <Text style={[styles.code, { color: theme.colors.text }, isExpiringSoon && { color: theme.colors.error }]}>
+            <Text style={[styles.code, { color: '#3B82F6', opacity: codeOpacity }]}>
               {sharedKey.code.slice(0, 3)} {sharedKey.code.slice(3)}
             </Text>
             <View style={styles.copyIcon}>
