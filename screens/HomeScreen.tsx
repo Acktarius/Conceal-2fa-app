@@ -21,6 +21,7 @@ import { BlockchainService } from '../services/BlockchainService';
 import { SharedKey } from '../models/Transaction';
 import { useWallet } from '../contexts/WalletContext';
 import { useTheme } from '../contexts/ThemeContext';
+import GestureNavigator from '../components/GestureNavigator';
 
 export default function HomeScreen() {
   const [sharedKeys, setSharedKeys] = useState<SharedKey[]>([]);
@@ -260,60 +261,62 @@ export default function HomeScreen() {
   const styles = createStyles(theme);
 
   return (
-    <View style={styles.container}>
-      <Header title="Authenticator" />
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <FundingBanner 
-          balance={balance}
-          maxKeys={maxKeys}
-          onPress={() => {/* Navigate to wallet tab or show funding info */}}
+    <GestureNavigator>
+      <View style={styles.container}>
+        <Header title="Authenticator" />
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          <FundingBanner 
+            balance={balance}
+            maxKeys={maxKeys}
+            onPress={() => {/* Navigate to wallet tab or show funding info */}}
+          />
+
+          {sharedKeys.filter(shouldDisplaySharedKey).length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="shield-checkmark-outline" size={64} color={theme.colors.textSecondary} />
+              <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No Services Added</Text>
+              <Text style={[styles.emptyDescription, { color: theme.colors.textSecondary }]}>
+                Add your first 2FA service by tapping the + button below. Keys are stored locally first.
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.servicesList}>
+              {sharedKeys.filter(shouldDisplaySharedKey).map((sharedKey) => {
+                const sharedKeyId = sharedKey.hash || sharedKey.name + '_' + sharedKey.timeStampSharedKeyCreate;
+                return (
+                  <ServiceCard
+                    key={sharedKeyId}
+                    sharedKey={sharedKey}
+                    isSelected={selectedServiceId === sharedKeyId}
+                    walletBalance={balance}
+                    isWalletSynced={isWalletSynced}
+                    onCopy={() => handleCopyCode(sharedKey.code, sharedKey.name)}
+                    onDelete={() => handleDeleteSharedKey(sharedKeyId)}
+                    onSelect={() => handleSelectSharedKey(sharedKeyId)}
+                    onBroadcast={() => handleBroadcastToMyself(sharedKeyId)}
+                    onSaveToBlockchain={() => handleSaveToBlockchain(sharedKeyId)}
+                  />
+                );
+              })}
+            </View>
+          )}
+        </ScrollView>
+
+        <TouchableOpacity
+          style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
+          onPress={() => setShowAddModal(true)}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="add" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+
+        <AddServiceModal
+          visible={showAddModal}
+          onClose={() => setShowAddModal(false)}
+          onAdd={handleAddService}
         />
-
-        {sharedKeys.filter(shouldDisplaySharedKey).length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="shield-checkmark-outline" size={64} color={theme.colors.textSecondary} />
-            <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No Services Added</Text>
-            <Text style={[styles.emptyDescription, { color: theme.colors.textSecondary }]}>
-              Add your first 2FA service by tapping the + button below. Keys are stored locally first.
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.servicesList}>
-            {sharedKeys.filter(shouldDisplaySharedKey).map((sharedKey) => {
-              const sharedKeyId = sharedKey.hash || sharedKey.name + '_' + sharedKey.timeStampSharedKeyCreate;
-              return (
-                <ServiceCard
-                  key={sharedKeyId}
-                  sharedKey={sharedKey}
-                  isSelected={selectedServiceId === sharedKeyId}
-                  walletBalance={balance}
-                  isWalletSynced={isWalletSynced}
-                  onCopy={() => handleCopyCode(sharedKey.code, sharedKey.name)}
-                  onDelete={() => handleDeleteSharedKey(sharedKeyId)}
-                  onSelect={() => handleSelectSharedKey(sharedKeyId)}
-                  onBroadcast={() => handleBroadcastToMyself(sharedKeyId)}
-                  onSaveToBlockchain={() => handleSaveToBlockchain(sharedKeyId)}
-                />
-              );
-            })}
-          </View>
-        )}
-      </ScrollView>
-
-      <TouchableOpacity
-        style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
-        onPress={() => setShowAddModal(true)}
-        activeOpacity={0.8}
-      >
-        <Ionicons name="add" size={24} color="#FFFFFF" />
-      </TouchableOpacity>
-
-      <AddServiceModal
-        visible={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        onAdd={handleAddService}
-      />
-    </View>
+      </View>
+    </GestureNavigator>
   );
 }
 

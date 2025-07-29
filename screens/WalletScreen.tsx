@@ -14,6 +14,7 @@ import * as Clipboard from 'expo-clipboard';
 import Header from '../components/Header';
 import { useWallet } from '../contexts/WalletContext';
 import { useTheme } from '../contexts/ThemeContext';
+import GestureNavigator from '../components/GestureNavigator';
 
 export default function WalletScreen() {
   const { wallet, balance, maxKeys, isLoading, refreshBalance } = useWallet();
@@ -35,115 +36,119 @@ export default function WalletScreen() {
 
   if (isLoading) {
     return (
-      <View style={[styles.container, styles.centered]}>
-        <Header title="Wallet" />
-        <View style={styles.loadingContainer}>
-          <Ionicons name="wallet-outline" size={48} color={theme.colors.textSecondary} />
-          <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>Loading wallet...</Text>
+      <GestureNavigator>
+        <View style={[styles.container, styles.centered]}>
+          <Header title="Wallet" />
+          <View style={styles.loadingContainer}>
+            <Ionicons name="wallet-outline" size={48} color={theme.colors.textSecondary} />
+            <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>Loading wallet...</Text>
+          </View>
         </View>
-      </View>
+      </GestureNavigator>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Header title="Wallet" />
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Balance Card */}
-        <View style={[styles.balanceCard, { backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border }]}>
-          <View style={styles.balanceHeader}>
-            <Ionicons name="wallet-outline" size={24} color={theme.colors.primary} />
-            <Text style={[styles.balanceLabel, { color: theme.colors.text }]}>CCX Balance</Text>
-          </View>
-          <Text style={[styles.balanceAmount, { color: theme.colors.primary }]}>
-            {balance.toFixed(4)}
-          </Text>
-          <Text style={[styles.balanceUsd, { color: theme.colors.textSecondary }]}>
-            Keys available: {maxKeys}
-          </Text>
-          <TouchableOpacity
-            style={[styles.refreshButton, { backgroundColor: theme.colors.primaryLight }]}
-            onPress={refreshBalance}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="refresh-outline" size={16} color={theme.colors.primary} />
-            <Text style={[styles.refreshText, { color: theme.colors.primary }]}>Refresh</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Key Storage Info */}
-        {balance === 0 ? (
-          <View style={[styles.welcomeCard, { backgroundColor: theme.colors.primaryLight }]}>
-            <Ionicons name="wallet-outline" size={32} color={theme.colors.primary} />
-            <Text style={[styles.welcomeTitle, { color: theme.colors.primary }]}>Welcome to SecureAuth!</Text>
-            <Text style={[styles.welcomeText, { color: theme.colors.primary }]}>
-              Your wallet has been created with 0 CCX. To sync your 2FA keys to the blockchain, 
-              ask a friend to send you some CCX to your address below.
+    <GestureNavigator>
+      <View style={styles.container}>
+        <Header title="Wallet" />
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          {/* Balance Card */}
+          <View style={[styles.balanceCard, { backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border }]}>
+            <View style={styles.balanceHeader}>
+              <Ionicons name="wallet-outline" size={24} color={theme.colors.primary} />
+              <Text style={[styles.balanceLabel, { color: theme.colors.text }]}>CCX Balance</Text>
+            </View>
+            <Text style={[styles.balanceAmount, { color: theme.colors.primary }]}>
+              {balance.toFixed(4)}
             </Text>
+            <Text style={[styles.balanceUsd, { color: theme.colors.textSecondary }]}>
+              Keys available: {maxKeys}
+            </Text>
+            <TouchableOpacity
+              style={[styles.refreshButton, { backgroundColor: theme.colors.primaryLight }]}
+              onPress={refreshBalance}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="refresh-outline" size={16} color={theme.colors.primary} />
+              <Text style={[styles.refreshText, { color: theme.colors.primary }]}>Refresh</Text>
+            </TouchableOpacity>
           </View>
-        ) : (
-          <View style={[styles.infoCard, { backgroundColor: theme.colors.primaryLight }]}>
-            <Ionicons name="information-circle-outline" size={24} color={theme.colors.primary} />
-            <View style={styles.infoContent}>
-              <Text style={[styles.infoTitle, { color: theme.colors.primary }]}>Blockchain Sync Available</Text>
-              <Text style={[styles.infoText, { color: theme.colors.primary }]}>
-                Each 2FA key sync costs {KEY_STORAGE_COST.toFixed(4)} CCX. 
-                You can currently sync {maxKeys} keys to the blockchain.
+
+          {/* Key Storage Info */}
+          {balance === 0 ? (
+            <View style={[styles.welcomeCard, { backgroundColor: theme.colors.primaryLight }]}>
+              <Ionicons name="wallet-outline" size={32} color={theme.colors.primary} />
+              <Text style={[styles.welcomeTitle, { color: theme.colors.primary }]}>Welcome to SecureAuth!</Text>
+              <Text style={[styles.welcomeText, { color: theme.colors.primary }]}>
+                Your wallet has been created with 0 CCX. To sync your 2FA keys to the blockchain, 
+                ask a friend to send you some CCX to your address below.
               </Text>
             </View>
-          </View>
-        )}
+          ) : (
+            <View style={[styles.infoCard, { backgroundColor: theme.colors.primaryLight }]}>
+              <Ionicons name="information-circle-outline" size={24} color={theme.colors.primary} />
+              <View style={styles.infoContent}>
+                <Text style={[styles.infoTitle, { color: theme.colors.primary }]}>Blockchain Sync Available</Text>
+                <Text style={[styles.infoText, { color: theme.colors.primary }]}>
+                  Each 2FA key sync costs {KEY_STORAGE_COST.toFixed(4)} CCX. 
+                  You can currently sync {maxKeys} keys to the blockchain.
+                </Text>
+              </View>
+            </View>
+          )}
 
-        {/* Wallet Address Card */}
-        <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
-          <View style={styles.cardHeader}>
-            <Ionicons name="qr-code-outline" size={24} color={theme.colors.text} />
-            <Text style={[styles.cardTitle, { color: theme.colors.text }]}>Receive CCX</Text>
-          </View>
-          
-          <View style={[styles.qrContainer, { backgroundColor: theme.colors.background }]}>
-            {wallet?.address && (
-              <QRCode
-                value={wallet.address}
-                size={200}
-                backgroundColor={theme.colors.surface}
-                color={theme.colors.text}
-              />
-            )}
-          </View>
-          
-          <View style={styles.addressContainer}>
-            <Text style={[styles.addressLabel, { color: theme.colors.textSecondary }]}>Your Wallet Address:</Text>
-            <Text style={[styles.addressText, { color: theme.colors.text, backgroundColor: theme.colors.background }]} numberOfLines={2}>
-              {wallet?.address || 'Loading...'}
-            </Text>
-          </View>
-          
-          <TouchableOpacity
-            style={[styles.copyButton, { backgroundColor: theme.colors.primaryLight }]}
-            onPress={handleCopyAddress}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="copy-outline" size={20} color={theme.colors.primary} />
-            <Text style={[styles.copyButtonText, { color: theme.colors.primary }]}>Copy Address</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Funding Info Card */}
-        {balance === 0 && (
-          <View style={[styles.fundingCard, { backgroundColor: theme.colors.primaryLight }]}>
-            <Ionicons name="people-outline" size={24} color={theme.colors.primary} />
-            <View style={styles.infoContent}>
-              <Text style={[styles.infoTitle, { color: theme.colors.primary }]}>Get Started</Text>
-              <Text style={[styles.infoText, { color: theme.colors.primary }]}>
-                Share your wallet address with a friend or colleague to receive CCX. 
-                Even a small amount (0.1 CCX) allows you to sync multiple keys!
+          {/* Wallet Address Card */}
+          <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
+            <View style={styles.cardHeader}>
+              <Ionicons name="qr-code-outline" size={24} color={theme.colors.text} />
+              <Text style={[styles.cardTitle, { color: theme.colors.text }]}>Receive CCX</Text>
+            </View>
+            
+            <View style={[styles.qrContainer, { backgroundColor: theme.colors.background }]}>
+              {wallet?.address && (
+                <QRCode
+                  value={wallet.address}
+                  size={200}
+                  backgroundColor={theme.colors.surface}
+                  color={theme.colors.text}
+                />
+              )}
+            </View>
+            
+            <View style={styles.addressContainer}>
+              <Text style={[styles.addressLabel, { color: theme.colors.textSecondary }]}>Your Wallet Address:</Text>
+              <Text style={[styles.addressText, { color: theme.colors.text, backgroundColor: theme.colors.background }]} numberOfLines={2}>
+                {wallet?.address || 'Loading...'}
               </Text>
             </View>
+            
+            <TouchableOpacity
+              style={[styles.copyButton, { backgroundColor: theme.colors.primaryLight }]}
+              onPress={handleCopyAddress}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="copy-outline" size={20} color={theme.colors.primary} />
+              <Text style={[styles.copyButtonText, { color: theme.colors.primary }]}>Copy Address</Text>
+            </TouchableOpacity>
           </View>
-        )}
-      </ScrollView>
-    </View>
+
+          {/* Funding Info Card */}
+          {balance === 0 && (
+            <View style={[styles.fundingCard, { backgroundColor: theme.colors.primaryLight }]}>
+              <Ionicons name="people-outline" size={24} color={theme.colors.primary} />
+              <View style={styles.infoContent}>
+                <Text style={[styles.infoTitle, { color: theme.colors.primary }]}>Get Started</Text>
+                <Text style={[styles.infoText, { color: theme.colors.primary }]}>
+                  Share your wallet address with a friend or colleague to receive CCX. 
+                  Even a small amount (0.1 CCX) allows you to sync multiple keys!
+                </Text>
+              </View>
+            </View>
+          )}
+        </ScrollView>
+      </View>
+    </GestureNavigator>
   );
 }
 

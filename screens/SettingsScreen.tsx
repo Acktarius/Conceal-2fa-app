@@ -14,6 +14,7 @@ import * as Clipboard from 'expo-clipboard';
 import Header from '../components/Header';
 import { useTheme } from '../contexts/ThemeContext';
 import { useWallet } from '../contexts/WalletContext';
+import GestureNavigator from '../components/GestureNavigator';
 export default function SettingsScreen() {
   const [blockchainSync, setBlockchainSync] = useState(true);
   const [autoShare, setAutoShare] = useState(false);
@@ -109,137 +110,139 @@ export default function SettingsScreen() {
   );
 
   return (
-    <View style={styles.container}>
-      <Header title="Settings" />
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Appearance Settings */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Appearance</Text>
-          <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
-            <SettingItem
-              icon="moon-outline"
-              title="Dark Mode"
-              subtitle="Toggle dark/light theme"
-              rightElement={
-                <Switch
-                  value={isDark}
-                  onValueChange={toggleTheme}
-                  trackColor={{ false: theme.colors.switchTrackFalse, true: theme.colors.switchTrackTrue }}
-                  thumbColor={theme.colors.background}
-                  ios_backgroundColor={theme.colors.switchTrackFalse}
-                />
-              }
-            />
+    <GestureNavigator>
+      <View style={styles.container}>
+        <Header title="Settings" />
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          {/* Appearance Settings */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Appearance</Text>
+            <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
+              <SettingItem
+                icon="moon-outline"
+                title="Dark Mode"
+                subtitle="Toggle dark/light theme"
+                rightElement={
+                  <Switch
+                    value={isDark}
+                    onValueChange={toggleTheme}
+                    trackColor={{ false: theme.colors.switchTrackFalse, true: theme.colors.switchTrackTrue }}
+                    thumbColor={theme.colors.background}
+                    ios_backgroundColor={theme.colors.switchTrackFalse}
+                  />
+                }
+              />
+            </View>
           </View>
-        </View>
 
-        {/* Wallet Management */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Wallet Management</Text>
-          <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
-            <SettingItem
-              icon="key-outline"
-              title="Show Recovery Seed"
-              subtitle="View your 25-word recovery phrase"
-              onPress={handleShowSeed}
-            />
-            <SettingItem
-              icon="download-outline"
-              title="Export Wallet"
-              subtitle="Backup your wallet"
-              onPress={handleExportWallet}
-            />
+          {/* Wallet Management */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Wallet Management</Text>
+            <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
+              <SettingItem
+                icon="key-outline"
+                title="Show Recovery Seed"
+                subtitle="View your 25-word recovery phrase"
+                onPress={handleShowSeed}
+              />
+              <SettingItem
+                icon="download-outline"
+                title="Export Wallet"
+                subtitle="Backup your wallet"
+                onPress={handleExportWallet}
+              />
+            </View>
           </View>
-        </View>
 
-        {/* Blockchain Settings */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Blockchain</Text>
-          <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
-            <SettingItem
-              icon="cloud-outline"
-              title="Blockchain Sync"
-              subtitle="Sync keys with Conceal Network"
-              rightElement={
-                <Switch
-                  value={blockchainSync}
-                  onValueChange={setBlockchainSync}
-                  trackColor={{ false: theme.colors.switchTrackFalse, true: theme.colors.switchTrackTrue }}
-                  thumbColor={theme.colors.background}
-                  ios_backgroundColor={theme.colors.switchTrackFalse}
-                />
-              }
-            />
-            <SettingItem
-              icon="share-outline"
-              title="Auto-Share Codes"
-              subtitle="Automatically share codes via blockchain"
-              rightElement={
-                <Switch
-                  value={autoShare}
-                  onValueChange={setAutoShare}
-                  trackColor={{ false: theme.colors.switchTrackFalse, true: theme.colors.switchTrackTrue }}
-                  thumbColor={theme.colors.background}
-                  ios_backgroundColor={theme.colors.switchTrackFalse}
-                />
-              }
-            />
+          {/* Blockchain Settings */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Blockchain</Text>
+            <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
+              <SettingItem
+                icon="cloud-outline"
+                title="Blockchain Sync"
+                subtitle="Sync keys with Conceal Network"
+                rightElement={
+                  <Switch
+                    value={blockchainSync}
+                    onValueChange={setBlockchainSync}
+                    trackColor={{ false: theme.colors.switchTrackFalse, true: theme.colors.switchTrackTrue }}
+                    thumbColor={theme.colors.background}
+                    ios_backgroundColor={theme.colors.switchTrackFalse}
+                  />
+                }
+              />
+              <SettingItem
+                icon="share-outline"
+                title="Auto-Share Codes"
+                subtitle="Automatically share codes via blockchain"
+                rightElement={
+                  <Switch
+                    value={autoShare}
+                    onValueChange={setAutoShare}
+                    trackColor={{ false: theme.colors.switchTrackFalse, true: theme.colors.switchTrackTrue }}
+                    thumbColor={theme.colors.background}
+                    ios_backgroundColor={theme.colors.switchTrackFalse}
+                  />
+                }
+              />
+            </View>
           </View>
-        </View>
 
-        {/* Security Settings */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Security</Text>
-          <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
-            <SettingItem
-              icon="finger-print-outline"
-              title="Biometric Authentication"
-              subtitle="Use fingerprint or face ID"
-              rightElement={
-                <Switch
-                  value={biometricAuth}
-                  onValueChange={setBiometricAuth}
-                  trackColor={{ false: theme.colors.switchTrackFalse, true: theme.colors.switchTrackTrue }}
-                  thumbColor={theme.colors.background}
-                  ios_backgroundColor={theme.colors.switchTrackFalse}
-                />
-              }
-            />
+          {/* Security Settings */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Security</Text>
+            <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
+              <SettingItem
+                icon="finger-print-outline"
+                title="Biometric Authentication"
+                subtitle="Use fingerprint or face ID"
+                rightElement={
+                  <Switch
+                    value={biometricAuth}
+                    onValueChange={setBiometricAuth}
+                    trackColor={{ false: theme.colors.switchTrackFalse, true: theme.colors.switchTrackTrue }}
+                    thumbColor={theme.colors.background}
+                    ios_backgroundColor={theme.colors.switchTrackFalse}
+                  />
+                }
+              />
+            </View>
           </View>
-        </View>
 
-        {/* Data Management */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Data</Text>
-          <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
-            <SettingItem
-              icon="trash-outline"
-              title="Clear All Data"
-              subtitle="Remove all services and wallet data"
-              onPress={handleClearData}
-            />
+          {/* Data Management */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Appearance</Text>
+            <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
+              <SettingItem
+                icon="trash-outline"
+                title="Clear All Data"
+                subtitle="Remove all services and wallet data"
+                onPress={handleClearData}
+              />
+            </View>
           </View>
-        </View>
 
-        {/* About */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>About</Text>
-          <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
-            <SettingItem
-              icon="information-circle-outline"
-              title="Version"
-              subtitle="1.0.0"
-            />
-            <SettingItem
-              icon="help-circle-outline"
-              title="Help & Support"
-              onPress={() => Alert.alert('Help', 'Help documentation coming soon!')}
-            />
+          {/* About */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>About</Text>
+            <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
+              <SettingItem
+                icon="information-circle-outline"
+                title="Version"
+                subtitle="1.0.0"
+              />
+              <SettingItem
+                icon="help-circle-outline"
+                title="Help & Support"
+                onPress={() => Alert.alert('Help', 'Help documentation coming soon!')}
+              />
+            </View>
           </View>
-        </View>
 
-      </ScrollView>
-    </View>
+        </ScrollView>
+      </View>
+    </GestureNavigator>
   );
 }
 
