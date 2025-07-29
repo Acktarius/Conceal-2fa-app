@@ -77,7 +77,7 @@ export default function ServiceCard({
   
   const minTransactionAmount = 0.011;
   const canUseBlockchainFeatures = isWalletSynced && walletBalance >= minTransactionAmount;
-  const styles = createStyles(theme);
+  const styles = createStyles(theme, isSelected);
 
   const frontInterpolate = flipAnim.interpolate({
     inputRange: [0, 1],
@@ -261,7 +261,7 @@ export default function ServiceCard({
   );
 }
 
-const createStyles = (theme: any) => StyleSheet.create({
+const createStyles = (theme: any, isSelected: boolean) => StyleSheet.create({
   container: {
     borderRadius: 16,
     marginBottom: 12,
