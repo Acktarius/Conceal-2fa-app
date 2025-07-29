@@ -18,12 +18,12 @@ export default function GestureNavigator({ children }: GestureNavigatorProps) {
     
     // Only trigger if gesture starts from edge and covers 80% of screen
     if (Math.abs(translationX) > gestureThreshold) {
-      if (translationX > 0) {
-        // Swipe right - navigate to previous tab
-        navigateToPreviousTab();
-      } else {
-        // Swipe left - navigate to next tab
+      if (translationX < 0) {
+        // Swipe left - navigate to next tab (Authenticator → Wallet → Settings)
         navigateToNextTab();
+      } else {
+        // Swipe right - navigate to previous tab (Settings → Wallet → Authenticator)
+        navigateToPreviousTab();
       }
     }
   };
