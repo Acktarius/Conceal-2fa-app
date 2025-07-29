@@ -73,7 +73,7 @@ export default function ServiceCard({
   const progressPercentage = (sharedKey.timeRemaining / 30) * 100;
   
   // Calculate opacity based on time remaining (100% to 70%)
-  const codeOpacity = 0.7 + (sharedKey.timeRemaining / 30) * 0.3;
+  const codeOpacity = 0.6 + (sharedKey.timeRemaining / 30) * 0.4;
   
   const isExpiringSoon = sharedKey.timeRemaining <= 10;
   
