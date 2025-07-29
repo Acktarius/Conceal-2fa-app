@@ -19,7 +19,7 @@
     "expo-camera": "~16.1.11",
     "expo-clipboard": "~7.1.5",
     "expo-crypto": "~14.1.5",
-    "expo-modules-core": "~2.5.0",
+    "expo-modules-core": "~1.12.0",
     "expo-secure-store": "~14.2.3",
     "expo-status-bar": "~2.2.3",
     "napi-wasm": "^1.1.3",
