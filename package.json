@@ -3,11 +3,10 @@
   "version": "1.0.0",
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
-    "start": "export REACT_NATIVE_PACKAGER_HOSTNAME=192.168.1.19 && expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "dev": "expo start",
+    "dev": "export REACT_NATIVE_PACKAGER_HOSTNAME=192.168.1.19 && expo start",
     "build": "expo export"
   },
   "dependencies": {
