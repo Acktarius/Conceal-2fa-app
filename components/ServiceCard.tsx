@@ -335,9 +335,11 @@ const createStyles = (theme: any, isSelected: boolean) => StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 4,
+    minHeight: 22,
   },
   issuer: {
     fontSize: 14,
+    minHeight: 18,
   },
   deleteButton: {
     padding: 4,
