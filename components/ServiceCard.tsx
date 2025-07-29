@@ -39,7 +39,16 @@ export default function ServiceCard({
   const { theme } = useTheme();
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const flipAnim = React.useRef(new Animated.Value(0)).current;
+  const actionsAnim = React.useRef(new Animated.Value(0)).current;
   
+  React.useEffect(() => {
+    Animated.timing(actionsAnim, {
+      toValue: isSelected ? 1 : 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, [isSelected]);
+
   const handleDelete = () => {
     setShowDeleteConfirm(true);
     Animated.timing(flipAnim, {
@@ -164,7 +173,22 @@ export default function ServiceCard({
           </View>
 
           {isSelected && (
-            <View style={styles.actions}>
+            <Animated.View 
+              style={[
+                styles.actions,
+                {
+                  opacity: actionsAnim,
+                  transform: [
+                    {
+                      translateY: actionsAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [10, 0],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
               <TouchableOpacity
                 style={[
                   styles.actionButton, 
@@ -214,7 +238,7 @@ export default function ServiceCard({
                   Save on Blockchain
                 </Text>
               </TouchableOpacity>
-            </View>
+            </Animated.View>
           )}
         </TouchableOpacity>
       </Animated.View>
