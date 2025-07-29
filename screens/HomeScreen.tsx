@@ -92,12 +92,20 @@ export default function HomeScreen() {
 
   const handleAddService = async (serviceData: any) => {
     try {
+     console.log('Adding service with data:', serviceData);
+     
       const newSharedKey = SharedKey.fromService({
         name: serviceData.name,
         issuer: serviceData.issuer,
         secret: serviceData.secret
       });
       
+     console.log('Created SharedKey:', {
+       name: newSharedKey.name,
+       issuer: newSharedKey.issuer,
+       secret: newSharedKey.secret ? 'present' : 'missing'
+     });
+     
       newSharedKey.code = await TOTPService.generateTOTP(serviceData.secret);
       newSharedKey.timeRemaining = TOTPService.getTimeRemaining();
       
