@@ -131,17 +131,6 @@ export default function ServiceCard({
                   </View>
                 )}
               </View>
-              <Text style={[styles.serviceName, { color: theme.colors.text }]} numberOfLines={1}>
-                {sharedKey.name}
-              </Text>
-              <View style={styles.issuerRow}>
-                <Text style={[styles.issuer, { color: theme.colors.textSecondary }]}>{sharedKey.issuer}</Text>
-                {sharedKey.isLocalOnly() && (
-                  <View style={[styles.localBadge, { backgroundColor: theme.colors.warning + '20' }]}>
-                    <Text style={[styles.localBadgeText, { color: theme.colors.warning }]}>Local</Text>
-                  </View>
-                )}
-              </View>
             </View>
             <TouchableOpacity
               style={styles.deleteButton}
