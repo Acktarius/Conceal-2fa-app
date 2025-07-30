@@ -291,7 +291,7 @@ const createStyles = (theme: any, isSelected: boolean) => StyleSheet.create({
   container: {
     borderRadius: 16,
     marginBottom: 12,
-    minHeight: isSelected ? 220 : 200,
+    minHeight: isSelected ? 225 : 200,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
