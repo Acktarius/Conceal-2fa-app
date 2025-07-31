@@ -1,6 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
-import { SharedKey } from '../models/Transaction';
+import { SharedKey } from '../model/Transaction';
+import { WalletStorageManager } from './WalletStorageManager';
 
 export class StorageService {
   private static readonly SHARED_KEYS_KEY = 'shared_keys';
@@ -57,34 +58,7 @@ export class StorageService {
     }
   }
 
-  static async saveWallet(walletData: any): Promise<void> {
-    try {
-      const data = JSON.stringify(walletData);
-      if (Platform.OS === 'web') {
-        localStorage.setItem(this.WALLET_KEY, data);
-      } else {
-        await SecureStore.setItemAsync(this.WALLET_KEY, data);
-      }
-    } catch (error) {
-      console.error('Error saving wallet:', error);
-      throw new Error('Failed to save wallet');
-    }
-  }
 
-  static async getWallet(): Promise<any | null> {
-    try {
-      let data: string | null;
-      if (Platform.OS === 'web') {
-        data = localStorage.getItem(this.WALLET_KEY);
-      } else {
-        data = await SecureStore.getItemAsync(this.WALLET_KEY);
-      }
-      return data ? JSON.parse(data) : null;
-    } catch (error) {
-      console.error('Error loading wallet:', error);
-      return null;
-    }
-  }
 
   static async saveSettings(settings: any): Promise<void> {
     try {
@@ -117,18 +91,62 @@ export class StorageService {
 
   static async clearAll(): Promise<void> {
     try {
+      console.log('Starting clearAll...');
+      
       if (Platform.OS === 'web') {
-        localStorage.removeItem(this.SERVICES_KEY);
-        localStorage.removeItem(this.WALLET_KEY);
+        console.log('Clearing web storage...');
+        localStorage.removeItem(this.SHARED_KEYS_KEY);
         localStorage.removeItem(this.SETTINGS_KEY);
+        localStorage.removeItem('shared_keys');
+        localStorage.removeItem('app_settings');
       } else {
-        await SecureStore.deleteItemAsync(this.SERVICES_KEY);
-        await SecureStore.deleteItemAsync(this.WALLET_KEY);
+        console.log('Clearing native storage...');
+        await SecureStore.deleteItemAsync(this.SHARED_KEYS_KEY);
         await SecureStore.deleteItemAsync(this.SETTINGS_KEY);
+        await SecureStore.deleteItemAsync('shared_keys');
+        await SecureStore.deleteItemAsync('app_settings');
       }
+      
+      // Clear wallet data
+      await WalletStorageManager.clearWallet();
+
+      console.log('ClearAll completed successfully');
     } catch (error) {
       console.error('Error clearing storage:', error);
       throw new Error('Failed to clear storage');
+    }
+  }
+
+  static async debugStorage(): Promise<void> {
+    try {
+      console.log('=== STORAGE DEBUG ===');
+      
+      // Check shared keys
+      const sharedKeys = await this.getSharedKeys();
+      console.log('Shared keys count:', sharedKeys.length);
+      sharedKeys.forEach((key, index) => {
+        console.log(`Shared key ${index}:`, {
+          name: key.name,
+          issuer: key.issuer,
+          hash: key.hash,
+          isLocal: key.isLocalOnly()
+        });
+      });
+      
+      // Check wallet
+      const wallet = await WalletStorageManager.getWallet();
+      console.log('Wallet exists:', !!wallet);
+      if (wallet) {
+        console.log('Wallet address:', wallet.address);
+      }
+      
+      // Check settings
+      const settings = await this.getSettings();
+      console.log('Settings:', settings);
+      
+      console.log('=== END STORAGE DEBUG ===');
+    } catch (error) {
+      console.error('Error debugging storage:', error);
     }
   }
 }

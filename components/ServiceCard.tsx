@@ -11,13 +11,13 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '../contexts/ThemeContext';
-import { SharedKey } from '../models/Transaction';
+import { SharedKey } from '../model/Transaction';
 
 interface ServiceCardProps {
   sharedKey: SharedKey;
   isSelected: boolean;
   walletBalance: number;
-  isWalletSynced: boolean;
+
   onCopy: () => void;
   onDelete: () => void;
   onSelect: () => void;
@@ -29,7 +29,7 @@ export default function ServiceCard({
   sharedKey, 
   isSelected, 
   walletBalance, 
-  isWalletSynced, 
+
   onCopy, 
   onDelete, 
   onSelect, 
@@ -85,7 +85,7 @@ export default function ServiceCard({
   const codeOpacity = 0.6 + (sharedKey.timeRemaining / 30) * 0.4;
   
   const minTransactionAmount = 0.011;
-  const canUseBlockchainFeatures = isWalletSynced && walletBalance >= minTransactionAmount;
+  const canUseBlockchainFeatures = walletBalance >= minTransactionAmount;
   const styles = createStyles(theme, isSelected);
 
   const frontInterpolate = flipAnim.interpolate({
@@ -289,25 +289,24 @@ export default function ServiceCard({
 
 const createStyles = (theme: any, isSelected: boolean) => StyleSheet.create({
   container: {
-    borderRadius: 16,
+    width: '100%',
+    borderRadius: 12,
     marginBottom: 12,
-    minHeight: isSelected ? 230 : 200,
+    minHeight: isSelected ? 235 : 205,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
+    elevation: 4,
+    position: 'relative',
     ...(Platform.OS === 'web' && {
       transition: 'all 0.2s ease-in-out',
     }),
-    elevation: 4,
-    position: 'relative',
   },
   cardFace: {
     position: 'absolute',
     width: '100%',
     height: '100%',
-    backfaceVisibility: 'hidden',
-    borderRadius: 16,
     backfaceVisibility: 'hidden',
     borderRadius: 16,
   },

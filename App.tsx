@@ -1,8 +1,19 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, View, PanGestureHandler, State } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
+// Import polyfills for React Native compatibility
+import './lib/polyfills/core.min.js';
+import './lib/polyfills/textEncoding/encoding-indexes.js';
+import './lib/polyfills/textEncoding/encoding.js';
+import './lib/polyfills/crypto.js';
+import './lib/polyfills/JSBigIntPolyfill';
+
+// Import cryptographic libraries
+
+
 
 import TabNavigator from './components/TabNavigator';
 import { WalletProvider } from './contexts/WalletContext';

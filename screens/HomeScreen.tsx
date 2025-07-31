@@ -18,7 +18,7 @@ import FundingBanner from '../components/FundingBanner';
 import { TOTPService } from '../services/TOTPService';
 import { StorageService } from '../services/StorageService';
 import { BlockchainService } from '../services/BlockchainService';
-import { SharedKey } from '../models/Transaction';
+import { SharedKey } from '../model/Transaction';
 import { useWallet } from '../contexts/WalletContext';
 import { useTheme } from '../contexts/ThemeContext';
 import GestureNavigator from '../components/GestureNavigator';
@@ -28,7 +28,7 @@ export default function HomeScreen() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [currentTime, setCurrentTime] = useState(Date.now());
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
-  const { balance, maxKeys } = useWallet();
+  const { balance, maxKeys, isAuthenticated, authenticate } = useWallet();
   const { theme } = useTheme();
 
   useEffect(() => {
@@ -94,7 +94,7 @@ export default function HomeScreen() {
     try {
      console.log('Adding service with data:', serviceData);
      
-      const newSharedKey = SharedKey.fromService({
+      const newSharedKey = SharedKey.fromRaw({
         name: serviceData.name,
         issuer: serviceData.issuer,
         secret: serviceData.secret
@@ -150,8 +150,9 @@ export default function HomeScreen() {
     if (!sharedKey) return;
 
     try {
-      // Create blockchain transaction
-      const txHash = await BlockchainService.createSharedKeyTransaction(sharedKey);
+      // TODO: Implement blockchain transaction creation
+      // For now, just show a placeholder message
+      Alert.alert('Coming Soon', 'Blockchain integration will be available soon!');
       
       const updatedSharedKeys = sharedKeys.map(sk => 
         sk === sharedKey ? sharedKey : sk
@@ -160,7 +161,6 @@ export default function HomeScreen() {
       setSharedKeys(updatedSharedKeys);
       await StorageService.saveSharedKeys(updatedSharedKeys);
       
-      Alert.alert('Success', `${sharedKey.name} key saved to blockchain successfully!`);
     } catch (error) {
       Alert.alert('Error', 'Failed to save key to blockchain.');
     }
@@ -263,66 +263,86 @@ export default function HomeScreen() {
     return false;
   };
 
-  // Mock wallet sync status - in real app this would come from wallet context
-  const isWalletSynced = true;
 
   const styles = createStyles(theme);
 
-  return (
-    <GestureNavigator>
-      <View style={styles.container}>
-        <Header title="Authenticator" />
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-          <FundingBanner 
-            balance={balance}
-            maxKeys={maxKeys}
-            onPress={() => {/* Navigate to wallet tab or show funding info */}}
-          />
+  const renderContent = () => {
 
-          {sharedKeys.filter(shouldDisplaySharedKey).length === 0 ? (
-            <View style={styles.emptyState}>
-              <Ionicons name="shield-checkmark-outline" size={64} color={theme.colors.textSecondary} />
-              <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No Services Added</Text>
-              <Text style={[styles.emptyDescription, { color: theme.colors.textSecondary }]}>
-                Add your first 2FA service by tapping the + button below. Keys are stored locally first.
-              </Text>
+    return (
+      <>
+                  <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+            <FundingBanner 
+              balance={balance}
+              maxKeys={maxKeys}
+              onPress={() => {/* Navigate to wallet tab or show funding info */}}
+            />
+            
+            {/* Services Grid */}
+            <View style={styles.servicesContainer}>
+              {!isAuthenticated ? (
+                <View style={styles.emptyState}>
+                  <Ionicons name="lock-closed" size={64} color={theme.colors.textSecondary} />
+                  <Text style={[styles.emptyStateTitle, { color: theme.colors.text }]}>
+                    Authentication Required
+                  </Text>
+                </View>
+              ) : sharedKeys.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <Ionicons name="shield-outline" size={64} color={theme.colors.textSecondary} />
+                  <Text style={[styles.emptyStateTitle, { color: theme.colors.text }]}>
+                    No 2FA Services Added
+                  </Text>
+                  <Text style={[styles.emptyStateSubtitle, { color: theme.colors.textSecondary }]}>
+                    Tap the + button to add your first 2FA service
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.servicesGrid}>
+                  {sharedKeys
+                    .filter(shouldDisplaySharedKey)
+                    .map((sharedKey) => {
+                      const sharedKeyId = sharedKey.hash || sharedKey.name + '_' + sharedKey.timeStampSharedKeyCreate;
+                      return (
+                        <ServiceCard
+                          key={sharedKeyId}
+                          sharedKey={sharedKey}
+                          isSelected={selectedServiceId === sharedKeyId}
+                          walletBalance={balance}
+                          onCopy={() => handleCopyCode(sharedKey.code, sharedKey.name)}
+                          onDelete={() => handleDeleteSharedKey(sharedKeyId)}
+                          onSelect={() => handleSelectSharedKey(sharedKeyId)}
+                          onBroadcast={() => handleBroadcastToMyself(sharedKeyId)}
+                          onSaveToBlockchain={() => handleSaveToBlockchain(sharedKeyId)}
+                        />
+                      );
+                    })}
+                </View>
+              )}
             </View>
-          ) : (
-            <View style={styles.servicesList}>
-              {sharedKeys.filter(shouldDisplaySharedKey).map((sharedKey) => {
-                const sharedKeyId = sharedKey.hash || sharedKey.name + '_' + sharedKey.timeStampSharedKeyCreate;
-                return (
-                  <ServiceCard
-                    key={sharedKeyId}
-                    sharedKey={sharedKey}
-                    isSelected={selectedServiceId === sharedKeyId}
-                    walletBalance={balance}
-                    isWalletSynced={isWalletSynced}
-                    onCopy={() => handleCopyCode(sharedKey.code, sharedKey.name)}
-                    onDelete={() => handleDeleteSharedKey(sharedKeyId)}
-                    onSelect={() => handleSelectSharedKey(sharedKeyId)}
-                    onBroadcast={() => handleBroadcastToMyself(sharedKeyId)}
-                    onSaveToBlockchain={() => handleSaveToBlockchain(sharedKeyId)}
-                  />
-                );
-              })}
-            </View>
-          )}
-        </ScrollView>
-
-        <TouchableOpacity
-          style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
-          onPress={() => setShowAddModal(true)}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="add" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
+          </ScrollView>
 
         <AddServiceModal
           visible={showAddModal}
           onClose={() => setShowAddModal(false)}
           onAdd={handleAddService}
         />
+        
+        {/* Floating Action Button */}
+        <TouchableOpacity
+          style={[styles.fab, { backgroundColor: theme.colors.primary }]}
+          onPress={() => setShowAddModal(true)}
+        >
+          <Ionicons name="add" size={24} color={theme.colors.background} />
+        </TouchableOpacity>
+      </>
+    );
+  };
+
+  return (
+    <GestureNavigator>
+      <View style={styles.container}>
+        <Header title="Authenticator" />
+        {renderContent()}
       </View>
     </GestureNavigator>
   );
@@ -332,6 +352,25 @@ const createStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 8,
+    zIndex: 100,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
   scrollView: {
     flex: 1,
@@ -374,5 +413,66 @@ const createStyles = (theme: any) => StyleSheet.create({
     ...(Platform.OS === 'web' && {
       transition: 'all 0.2s ease-in-out',
     }),
+  },
+  authContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    backgroundColor: theme.colors.background,
+  },
+  authTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginTop: 20,
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  authSubtitle: {
+    fontSize: 18,
+    marginBottom: 30,
+    textAlign: 'center',
+  },
+  authButton: {
+    width: '100%',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  authButtonText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  servicesContainer: {
+    paddingVertical: 16,
+  },
+  servicesHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  servicesTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  servicesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  emptyStateTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyStateSubtitle: {
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 24,
+    paddingHorizontal: 32,
   },
 });

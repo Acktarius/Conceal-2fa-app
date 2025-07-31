@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,14 +15,67 @@ import Header from '../components/Header';
 import { useTheme } from '../contexts/ThemeContext';
 import { useWallet } from '../contexts/WalletContext';
 import GestureNavigator from '../components/GestureNavigator';
+import { StorageService } from '../services/StorageService';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { BlockchainSyncWorker } from '../services/BlockchainSyncWorker';
+import { WalletService } from '../services/WalletService';
+
+type RootStackParamList = {
+  Home: undefined;
+  Settings: undefined;
+};
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
 export default function SettingsScreen() {
-  const [blockchainSync, setBlockchainSync] = useState(true);
+  const [blockchainSync, setBlockchainSync] = useState(false);
   const [autoShare, setAutoShare] = useState(false);
   const [biometricAuth, setBiometricAuth] = useState(false);
   const { theme, toggleTheme, isDark } = useTheme();
-  const { wallet } = useWallet();
+  const { wallet, resetWallet } = useWallet();
+  const navigation = useNavigation<NavigationProp>();
 
-  const styles = createStyles(theme);
+  const styles = createStyles(theme, isDark);
+
+  // Load settings on mount
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    try {
+      const settings = await StorageService.getSettings();
+      setBlockchainSync(settings.blockchainSync || false);
+      setAutoShare(settings.autoShare || false);
+      // Enable biometric auth by default since we're using it
+      setBiometricAuth(settings.biometricAuth !== false); // Default to true unless explicitly set to false
+    } catch (error) {
+      console.error('Error loading settings:', error);
+    }
+  };
+
+  const handleBlockchainSyncToggle = async (value: boolean) => {
+    try {
+      setBlockchainSync(value);
+      await StorageService.saveSettings({
+        ...await StorageService.getSettings(),
+        blockchainSync: value
+      });
+
+      // Start or stop blockchain sync worker
+      const syncWorker = BlockchainSyncWorker.getInstance();
+      if (value) {
+        await syncWorker.start();
+      } else {
+        syncWorker.stop();
+      }
+    } catch (error) {
+      console.error('Error toggling blockchain sync:', error);
+      // Revert the toggle if there was an error
+      setBlockchainSync(!value);
+    }
+  };
 
   const handleShowSeed = () => {
     if (wallet?.seed) {
@@ -65,7 +118,7 @@ export default function SettingsScreen() {
     );
   };
 
-  const handleClearData = () => {
+  const handleClearData = async () => {
     Alert.alert(
       'Clear All Data',
       'This will remove all services and wallet data. This action cannot be undone.',
@@ -73,7 +126,33 @@ export default function SettingsScreen() {
         {
           text: 'Clear',
           style: 'destructive',
-          onPress: () => Alert.alert('Cleared', 'All data has been cleared.'),
+          onPress: async () => {
+            try {
+              console.log('=== BEFORE CLEAR ===');
+              await StorageService.debugStorage();
+              
+              await WalletService.resetWallet();
+              
+              // Also reset the wallet context
+              resetWallet();
+              
+              console.log('=== AFTER CLEAR ===');
+              await StorageService.debugStorage();
+              
+              // Navigate to HomeScreen
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Home' }],
+              });
+            } catch (error) {
+              console.error('Error in handleClearData:', error);
+              Alert.alert(
+                'Error',
+                'Failed to clear data. Please try again.',
+                [{ text: 'OK' }]
+              );
+            }
+          },
         },
         { text: 'Cancel', style: 'cancel' },
       ]
@@ -126,9 +205,12 @@ export default function SettingsScreen() {
                   <Switch
                     value={isDark}
                     onValueChange={toggleTheme}
-                    trackColor={{ false: theme.colors.switchTrackFalse, true: theme.colors.switchTrackTrue }}
+                    trackColor={{ 
+                      false: theme.colors.border,
+                      true: theme.colors.primary
+                    }}
                     thumbColor={theme.colors.background}
-                    ios_backgroundColor={theme.colors.switchTrackFalse}
+                    ios_backgroundColor={theme.colors.border}
                   />
                 }
               />
@@ -165,10 +247,13 @@ export default function SettingsScreen() {
                 rightElement={
                   <Switch
                     value={blockchainSync}
-                    onValueChange={setBlockchainSync}
-                    trackColor={{ false: theme.colors.switchTrackFalse, true: theme.colors.switchTrackTrue }}
+                    onValueChange={handleBlockchainSyncToggle}
+                    trackColor={{ 
+                      false: theme.colors.border,
+                      true: theme.colors.primary
+                    }}
                     thumbColor={theme.colors.background}
-                    ios_backgroundColor={theme.colors.switchTrackFalse}
+                    ios_backgroundColor={theme.colors.border}
                   />
                 }
               />
@@ -180,9 +265,12 @@ export default function SettingsScreen() {
                   <Switch
                     value={autoShare}
                     onValueChange={setAutoShare}
-                    trackColor={{ false: theme.colors.switchTrackFalse, true: theme.colors.switchTrackTrue }}
+                    trackColor={{ 
+                      false: theme.colors.border,
+                      true: theme.colors.primary
+                    }}
                     thumbColor={theme.colors.background}
-                    ios_backgroundColor={theme.colors.switchTrackFalse}
+                    ios_backgroundColor={theme.colors.border}
                   />
                 }
               />
@@ -200,10 +288,19 @@ export default function SettingsScreen() {
                 rightElement={
                   <Switch
                     value={biometricAuth}
-                    onValueChange={setBiometricAuth}
-                    trackColor={{ false: theme.colors.switchTrackFalse, true: theme.colors.switchTrackTrue }}
+                    onValueChange={async (value) => {
+                      setBiometricAuth(value);
+                      await StorageService.saveSettings({
+                        ...await StorageService.getSettings(),
+                        biometricAuth: value
+                      });
+                    }}
+                    trackColor={{ 
+                      false: theme.colors.border,
+                      true: theme.colors.primary
+                    }}
                     thumbColor={theme.colors.background}
-                    ios_backgroundColor={theme.colors.switchTrackFalse}
+                    ios_backgroundColor={theme.colors.border}
                   />
                 }
               />
@@ -246,7 +343,7 @@ export default function SettingsScreen() {
   );
 }
 
-const createStyles = (theme: any) => StyleSheet.create({
+const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,

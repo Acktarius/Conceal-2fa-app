@@ -76,7 +76,7 @@ export default function WalletScreen() {
           </View>
 
           {/* Key Storage Info */}
-          {balance === 0 ? (
+          {balance === 0 && wallet?.address ? (
             <View style={[styles.welcomeCard, { backgroundColor: theme.colors.primaryLight }]}>
               <Ionicons name="wallet-outline" size={32} color={theme.colors.primary} />
               <Text style={[styles.welcomeTitle, { color: theme.colors.primary }]}>Welcome to SecureAuth!</Text>
@@ -156,6 +156,10 @@ const createStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
+  },
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   scrollView: {
     flex: 1,

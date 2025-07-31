@@ -22,6 +22,9 @@ export interface Theme {
     tabBarInactive: string;
     switchTrack: string;
     switchThumb: string;
+    switchTrackTrue: string;
+    switchTrackFalse: string;
+    switchThumbColor: string;
   };
 }
 
@@ -43,6 +46,8 @@ const lightTheme: Theme = {
     tabBar: '#FFFFFF',
     tabBarActive: '#3B82F6',
     tabBarInactive: '#475569',
+    switchTrack: '#CBD5E1',
+    switchThumb: '#F8FAFC',
     switchTrackTrue: '#3B82F6', // Blue when ON
     switchTrackFalse: '#CBD5E1', // Light grey when OFF
     switchThumbColor: '#F8FAFC', // Light color
@@ -67,6 +72,8 @@ const darkTheme: Theme = {
     tabBar: '#1E293B',
     tabBarActive: '#FFA500',
     tabBarInactive: '#94A3B8',
+    switchTrack: '#475569',
+    switchThumb: '#0F172A',
     switchTrackTrue: '#FFA500', // Orange when ON
     switchTrackFalse: '#475569', // Grey when OFF
     switchThumbColor: '#0F172A', // Same as background
@@ -83,7 +90,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemColorScheme = useColorScheme();
-  const [isDark, setIsDark] = useState(systemColorScheme === 'dark');
+  const [isDark, setIsDark] = useState(true); // Default to dark mode
 
   useEffect(() => {
     loadThemePreference();
