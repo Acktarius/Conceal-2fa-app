@@ -6,6 +6,8 @@ import { BlockchainExplorerRpcDaemon } from '../model/blockchain/BlockchainExplo
 import { Mnemonic } from '../model/Mnemonic';
 import { RNCamera } from 'react-native-camera';
 import { CoinUri } from '../model/CoinUri';
+import { WalletStorageManager } from './WalletStorageManager';
+import { BiometricService } from './BiometricService';
 
 export class ImportService {
   private static blockchainExplorer: BlockchainExplorerRpcDaemon | null = null;
@@ -79,8 +81,8 @@ export class ImportService {
       // Get current blockchain height
       const currentHeight = await this.blockchainExplorer!.getHeight();
       
-      // Get mnemonic from user
-      const mnemonicSeed = await this.getMnemonicFromUser();
+      // Get mnemonic and creation height from user using our custom modal
+      const { mnemonicSeed, providedHeight } = await this.getMnemonicFromUser();
       
       // Detect language and decode mnemonic
       const detectedMnemonicLang = Mnemonic.detectLang(mnemonicSeed.trim());
@@ -93,26 +95,41 @@ export class ImportService {
         throw new Error('Invalid mnemonic phrase');
       }
 
-      // Create keys and wallet
+      // Create keys from mnemonic
       const keys = Cn.create_address(mnemonic_decoded);
-      const newWallet = new Wallet();
-      newWallet.keys = KeysRepository.fromPriv(keys.spend.sec, keys.view.sec);
 
-      // Set creation height slightly behind current height
-      const height = Math.max(0, currentHeight - 10);
-      newWallet.lastHeight = height;
-      newWallet.creationHeight = height;
+      // Get the existing local wallet to upgrade
+      const existingWallet = await WalletStorageManager.getWallet();
+      if (!existingWallet) {
+        throw new Error('No existing wallet found to upgrade');
+      }
 
-      // Create wallet object
-      const wallet = new Wallet();
-      wallet.keys = { 
+      // Upgrade the existing wallet with blockchain keys
+      existingWallet.keys = { 
         priv: { spend: keys.spend.sec, view: keys.view.sec }, 
         pub: { spend: keys.spend.pub, view: keys.view.pub } 
       };
 
-      wallet.creationHeight = height;
+      // Calculate creation height based on user input
+      let creationHeight = 0;
+      if (providedHeight > 0) {
+        const assumeCreationHeight = Math.max(0, providedHeight - 10);
+        if (assumeCreationHeight < 0) {
+          creationHeight = 0;
+        } else if (assumeCreationHeight > currentHeight) {
+          creationHeight = currentHeight;
+        } else {
+          creationHeight = assumeCreationHeight;
+        }
+      }
 
-      return wallet;
+      existingWallet.creationHeight = creationHeight;
+      existingWallet.lastHeight = creationHeight;
+
+      // Encrypt and save the upgraded wallet based on current authentication mode
+      await this.saveImportedWallet(existingWallet);
+
+      return existingWallet;
     } catch (error) {
       console.error('Error importing from mnemonic:', error);
       throw error;
@@ -164,7 +181,7 @@ export class ImportService {
       // Use provided height or default to current height - 10
       const height = txDetails.height ? parseInt(txDetails.height.toString()) : Math.max(0, currentHeight - 10);
       
-      // Create wallet object
+      // Create wallet object with blockchain keys (not local-only)
       const wallet = new Wallet();
       wallet.keys = { 
         priv: { spend: keys.spend.sec, view: keys.view.sec }, 
@@ -179,33 +196,71 @@ export class ImportService {
     }
   }
 
-  private static async getMnemonicFromUser(): Promise<string> {
+  private static async getMnemonicFromUser(): Promise<{ mnemonicSeed: string; providedHeight: number }> {
     return new Promise((resolve, reject) => {
-      Alert.prompt(
-        'Enter Seed Phrase',
-        'Please enter your 25-word seed phrase',
-        [
-          {
-            text: 'Cancel',
-            onPress: () => reject(new Error('USER_CANCELLED')),
-            style: 'cancel',
-          },
-          {
-            text: 'Import',
-            onPress: (mnemonic?: string) => {
-              if (!mnemonic) {
-                reject(new Error('No mnemonic provided'));
-                return;
-              }
-              resolve(mnemonic);
-            },
-          },
-        ],
-        'plain-text',
-        '', // default value
-        'default'
+      // Get the seed input context from global state
+      const seedInputContext = (global as any).seedInputContext;
+      
+      if (!seedInputContext) {
+        throw new Error('Seed input context not available. App must be properly initialized.');
+      }
+
+      // Use our custom modal
+      seedInputContext.showSeedInputModal(
+        (seedPhrase: string, creationHeight?: number) => {
+          resolve({ mnemonicSeed: seedPhrase, providedHeight: creationHeight || 0 });
+        },
+        () => {
+          reject(new Error('USER_CANCELLED'));
+        }
       );
     });
+  }
+
+  private static async saveImportedWallet(wallet: Wallet): Promise<void> {
+    try {
+      if (await BiometricService.isBiometricChecked()) {
+        // Biometric mode: Encrypt with biometric key
+        console.log('IMPORT: Encrypting imported wallet with biometric key');
+        
+        // Use existing biometric salt (should already exist from wallet creation)
+        const existingSalt = await WalletStorageManager.getBiometricSalt();
+        if (!existingSalt) {
+          throw new Error('Biometric salt not found. Wallet must be properly initialized first.');
+        }
+        
+        // Derive biometric key and encrypt
+        const biometricKey = await WalletStorageManager.deriveBiometricKey();
+        if (!biometricKey) {
+          throw new Error('Failed to generate biometric key for imported wallet encryption');
+        }
+        await WalletStorageManager.saveEncryptedWallet(wallet, biometricKey);
+      } else {
+        // Password mode: Prompt for password to encrypt imported wallet
+        console.log('IMPORT: Password mode - requesting password for imported wallet');
+        const passwordPromptContext = (global as any).passwordPromptContext;
+        if (!passwordPromptContext) {
+          throw new Error('Password prompt context not available');
+        }
+        
+        const password = await passwordPromptContext.showPasswordPromptAlert(
+          'Secure Imported Wallet',
+          'Enter a password to secure your imported wallet:'
+        );
+        
+        if (!password) {
+          throw new Error('Password required to secure imported wallet');
+        }
+        
+        await WalletStorageManager.saveEncryptedWallet(wallet, password);
+        
+        // Generate biometric salt from user password (for future biometric enablement)
+        await WalletStorageManager.generateAndStoreBiometricSalt(password);
+      }
+    } catch (error) {
+      console.error('Error saving imported wallet:', error);
+      throw error;
+    }
   }
 
   private static async scanQRCode(): Promise<string> {

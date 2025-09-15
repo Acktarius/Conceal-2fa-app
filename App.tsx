@@ -48,6 +48,7 @@ import TabNavigator from './components/TabNavigator';
 import { WalletProvider } from './contexts/WalletContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { PasswordPromptProvider, usePasswordPrompt } from './contexts/PasswordPromptContext';
+import { SeedInputProvider, useSeedInput } from './contexts/SeedInputContext';
 import { PasswordInputAlert } from './components/PasswordInputAlert';
 
 export default function App() {
@@ -55,9 +56,11 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
         <PasswordPromptProvider>
-          <WalletProvider>
-            <AppContent />
-          </WalletProvider>
+          <SeedInputProvider>
+            <WalletProvider>
+              <AppContent />
+            </WalletProvider>
+          </SeedInputProvider>
         </PasswordPromptProvider>
       </ThemeProvider>
     </GestureHandlerRootView>
@@ -67,8 +70,9 @@ export default function App() {
 function AppContent() {
   const { theme } = useTheme();
   const { showPasswordPrompt, passwordPromptMessage, passwordPromptTitle, showPasswordPromptAlert, handlePasswordPrompt } = usePasswordPrompt();
+  const { showSeedInputModal } = useSeedInput();
 
-  // Set global function for WalletService to access
+  // Set global functions for services to access
   React.useEffect(() => {
     console.log('APP: Setting global passwordPromptContext...');
     (global as any).passwordPromptContext = {
@@ -76,6 +80,14 @@ function AppContent() {
     };
     console.log('APP: Global context set:', !!(global as any).passwordPromptContext);
   }, [showPasswordPromptAlert]);
+
+  React.useEffect(() => {
+    console.log('APP: Setting global seedInputContext...');
+    (global as any).seedInputContext = {
+      showSeedInputModal
+    };
+    console.log('APP: Global seed context set:', !!(global as any).seedInputContext);
+  }, [showSeedInputModal]);
 
   // Debug log when alert state changes
   React.useEffect(() => {
