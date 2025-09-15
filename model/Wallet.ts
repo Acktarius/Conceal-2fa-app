@@ -53,7 +53,7 @@ export class WalletOptions{
 	checkMinerTx:boolean = false;
 	readSpeed:number = 10;
 	customNode:boolean = false;
-	nodeUrl:string = 'https://node.conceal.network:16000/';
+	nodeUrl:string = 'https://explorer.conceal.network/daemon/';
 
 	static fromRaw(raw : RawWalletOptions){
 		let options = new WalletOptions();
@@ -209,6 +209,9 @@ export class Wallet extends Observable {
 			}
 		} else if (typeof raw.keys !== 'undefined') {
 			wallet.keys = raw.keys;
+		} else {
+			// Default empty keys structure if none provided
+			wallet.keys = { priv: { spend: '', view: '' }, pub: { spend: '', view: '' } };
 		}
 		if(typeof raw.creationHeight !== 'undefined') wallet.creationHeight = raw.creationHeight;
 
@@ -227,6 +230,11 @@ export class Wallet extends Observable {
 
 	isViewOnly = () => {
 		return this.keys.priv.spend === '';
+	}
+
+	isLocal = () => {
+		// A wallet is local-only if it doesn't have spend keys
+		return !this.keys || !this.keys.priv || this.keys.priv.spend === '';
 	}
 
 	get lastHeight(): number {
@@ -712,7 +720,21 @@ export class Wallet extends Observable {
   }
 
 	getPublicAddress = () => {
-		return Cn.pubkeys_to_string(this.keys.pub.spend, this.keys.pub.view);
+		// For local-only wallets, return empty string
+		if (this.isLocal()) {
+			return '';
+		}
+		
+		if (!this.keys || !this.keys.pub) {
+			return '';
+		}
+		const address = Cn.pubkeys_to_string(this.keys.pub.spend, this.keys.pub.view);
+		// Validate address format - Conceal addresses should be much longer
+		if (address && address.length < 20) {
+			console.error('Invalid wallet address detected:', address);
+			return '';
+		}
+		return address;
 	}
 
 	recalculateIfNotViewOnly = () => {

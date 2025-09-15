@@ -3,7 +3,6 @@ import { Wallet } from '../model/Wallet';
 import { KeysRepository } from '../model/KeysRepository';
 import { Cn, CnUtils } from '../model/Cn';
 import { BlockchainExplorerRpcDaemon } from '../model/blockchain/BlockchainExplorerRPCDaemon';
-import { WalletData } from './WalletService';
 import { Mnemonic } from '../model/Mnemonic';
 import { RNCamera } from 'react-native-camera';
 import { CoinUri } from '../model/CoinUri';
@@ -11,7 +10,7 @@ import { CoinUri } from '../model/CoinUri';
 export class ImportService {
   private static blockchainExplorer: BlockchainExplorerRpcDaemon | null = null;
 
-  static async importWallet(): Promise<WalletData> {
+  static async importWallet(): Promise<Wallet> {
     try {
       // First, initialize blockchain explorer if needed
       if (!this.blockchainExplorer) {
@@ -75,7 +74,7 @@ export class ImportService {
     }
   }
 
-  private static async importFromMnemonic(): Promise<WalletData> {
+  private static async importFromMnemonic(): Promise<Wallet> {
     try {
       // Get current blockchain height
       const currentHeight = await this.blockchainExplorer!.getHeight();
@@ -104,23 +103,23 @@ export class ImportService {
       newWallet.lastHeight = height;
       newWallet.creationHeight = height;
 
-      // Create wallet data for storage
-      const walletData: WalletData = {
-        address: keys.public_addr,
-        privateKey: keys.spend.sec,
-        publicKey: keys.spend.pub,
-        seed: mnemonic_decoded,
-        creationHeight: height
+      // Create wallet object
+      const wallet = new Wallet();
+      wallet.keys = { 
+        priv: { spend: keys.spend.sec, view: keys.view.sec }, 
+        pub: { spend: keys.spend.pub, view: keys.view.pub } 
       };
 
-      return walletData;
+      wallet.creationHeight = height;
+
+      return wallet;
     } catch (error) {
       console.error('Error importing from mnemonic:', error);
       throw error;
     }
   }
 
-  private static async importFromQR(): Promise<WalletData> {
+  private static async importFromQR(): Promise<Wallet> {
     try {
       // Get current blockchain height
       const currentHeight = await this.blockchainExplorer!.getHeight();
@@ -165,16 +164,15 @@ export class ImportService {
       // Use provided height or default to current height - 10
       const height = txDetails.height ? parseInt(txDetails.height.toString()) : Math.max(0, currentHeight - 10);
       
-      // Create wallet data
-      const walletData: WalletData = {
-        address: keys.public_addr || txDetails.address || '',
-        privateKey: keys.spend.sec,
-        publicKey: keys.spend.pub,
-        seed: seed,
-        creationHeight: height
+      // Create wallet object
+      const wallet = new Wallet();
+      wallet.keys = { 
+        priv: { spend: keys.spend.sec, view: keys.view.sec }, 
+        pub: { spend: keys.spend.pub, view: keys.view.pub } 
       };
+      wallet.creationHeight = height;
 
-      return walletData;
+      return wallet;
     } catch (error) {
       console.error('Error importing from QR:', error);
       throw error;

@@ -3,16 +3,10 @@ import { WalletService } from '../services/WalletService';
 import { BlockchainService } from '../services/BlockchainService';
 import { StorageService } from '../services/StorageService';
 import { WalletStorageManager } from '../services/WalletStorageManager';
-
-interface WalletData {
-  address: string;
-  privateKey: string;
-  publicKey: string;
-  seed: string;
-}
+import { Wallet } from '../model/Wallet';
 
 interface WalletContextType {
-  wallet: WalletData | null;
+  wallet: Wallet | null;
   balance: number;
   maxKeys: number;
   isLoading: boolean;
@@ -26,7 +20,7 @@ interface WalletContextType {
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
-  const [wallet, setWallet] = useState<WalletData | null>(null);
+  const [wallet, setWallet] = useState<Wallet | null>(null);
   const [balance, setBalance] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -44,40 +38,45 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(true);
       console.log('Initializing wallet...');
       
-      // Check if biometric auth is enabled (defaults to true)
-      const settings = await StorageService.getSettings();
-      const biometricEnabled = settings.biometricAuth !== false; // Default to true if not set
-      
-      if (biometricEnabled) {
-        const authSuccess = await WalletService.authenticateUser();
-        if (!authSuccess) {
-          setIsAuthenticated(false);
-          throw new Error('Authentication required');
-        }
-        setIsAuthenticated(true);
-      } else {
-        // If biometric is disabled, we're automatically authenticated
-        setIsAuthenticated(true);
-      }
+      // All authentication is now handled by WalletStorageManager.getWallet()
+      // This includes biometric authentication, password prompts, and fallbacks
+      console.log('Authentication will be handled by WalletStorageManager.getWallet()');
       
       try {
         // Wallet operations in separate try-catch to maintain auth state
-        const walletData = await WalletStorageManager.getWallet();
-        if (walletData) {
-          setWallet(walletData);
-          await refreshBalance();
-        } else {
-          const newWallet = await WalletService.getOrCreateWallet();
-          setWallet(newWallet);
-          await refreshBalance();
+        const wallet = await WalletService.getOrCreateWallet('home');
+        console.log('Wallet loaded:', !!wallet, 'Address:', wallet?.getPublicAddress() || 'none');
+        
+        // If we got here, authentication was successful
+        setIsAuthenticated(true);
+        
+        // CRITICAL: Check for corrupted wallet data
+        if (wallet && wallet.getPublicAddress() && wallet.getPublicAddress().length < 20) {
+          console.error('CRITICAL: Corrupted wallet detected, clearing storage...');
+          await WalletService.forceClearAll();
+          // Restart initialization after clearing
+          return initializeWallet();
         }
+        
+        setWallet(wallet);
+        await refreshBalance();
       } catch (walletError) {
         console.error('Error with wallet operations:', walletError);
+        console.error('Wallet error details:', {
+          message: walletError.message,
+          stack: walletError.stack,
+          name: walletError.name
+        });
         // Don't change authentication state, just set balance to 0
         setBalance(0);
       }
     } catch (error) {
       console.error('Error initializing wallet:', error);
+      console.error('Initialization error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
       // Only set isAuthenticated to false if it was an auth error
       if (error.message === 'Authentication required') {
         setIsAuthenticated(false);
@@ -85,6 +84,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       setBalance(0);
     } finally {
       setIsLoading(false);
+      console.log('Wallet initialization completed, isLoading set to false');
     }
   };
 
@@ -109,17 +109,22 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     setIsAuthenticated(false);
     setWallet(null);
     setBalance(0);
+    // Reinitialize after reset
+    initializeWallet();
   };
 
   const refreshBalance = async () => {
-    if (wallet?.address) {
+    if (wallet?.getPublicAddress()) {
       try {
-        const currentBalance = await BlockchainService.getBalance(wallet.address);
+        const currentBalance = await BlockchainService.getBalance(wallet.getPublicAddress());
         setBalance(currentBalance);
       } catch (error) {
         console.error('Error fetching balance:', error);
         setBalance(0);
       }
+    } else {
+      // For local-only wallets or wallets without address, set balance to 0
+      setBalance(0);
     }
   };
 

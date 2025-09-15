@@ -15,16 +15,62 @@ import Header from '../components/Header';
 import { useWallet } from '../contexts/WalletContext';
 import { useTheme } from '../contexts/ThemeContext';
 import GestureNavigator from '../components/GestureNavigator';
+import { WalletService } from '../services/WalletService';
+import { Wallet} from '../model/Wallet';
 
 export default function WalletScreen() {
   const { wallet, balance, maxKeys, isLoading, refreshBalance } = useWallet();
   const { theme } = useTheme();
   const KEY_STORAGE_COST = 0.0001;
+  // Check wallet and show upgrade prompt if needed
+  useEffect(() => {
+    const checkWallet = async () => {
+      console.log('WALLET SCREEN: Checking wallet...');
+      console.log('WALLET SCREEN: wallet exists:', !!wallet);
+      console.log('WALLET SCREEN: wallet isLocal:', wallet?.isLocal());
+      
+      if (wallet && wallet.isLocal()) {
+        console.log('WALLET SCREEN: Calling getOrCreateWallet("wallet")...');
+        try {
+          // Show upgrade prompt for local wallet
+          const result = await WalletService.getOrCreateWallet('wallet');
+          console.log('WALLET SCREEN: getOrCreateWallet result:', !!result);
+          if (result) {
+            // Wallet was upgraded, refresh the context
+            // TODO: Implement proper refresh mechanism
+            console.log('Wallet upgraded successfully');
+          }
+        } catch (error) {
+          console.error('Error checking wallet:', error);
+        }
+      }
+    };
+
+    checkWallet();
+  }, [wallet]);
+
+  const handleUpgradeWallet = async () => {
+    try {
+      const result = await WalletService.triggerWalletUpgrade();
+      if (result) {
+        // Refresh the wallet context
+        //window.location.reload(); // Simple refresh for now
+        console.log('WALLET SCREEN: Wallet upgraded successfully');
+      } else {
+        console.log('WALLET SCREEN: Upgrade cancelled by user');
+      }
+    } catch (error) {
+      console.error('Error upgrading wallet:', error);
+    }
+  };
+
+  // Check if wallet is local-only using the existing method
+  const isLocalWallet = wallet && wallet.isLocal();
 
   const handleCopyAddress = async () => {
-    if (wallet?.address) {
+    if (wallet?.getPublicAddress()) {
       try {
-        await Clipboard.setStringAsync(wallet.address);
+        await Clipboard.setStringAsync(wallet.getPublicAddress());
         Alert.alert('Copied', 'Wallet address copied to clipboard!');
       } catch (error) {
         Alert.alert('Error', 'Failed to copy address.');
@@ -53,98 +99,122 @@ export default function WalletScreen() {
       <View style={styles.container}>
         <Header title="Wallet" />
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-          {/* Balance Card */}
-          <View style={[styles.balanceCard, { backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border }]}>
-            <View style={styles.balanceHeader}>
-              <Ionicons name="wallet-outline" size={24} color={theme.colors.primary} />
-              <Text style={[styles.balanceLabel, { color: theme.colors.text }]}>CCX Balance</Text>
-            </View>
-            <Text style={[styles.balanceAmount, { color: theme.colors.primary }]}>
-              {balance.toFixed(4)}
-            </Text>
-            <Text style={[styles.balanceUsd, { color: theme.colors.textSecondary }]}>
-              Keys available: {maxKeys}
-            </Text>
-            <TouchableOpacity
-              style={[styles.refreshButton, { backgroundColor: theme.colors.primaryLight }]}
-              onPress={refreshBalance}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="refresh-outline" size={16} color={theme.colors.primary} />
-              <Text style={[styles.refreshText, { color: theme.colors.primary }]}>Refresh</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Key Storage Info */}
-          {balance === 0 && wallet?.address ? (
-            <View style={[styles.welcomeCard, { backgroundColor: theme.colors.primaryLight }]}>
-              <Ionicons name="wallet-outline" size={32} color={theme.colors.primary} />
-              <Text style={[styles.welcomeTitle, { color: theme.colors.primary }]}>Welcome to SecureAuth!</Text>
-              <Text style={[styles.welcomeText, { color: theme.colors.primary }]}>
-                Your wallet has been created with 0 CCX. To sync your 2FA keys to the blockchain, 
-                ask a friend to send you some CCX to your address below.
+          {isLocalWallet ? (
+            // Local Wallet Mode
+            <View style={[styles.localWalletCard, { backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border }]}>
+              <View style={styles.localWalletHeader}>
+                <Ionicons name="wallet-outline" size={32} color={theme.colors.textSecondary} />
+                <Text style={[styles.localWalletTitle, { color: theme.colors.text }]}>Local Wallet Mode</Text>
+              </View>
+              <Text style={[styles.localWalletText, { color: theme.colors.textSecondary }]}>
+                Your wallet is currently in local-only mode. Upgrade to blockchain mode to sync your 2FA keys and access full features.
               </Text>
+              <TouchableOpacity
+                style={[styles.upgradeButton, { backgroundColor: theme.colors.primary }]}
+                onPress={handleUpgradeWallet}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="arrow-up-outline" size={20} color="white" />
+                <Text style={styles.upgradeButtonText}>Upgrade to Blockchain Wallet</Text>
+              </TouchableOpacity>
             </View>
           ) : (
-            <View style={[styles.infoCard, { backgroundColor: theme.colors.primaryLight }]}>
-              <Ionicons name="information-circle-outline" size={24} color={theme.colors.primary} />
-              <View style={styles.infoContent}>
-                <Text style={[styles.infoTitle, { color: theme.colors.primary }]}>Blockchain Sync Available</Text>
-                <Text style={[styles.infoText, { color: theme.colors.primary }]}>
-                  Each 2FA key sync costs {KEY_STORAGE_COST.toFixed(4)} CCX. 
-                  You can currently sync {maxKeys} keys to the blockchain.
+            // Normal Wallet Mode
+            <>
+              {/* Balance Card */}
+              <View style={[styles.balanceCard, { backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border }]}>
+                <View style={styles.balanceHeader}>
+                  <Ionicons name="wallet-outline" size={24} color={theme.colors.primary} />
+                  <Text style={[styles.balanceLabel, { color: theme.colors.text }]}>CCX Balance</Text>
+                </View>
+                <Text style={[styles.balanceAmount, { color: theme.colors.primary }]}>
+                  {balance.toFixed(4)}
                 </Text>
+                <Text style={[styles.balanceUsd, { color: theme.colors.textSecondary }]}>
+                  Keys available: {maxKeys}
+                </Text>
+                <TouchableOpacity
+                  style={[styles.refreshButton, { backgroundColor: theme.colors.primaryLight }]}
+                  onPress={refreshBalance}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="refresh-outline" size={16} color={theme.colors.primary} />
+                  <Text style={[styles.refreshText, { color: theme.colors.primary }]}>Refresh</Text>
+                </TouchableOpacity>
               </View>
-            </View>
-          )}
 
-          {/* Wallet Address Card */}
-          <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
-            <View style={styles.cardHeader}>
-              <Ionicons name="qr-code-outline" size={24} color={theme.colors.text} />
-              <Text style={[styles.cardTitle, { color: theme.colors.text }]}>Receive CCX</Text>
-            </View>
-            
-            <View style={[styles.qrContainer, { backgroundColor: theme.colors.background }]}>
-              {wallet?.address && (
-                <QRCode
-                  value={wallet.address}
-                  size={200}
-                  backgroundColor={theme.colors.surface}
-                  color={theme.colors.text}
-                />
+              {/* Key Storage Info */}
+              {balance === 0 && wallet?.getPublicAddress() ? (
+                <View style={[styles.welcomeCard, { backgroundColor: theme.colors.primaryLight }]}>
+                  <Ionicons name="wallet-outline" size={32} color={theme.colors.primary} />
+                  <Text style={[styles.welcomeTitle, { color: theme.colors.primary }]}>Welcome to SecureAuth!</Text>
+                  <Text style={[styles.welcomeText, { color: theme.colors.primary }]}>
+                    Your wallet has been created with 0 CCX. To sync your 2FA keys to the blockchain, 
+                    ask a friend to send you some CCX to your address below.
+                  </Text>
+                </View>
+              ) : (
+                <View style={[styles.infoCard, { backgroundColor: theme.colors.primaryLight }]}>
+                  <Ionicons name="information-circle-outline" size={24} color={theme.colors.primary} />
+                  <View style={styles.infoContent}>
+                    <Text style={[styles.infoTitle, { color: theme.colors.primary }]}>Blockchain Sync Available</Text>
+                    <Text style={[styles.infoText, { color: theme.colors.primary }]}>
+                      Each 2FA key sync costs {KEY_STORAGE_COST.toFixed(4)} CCX. 
+                      You can currently sync {maxKeys} keys to the blockchain.
+                    </Text>
+                  </View>
+                </View>
               )}
-            </View>
-            
-            <View style={styles.addressContainer}>
-              <Text style={[styles.addressLabel, { color: theme.colors.textSecondary }]}>Your Wallet Address:</Text>
-              <Text style={[styles.addressText, { color: theme.colors.text, backgroundColor: theme.colors.background }]} numberOfLines={2}>
-                {wallet?.address || 'Loading...'}
-              </Text>
-            </View>
-            
-            <TouchableOpacity
-              style={[styles.copyButton, { backgroundColor: theme.colors.primaryLight }]}
-              onPress={handleCopyAddress}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="copy-outline" size={20} color={theme.colors.primary} />
-              <Text style={[styles.copyButtonText, { color: theme.colors.primary }]}>Copy Address</Text>
-            </TouchableOpacity>
-          </View>
 
-          {/* Funding Info Card */}
-          {balance === 0 && (
-            <View style={[styles.fundingCard, { backgroundColor: theme.colors.primaryLight }]}>
-              <Ionicons name="people-outline" size={24} color={theme.colors.primary} />
-              <View style={styles.infoContent}>
-                <Text style={[styles.infoTitle, { color: theme.colors.primary }]}>Get Started</Text>
-                <Text style={[styles.infoText, { color: theme.colors.primary }]}>
-                  Share your wallet address with a friend or colleague to receive CCX. 
-                  Even a small amount (0.1 CCX) allows you to sync multiple keys!
-                </Text>
+              {/* Wallet Address Card */}
+              <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
+                <View style={styles.cardHeader}>
+                  <Ionicons name="qr-code-outline" size={24} color={theme.colors.text} />
+                  <Text style={[styles.cardTitle, { color: theme.colors.text }]}>Receive CCX</Text>
+                </View>
+                
+                <View style={[styles.qrContainer, { backgroundColor: theme.colors.background }]}>
+                  {wallet?.getPublicAddress() && (
+                    <QRCode
+                      value={wallet.getPublicAddress()}
+                      size={200}
+                      backgroundColor={theme.colors.surface}
+                      color={theme.colors.text}
+                    />
+                  )}
+                </View>
+                
+                <View style={styles.addressContainer}>
+                  <Text style={[styles.addressLabel, { color: theme.colors.textSecondary }]}>Your Wallet Address:</Text>
+                  <Text style={[styles.addressText, { color: theme.colors.text, backgroundColor: theme.colors.background }]} numberOfLines={2}>
+                    {wallet?.getPublicAddress() || 'Loading...'}
+                  </Text>
+                </View>
+                
+                <TouchableOpacity
+                  style={[styles.copyButton, { backgroundColor: theme.colors.primaryLight }]}
+                  onPress={handleCopyAddress}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="copy-outline" size={20} color={theme.colors.primary} />
+                  <Text style={[styles.copyButtonText, { color: theme.colors.primary }]}>Copy Address</Text>
+                </TouchableOpacity>
               </View>
-            </View>
+
+              {/* Funding Info Card */}
+              {balance === 0 && (
+                <View style={[styles.fundingCard, { backgroundColor: theme.colors.primaryLight }]}>
+                  <Ionicons name="people-outline" size={24} color={theme.colors.primary} />
+                  <View style={styles.infoContent}>
+                    <Text style={[styles.infoTitle, { color: theme.colors.primary }]}>Get Started</Text>
+                    <Text style={[styles.infoText, { color: theme.colors.primary }]}>
+                      Share your wallet address with a friend or colleague to receive CCX. 
+                      Even a small amount (0.1 CCX) allows you to sync multiple keys!
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </>
           )}
         </ScrollView>
       </View>
@@ -310,5 +380,45 @@ const createStyles = (theme: any) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     margin: 16,
+  },
+  localWalletCard: {
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    margin: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  localWalletHeader: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  localWalletTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginTop: 8,
+  },
+  localWalletText: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  upgradeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  upgradeButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'white',
+    marginLeft: 8,
   },
 });

@@ -1,4 +1,5 @@
 import { BlockchainExplorerRpcDaemon } from '../model/blockchain/BlockchainExplorerRPCDaemon';
+import { WalletStorageManager } from './WalletStorageManager';
 import { StorageService } from './StorageService';
 import { WalletService } from './WalletService';
 import { Wallet } from '../model/Wallet';
@@ -69,10 +70,7 @@ export class BlockchainSyncWorker {
 
       // Get current wallet
       if (!this.wallet && WalletService.hasActiveWallet()) {
-        const walletData = await StorageService.getWallet();
-        if (walletData) {
-          this.wallet = Wallet.loadFromRaw(walletData);
-        }
+        this.wallet = await WalletStorageManager.getWallet();
       }
 
       if (!this.wallet) {
@@ -87,7 +85,9 @@ export class BlockchainSyncWorker {
       if (this.wallet.creationHeight === 0) {
         this.wallet.creationHeight = Math.max(0, currentHeight - 10);
         this.wallet.lastHeight = this.wallet.creationHeight;
-        await StorageService.saveWallet(this.wallet.exportToRaw());
+        // Note: Wallet saving is handled by WalletService.saveWalletState()
+        // This method should not directly save wallet data
+        console.log('BlockchainSyncWorker: Wallet height updated, but saving is handled by WalletService');
       }
 
       // Start blockchain monitoring if not already started

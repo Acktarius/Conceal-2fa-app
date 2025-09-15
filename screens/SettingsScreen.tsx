@@ -20,6 +20,13 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BlockchainSyncWorker } from '../services/BlockchainSyncWorker';
 import { WalletService } from '../services/WalletService';
+import { Mnemonic } from '../model/Mnemonic';
+import { PasswordChangeAlert } from '../components/PasswordChangeAlert';
+import { UnlockWalletAlert } from '../components/UnlockWalletAlert';
+import { PasswordCreationAlert } from '../components/PasswordCreationAlert';
+import { WalletStorageManager } from '../services/WalletStorageManager';
+import * as SecureStore from 'expo-secure-store';
+// verifyOldPassword function moved here to avoid circular dependencies
 
 type RootStackParamList = {
   Home: undefined;
@@ -32,6 +39,10 @@ export default function SettingsScreen() {
   const [blockchainSync, setBlockchainSync] = useState(false);
   const [autoShare, setAutoShare] = useState(false);
   const [biometricAuth, setBiometricAuth] = useState(false);
+  const [showPasswordChangeAlert, setShowPasswordChangeAlert] = useState(false);
+  const [showUnlockWalletAlert, setShowUnlockWalletAlert] = useState(false);
+  const [showPasswordCreationAlert, setShowPasswordCreationAlert] = useState(false);
+  const [biometricAction, setBiometricAction] = useState<'enable' | 'disable'>('enable');
   const { theme, toggleTheme, isDark } = useTheme();
   const { wallet, resetWallet } = useWallet();
   const navigation = useNavigation<NavigationProp>();
@@ -78,25 +89,34 @@ export default function SettingsScreen() {
   };
 
   const handleShowSeed = () => {
-    if (wallet?.seed) {
-      Alert.alert(
-        'Recovery Seed',
-        `Your 25-word recovery seed:\n\n${wallet.seed}`,
-        [
-          {
-            text: 'Copy',
-            onPress: async () => {
-              try {
-                await Clipboard.setStringAsync(wallet.seed);
-                Alert.alert('Copied', 'Recovery seed copied to clipboard!');
-              } catch (error) {
-                Alert.alert('Error', 'Failed to copy seed.');
-              }
+    if (wallet?.keys?.priv?.spend) {
+      try {
+        // Derive seed from private key using Mnemonic.mn_encode()
+        const mnemonic = Mnemonic.mn_encode(wallet.keys.priv.spend, 'english');
+        
+        Alert.alert(
+          'Recovery Seed',
+          `Your 25-word recovery seed:\n\n${mnemonic}`,
+          [
+            {
+              text: 'Copy',
+              onPress: async () => {
+                try {
+                  await Clipboard.setStringAsync(mnemonic);
+                  Alert.alert('Copied', 'Recovery seed copied to clipboard!');
+                } catch (error) {
+                  Alert.alert('Error', 'Failed to copy seed.');
+                }
+              },
             },
-          },
-          { text: 'Close', style: 'cancel' },
-        ]
-      );
+            { text: 'Close', style: 'cancel' },
+          ]
+        );
+      } catch (error) {
+        Alert.alert('Error', 'Failed to generate recovery seed from wallet keys.');
+      }
+    } else {
+      Alert.alert('Error', 'No wallet keys available to generate seed.');
     }
   };
 
@@ -111,7 +131,7 @@ export default function SettingsScreen() {
         },
         {
           text: '25-Word Seed',
-          onPress: () => Alert.alert('Seed Phrase', 'Seed phrase export available in Wallet tab'),
+          onPress: () => handleShowSeed(),
         },
         { text: 'Cancel', style: 'cancel' },
       ]
@@ -131,7 +151,7 @@ export default function SettingsScreen() {
               console.log('=== BEFORE CLEAR ===');
               await StorageService.debugStorage();
               
-              await WalletService.resetWallet();
+              await WalletService.forceClearAll();
               
               // Also reset the wallet context
               resetWallet();
@@ -157,6 +177,105 @@ export default function SettingsScreen() {
         { text: 'Cancel', style: 'cancel' },
       ]
     );
+  };
+
+  const handlePasswordChange = async (oldPassword: string, newPassword: string) => {
+    try {
+      // Safety check: password change should only be available when biometric is disabled
+      if (biometricAuth) {
+        Alert.alert('Error', 'Password change is only available when biometric authentication is disabled');
+        return;
+      }
+      
+      // 1. Get the current wallet with the old password (this also verifies the password)
+      const currentWallet = await WalletStorageManager.getDecryptedWalletWithPassword(oldPassword);
+      if (!currentWallet) {
+        Alert.alert('Error', 'Current password is incorrect or could not retrieve wallet data');
+        return;
+      }
+      
+      // 2. Re-encrypt the wallet with the new password
+      await WalletStorageManager.saveEncryptedWallet(currentWallet, newPassword);
+      
+      // Note: No need to update biometric salt since we're in password mode
+      // Biometric salt is only relevant when biometric authentication is enabled
+      
+      Alert.alert('Success', 'Password changed successfully');
+      setShowPasswordChangeAlert(false);
+    } catch (error) {
+      console.error('Error changing password:', error);
+      Alert.alert('Error', 'Failed to change password. Please try again.');
+    }
+  };
+
+  const handleEnableBiometric = async (password: string) => {
+    try {
+      // 1. Verify the password by trying to decrypt the wallet
+      const currentWallet = await WalletStorageManager.getDecryptedWalletWithPassword(password);
+      if (!currentWallet) {
+        Alert.alert('Error', 'Password is incorrect');
+        return;
+      }
+      
+      // 2. Generate and store biometric salt with the verified password
+      await WalletStorageManager.generateAndStoreBiometricSalt(password);
+      
+      // 3. Re-encrypt the wallet with the derived biometric key
+      const biometricKey = await WalletStorageManager.deriveBiometricKey();
+      if (!biometricKey) {
+        Alert.alert('Error', 'Failed to generate biometric key');
+        return;
+      }
+      
+      // Re-encrypt wallet with biometric key
+      await WalletStorageManager.saveEncryptedWallet(currentWallet, biometricKey);
+      
+      // 4. Enable biometric authentication in settings
+      setBiometricAuth(true);
+      await StorageService.saveSettings({
+        ...await StorageService.getSettings(),
+        biometricAuth: true
+      });
+      
+      Alert.alert('Success', 'Biometric authentication enabled successfully');
+      setShowUnlockWalletAlert(false);
+    } catch (error) {
+      console.error('Error enabling biometric:', error);
+      Alert.alert('Error', 'Failed to enable biometric authentication. Please try again.');
+    }
+  };
+
+  const handleDisableBiometric = async (newPassword: string) => {
+    try {
+      // 1. Get the current wallet (it's encrypted with biometric key)
+      const biometricKey = await WalletStorageManager.deriveBiometricKey();
+      if (!biometricKey) {
+        Alert.alert('Error', 'Failed to derive biometric key');
+        return;
+      }
+      
+      const currentWallet = await WalletStorageManager.getDecryptedWalletWithPassword(biometricKey);
+      if (!currentWallet) {
+        Alert.alert('Error', 'Could not decrypt wallet with biometric key');
+        return;
+      }
+      
+      // 2. Re-encrypt the wallet with the NEW user password
+      await WalletStorageManager.saveEncryptedWallet(currentWallet, newPassword);
+      
+      // 3. Disable biometric authentication in settings
+      setBiometricAuth(false);
+      await StorageService.saveSettings({
+        ...await StorageService.getSettings(),
+        biometricAuth: false
+      });
+      
+      Alert.alert('Success', 'Biometric authentication disabled. You will now use password authentication.');
+      setShowPasswordCreationAlert(false);
+    } catch (error) {
+      console.error('Error disabling biometric:', error);
+      Alert.alert('Error', 'Failed to disable biometric authentication. Please try again.');
+    }
   };
 
   const SettingItem = ({ 
@@ -289,11 +408,55 @@ export default function SettingsScreen() {
                   <Switch
                     value={biometricAuth}
                     onValueChange={async (value) => {
-                      setBiometricAuth(value);
-                      await StorageService.saveSettings({
-                        ...await StorageService.getSettings(),
-                        biometricAuth: value
-                      });
+                      if (!value) {
+                        // User is disabling biometric auth - show warning
+                        Alert.alert(
+                          'Disable Biometric Authentication',
+                          'You will be asked to set a new password for your wallet.\n\nYou will use this password to access the app instead of biometric authentication.',
+                          [
+                            {
+                              text: 'Cancel',
+                              onPress: () => {
+                                // Don't change the toggle, keep it enabled
+                                setBiometricAuth(true);
+                              },
+                              style: 'cancel'
+                            },
+                            {
+                              text: 'Confirm',
+                              onPress: async () => {
+                                // Show password input alert for disabling biometric
+                                setBiometricAction('disable');
+                                setShowPasswordCreationAlert(true);
+                              }
+                            }
+                          ]
+                        );
+                      } else {
+                        // User is enabling biometric auth - request password to update biometric salt
+                        Alert.alert(
+                          'Enable Biometric Authentication',
+                          'Enter your wallet password to enable biometric authentication.',
+                          [
+                            {
+                              text: 'Cancel',
+                              onPress: () => {
+                                // Don't change the toggle, keep it disabled
+                                setBiometricAuth(false);
+                              },
+                              style: 'cancel'
+                            },
+                            {
+                              text: 'Enable',
+                              onPress: async () => {
+                                // Show password input alert
+                                setBiometricAction('enable');
+                                setShowUnlockWalletAlert(true);
+                              }
+                            }
+                          ]
+                        );
+                      }
                     }}
                     trackColor={{ 
                       false: theme.colors.border,
@@ -304,6 +467,16 @@ export default function SettingsScreen() {
                   />
                 }
               />
+              
+              {/* Change Password option - only visible when biometric is disabled */}
+              {!biometricAuth && (
+                <SettingItem
+                  icon="key-outline"
+                  title="Change Password"
+                  subtitle="Update your wallet password"
+                  onPress={() => setShowPasswordChangeAlert(true)}
+                />
+              )}
             </View>
           </View>
 
@@ -339,6 +512,30 @@ export default function SettingsScreen() {
 
         </ScrollView>
       </View>
+      
+      <PasswordChangeAlert
+        visible={showPasswordChangeAlert}
+        title="Change Password"
+        message="Enter your current password and choose a new secure password."
+        onCancel={() => setShowPasswordChangeAlert(false)}
+        onConfirm={handlePasswordChange}
+      />
+      
+      <UnlockWalletAlert
+        visible={showUnlockWalletAlert}
+        title="Enable Biometric Authentication"
+        message="Enter your current wallet password to enable biometric authentication."
+        onCancel={() => setShowUnlockWalletAlert(false)}
+        onConfirm={handleEnableBiometric}
+      />
+      
+      <PasswordCreationAlert
+        visible={showPasswordCreationAlert}
+        title="Set New Password"
+        message="Enter a new password for your wallet. This will replace biometric authentication."
+        onCancel={() => setShowPasswordCreationAlert(false)}
+        onConfirm={handleDisableBiometric}
+      />
     </GestureNavigator>
   );
 }
