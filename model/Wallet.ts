@@ -211,7 +211,7 @@ export class Wallet extends Observable {
 			wallet.keys = raw.keys;
 		} else {
 			// Default empty keys structure if none provided
-			wallet.keys = { priv: { spend: '', view: '' }, pub: { spend: '', view: '' } };
+			wallet.keys = KeysRepository.createEmptyKeys();
 		}
 		if(typeof raw.creationHeight !== 'undefined') wallet.creationHeight = raw.creationHeight;
 

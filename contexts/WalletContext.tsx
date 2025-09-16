@@ -14,7 +14,8 @@ interface WalletContextType {
   refreshBalance: () => Promise<void>;
   authenticate: () => Promise<boolean>;
   logout: () => void;
-  resetWallet: () => void;
+  refreshWallet: (wallet?: Wallet) => Promise<void>;
+  refreshCounter: number;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -24,6 +25,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [balance, setBalance] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [refreshCounter, setRefreshCounter] = useState(0);
 
   const KEY_STORAGE_COST = 0.0001; // CCX cost per key storage
 
@@ -105,12 +107,41 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     // Don't clear wallet data, just mark as not authenticated
   };
 
-  const resetWallet = () => {
-    setIsAuthenticated(false);
-    setWallet(null);
-    setBalance(0);
-    // Reinitialize after reset
-    initializeWallet();
+  const refreshWallet = async (providedWallet?: Wallet) => {
+    try {
+      console.log('Refreshing wallet...');
+      
+      let walletToUse: Wallet | null = null;
+      
+      if (providedWallet) {
+        // Use the provided wallet (no need to authenticate again)
+        console.log('Using provided wallet:', !!providedWallet, 'Address:', providedWallet?.getPublicAddress() || 'none', 'isLocal:', providedWallet?.isLocal());
+        walletToUse = providedWallet;
+      } else {
+        // Load wallet directly from storage without going through upgrade prompts
+        walletToUse = await WalletStorageManager.getWallet();
+        
+        if (walletToUse) {
+          console.log('Wallet loaded from storage:', !!walletToUse, 'Address:', walletToUse?.getPublicAddress() || 'none', 'isLocal:', walletToUse?.isLocal());
+        } else {
+          console.log('No wallet found during refresh - creating new local wallet');
+          // If no wallet exists, create a new local wallet
+          walletToUse = await WalletService.createLocalWallet();
+        }
+      }
+      
+      if (walletToUse) {
+        setWallet(walletToUse);
+        await refreshBalance();
+        
+        // Increment refresh counter to force component re-renders
+        setRefreshCounter(prev => prev + 1);
+        
+        console.log('Wallet refreshed successfully');
+      }
+    } catch (error) {
+      console.error('Error refreshing wallet:', error);
+    }
   };
 
   const refreshBalance = async () => {
@@ -139,7 +170,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         refreshBalance,
         authenticate,
         logout,
-        resetWallet,
+        refreshWallet,
+        refreshCounter,
       }}
     >
       {children}

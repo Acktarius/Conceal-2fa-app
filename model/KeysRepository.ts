@@ -45,4 +45,17 @@ export class KeysRepository{
 		}
 	}
 
+	static createEmptyKeys() : UserKeys{
+		return {
+			pub:{
+				view:'',
+				spend:''
+			},
+			priv:{
+				view:'',
+				spend:'',
+			}
+		}
+	}
+
 }

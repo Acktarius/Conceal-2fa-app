@@ -7,9 +7,11 @@ import {
   Switch,
   Alert,
   ScrollView,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
+import QRCode from 'react-native-qrcode-svg';
 
 import Header from '../components/Header';
 import { useTheme } from '../contexts/ThemeContext';
@@ -25,6 +27,7 @@ import { PasswordChangeAlert } from '../components/PasswordChangeAlert';
 import { UnlockWalletAlert } from '../components/UnlockWalletAlert';
 import { PasswordCreationAlert } from '../components/PasswordCreationAlert';
 import { WalletStorageManager } from '../services/WalletStorageManager';
+import { ExportService } from '../services/ExportService';
 import * as SecureStore from 'expo-secure-store';
 // verifyOldPassword function moved here to avoid circular dependencies
 
@@ -43,8 +46,22 @@ export default function SettingsScreen() {
   const [showUnlockWalletAlert, setShowUnlockWalletAlert] = useState(false);
   const [showPasswordCreationAlert, setShowPasswordCreationAlert] = useState(false);
   const [biometricAction, setBiometricAction] = useState<'enable' | 'disable'>('enable');
+  
+  // Expandable sections state
+  const [showRecoverySeed, setShowRecoverySeed] = useState(false);
+  const [showExportQR, setShowExportQR] = useState(false);
+  const [recoverySeed, setRecoverySeed] = useState('');
+  const [exportQRData, setExportQRData] = useState('');
+  
+  // Calculate QR code size based on screen width
+  const screenWidth = Dimensions.get('window').width;
+  const cardPadding = 16; // 8px padding on each side of the card
+  const expandablePadding = 16; // 8px padding on each side of expandable section
+  const maxQRWidth = (screenWidth - cardPadding - expandablePadding) * 0.95;
+  const qrSize = Math.min(maxQRWidth, 250); // Cap at 250px for readability
+  
   const { theme, toggleTheme, isDark } = useTheme();
-  const { wallet, resetWallet } = useWallet();
+  const { wallet, refreshWallet } = useWallet();
   const navigation = useNavigation<NavigationProp>();
 
   const styles = createStyles(theme, isDark);
@@ -89,53 +106,70 @@ export default function SettingsScreen() {
   };
 
   const handleShowSeed = () => {
-    if (wallet?.keys?.priv?.spend) {
-      try {
-        // Derive seed from private key using Mnemonic.mn_encode()
-        const mnemonic = Mnemonic.mn_encode(wallet.keys.priv.spend, 'english');
-        
-        Alert.alert(
-          'Recovery Seed',
-          `Your 25-word recovery seed:\n\n${mnemonic}`,
-          [
-            {
-              text: 'Copy',
-              onPress: async () => {
-                try {
-                  await Clipboard.setStringAsync(mnemonic);
-                  Alert.alert('Copied', 'Recovery seed copied to clipboard!');
-                } catch (error) {
-                  Alert.alert('Error', 'Failed to copy seed.');
-                }
-              },
-            },
-            { text: 'Close', style: 'cancel' },
-          ]
-        );
-      } catch (error) {
-        Alert.alert('Error', 'Failed to generate recovery seed from wallet keys.');
-      }
+    if (showRecoverySeed) {
+      // Collapse the section
+      setShowRecoverySeed(false);
+      setRecoverySeed('');
     } else {
-      Alert.alert('Error', 'No wallet keys available to generate seed.');
+      // Expand and generate seed
+      if (wallet?.keys?.priv?.spend) {
+        try {
+          // Derive seed from private key using Mnemonic.mn_encode()
+          const mnemonic = Mnemonic.mn_encode(wallet.keys.priv.spend, 'english');
+          setRecoverySeed(mnemonic);
+          setShowRecoverySeed(true);
+        } catch (error) {
+          Alert.alert('Error', 'Failed to generate recovery seed from wallet keys.');
+        }
+      } else {
+        Alert.alert('Error', 'No wallet keys available to generate seed.');
+      }
     }
   };
 
   const handleExportWallet = () => {
-    Alert.alert(
-      'Export Wallet',
-      'Choose export method:',
-      [
-        {
-          text: 'QR Code',
-          onPress: () => Alert.alert('QR Code', 'QR code export feature coming soon!'),
-        },
-        {
-          text: '25-Word Seed',
-          onPress: () => handleShowSeed(),
-        },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
+    if (showExportQR) {
+      // Collapse the section
+      setShowExportQR(false);
+      setExportQRData('');
+    } else {
+      // Expand and generate QR
+      if (!wallet) {
+        Alert.alert('Error', 'No wallet available for export');
+        return;
+      }
+
+      if (wallet.isLocal()) {
+        Alert.alert('Error', 'Cannot export local-only wallet. Please upgrade to blockchain wallet first.');
+        return;
+      }
+
+      try {
+        const qrData = ExportService.exportWalletAsQR(wallet);
+        setExportQRData(qrData);
+        setShowExportQR(true);
+      } catch (error) {
+        Alert.alert('Error', 'Failed to export wallet QR code. Please try again.');
+      }
+    }
+  };
+
+  const handleCopySeed = async () => {
+    try {
+      await Clipboard.setStringAsync(recoverySeed);
+      Alert.alert('Copied', 'Recovery seed copied to clipboard!');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to copy seed.');
+    }
+  };
+
+  const handleCopyQRData = async () => {
+    try {
+      await Clipboard.setStringAsync(exportQRData);
+      Alert.alert('Copied', 'QR code data copied to clipboard!');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to copy QR data.');
+    }
   };
 
   const handleClearData = async () => {
@@ -153,11 +187,14 @@ export default function SettingsScreen() {
               
               await WalletService.forceClearAll();
               
-              // Also reset the wallet context
-              resetWallet();
+              // Reset upgrade prompt flags so new local wallet can show prompts
+              await WalletService.resetUpgradeFlags();
               
               console.log('=== AFTER CLEAR ===');
               await StorageService.debugStorage();
+              
+              // Clear the wallet context state to force reinitialization
+              await refreshWallet();
               
               // Navigate to HomeScreen
               navigation.reset({
@@ -343,15 +380,70 @@ export default function SettingsScreen() {
               <SettingItem
                 icon="key-outline"
                 title="Show Recovery Seed"
-                subtitle="View your 25-word recovery phrase"
+                subtitle={showRecoverySeed ? "Hide recovery phrase" : "View your 25-word recovery phrase"}
                 onPress={handleShowSeed}
+                rightElement={
+                  <Ionicons 
+                    name={showRecoverySeed ? "chevron-up" : "chevron-down"} 
+                    size={20} 
+                    color={theme.colors.textSecondary} 
+                  />
+                }
               />
+              
+              {/* Recovery Seed Expandable Section */}
+              {showRecoverySeed && (
+                <View style={[styles.expandableSection, { backgroundColor: theme.colors.background }]}>
+                  <Text style={[styles.seedText, { color: theme.colors.text, backgroundColor: theme.colors.surface }]}>
+                    {recoverySeed}
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.copyButton, { backgroundColor: theme.colors.primaryLight }]}
+                    onPress={handleCopySeed}
+                  >
+                    <Ionicons name="copy-outline" size={16} color={theme.colors.primary} />
+                    <Text style={[styles.copyButtonText, { color: theme.colors.primary }]}>Copy Seed</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
               <SettingItem
                 icon="download-outline"
                 title="Export Wallet"
-                subtitle="Backup your wallet"
+                subtitle={showExportQR ? "Hide QR code" : "Backup your wallet"}
                 onPress={handleExportWallet}
+                rightElement={
+                  <Ionicons 
+                    name={showExportQR ? "chevron-up" : "chevron-down"} 
+                    size={20} 
+                    color={theme.colors.textSecondary} 
+                  />
+                }
               />
+              
+              {/* Export QR Expandable Section */}
+              {showExportQR && (
+                <View style={[styles.expandableSection, { backgroundColor: theme.colors.background }]}>
+                  <View style={[styles.qrContainer, { backgroundColor: 'white' }]}>
+                    <QRCode
+                      value={exportQRData}
+                      size={qrSize}
+                      backgroundColor="white"
+                      color="black"
+                    />
+                  </View>
+                  <Text style={[styles.qrDataText, { color: theme.colors.textSecondary }]}>
+                    Scan this QR code to import the wallet
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.copyButton, { backgroundColor: theme.colors.primaryLight }]}
+                    onPress={handleCopyQRData}
+                  >
+                    <Ionicons name="copy-outline" size={16} color={theme.colors.primary} />
+                    <Text style={[styles.copyButtonText, { color: theme.colors.primary }]}>Copy QR Data</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           </View>
 
@@ -588,6 +680,55 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   settingSubtitle: {
     fontSize: 14,
     marginTop: 2,
+  },
+  expandableSection: {
+    padding: 16,
+    marginTop: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  expandableTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  seedText: {
+    fontSize: 14,
+    fontFamily: 'monospace',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+    lineHeight: 20,
+  },
+  qrContainer: {
+    alignItems: 'center',
+    padding: 20,
+    borderRadius: 12,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  qrDataText: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 12,
+    fontStyle: 'italic',
+  },
+  copyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    padding: 12,
+  },
+  copyButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
   },
 }
 )

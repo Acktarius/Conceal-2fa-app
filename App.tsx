@@ -49,7 +49,9 @@ import { WalletProvider } from './contexts/WalletContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { PasswordPromptProvider, usePasswordPrompt } from './contexts/PasswordPromptContext';
 import { SeedInputProvider, useSeedInput } from './contexts/SeedInputContext';
+import { QRInputProvider, useQRInput } from './contexts/QRInputContext';
 import { PasswordInputAlert } from './components/PasswordInputAlert';
+import { PasswordCreationAlert } from './components/PasswordCreationAlert';
 
 export default function App() {
   return (
@@ -57,9 +59,11 @@ export default function App() {
       <ThemeProvider>
         <PasswordPromptProvider>
           <SeedInputProvider>
-            <WalletProvider>
-              <AppContent />
-            </WalletProvider>
+            <QRInputProvider>
+              <WalletProvider>
+                <AppContent />
+              </WalletProvider>
+            </QRInputProvider>
           </SeedInputProvider>
         </PasswordPromptProvider>
       </ThemeProvider>
@@ -69,17 +73,30 @@ export default function App() {
 
 function AppContent() {
   const { theme } = useTheme();
-  const { showPasswordPrompt, passwordPromptMessage, passwordPromptTitle, showPasswordPromptAlert, handlePasswordPrompt } = usePasswordPrompt();
+  const { 
+    showPasswordPrompt, 
+    passwordPromptMessage, 
+    passwordPromptTitle, 
+    showPasswordPromptAlert, 
+    showPasswordCreationAlert,
+    handlePasswordPrompt,
+    showPasswordCreation,
+    passwordCreationMessage,
+    passwordCreationTitle,
+    handlePasswordCreation
+  } = usePasswordPrompt();
   const { showSeedInputModal } = useSeedInput();
+  const { showQRScannerModal } = useQRInput();
 
   // Set global functions for services to access
   React.useEffect(() => {
     console.log('APP: Setting global passwordPromptContext...');
     (global as any).passwordPromptContext = {
-      showPasswordPromptAlert
+      showPasswordPromptAlert,
+      showPasswordCreationAlert
     };
     console.log('APP: Global context set:', !!(global as any).passwordPromptContext);
-  }, [showPasswordPromptAlert]);
+  }, [showPasswordPromptAlert, showPasswordCreationAlert]);
 
   React.useEffect(() => {
     console.log('APP: Setting global seedInputContext...');
@@ -88,6 +105,14 @@ function AppContent() {
     };
     console.log('APP: Global seed context set:', !!(global as any).seedInputContext);
   }, [showSeedInputModal]);
+
+  React.useEffect(() => {
+    console.log('APP: Setting global qrInputContext...');
+    (global as any).qrInputContext = {
+      showQRScannerModal
+    };
+    console.log('APP: Global QR context set:', !!(global as any).qrInputContext);
+  }, [showQRScannerModal]);
 
   // Debug log when alert state changes
   React.useEffect(() => {
@@ -106,6 +131,14 @@ function AppContent() {
           message={passwordPromptMessage}
           onCancel={() => handlePasswordPrompt(null)}
           onConfirm={handlePasswordPrompt}
+        />
+        
+        <PasswordCreationAlert
+          visible={showPasswordCreation}
+          title={passwordCreationTitle}
+          message={passwordCreationMessage}
+          onCancel={() => handlePasswordCreation(null)}
+          onConfirm={handlePasswordCreation}
         />
       </View>
     </NavigationContainer>

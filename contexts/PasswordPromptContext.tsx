@@ -5,7 +5,13 @@ interface PasswordPromptContextType {
   passwordPromptMessage: string;
   passwordPromptTitle: string;
   showPasswordPromptAlert: (title: string, message: string) => Promise<string | null>;
+  showPasswordCreationAlert: (title: string, message: string) => Promise<string | null>;
   handlePasswordPrompt: (password: string | null) => void;
+  // Password creation state
+  showPasswordCreation: boolean;
+  passwordCreationMessage: string;
+  passwordCreationTitle: string;
+  handlePasswordCreation: (password: string | null) => void;
 }
 
 const PasswordPromptContext = createContext<PasswordPromptContextType | undefined>(undefined);
@@ -15,6 +21,12 @@ export function PasswordPromptProvider({ children }: { children: React.ReactNode
   const [passwordPromptMessage, setPasswordPromptMessage] = useState('');
   const [passwordPromptTitle, setPasswordPromptTitle] = useState('');
   const [passwordPromptResolve, setPasswordPromptResolve] = useState<((password: string | null) => void) | null>(null);
+  
+  // Password creation state
+  const [showPasswordCreation, setShowPasswordCreation] = useState(false);
+  const [passwordCreationMessage, setPasswordCreationMessage] = useState('');
+  const [passwordCreationTitle, setPasswordCreationTitle] = useState('');
+  const [passwordCreationResolve, setPasswordCreationResolve] = useState<((password: string | null) => void) | null>(null);
 
   const showPasswordPromptAlert = (title: string, message: string): Promise<string | null> => {
     console.log('PASSWORD CONTEXT: showPasswordPromptAlert called with:', title, message);
@@ -25,6 +37,18 @@ export function PasswordPromptProvider({ children }: { children: React.ReactNode
       setPasswordPromptResolve(() => resolve);
       setShowPasswordPrompt(true);
       console.log('PASSWORD CONTEXT: State set, alert should be visible');
+    });
+  };
+
+  const showPasswordCreationAlert = (title: string, message: string): Promise<string | null> => {
+    console.log('PASSWORD CREATION CONTEXT: showPasswordCreationAlert called with:', title, message);
+    return new Promise((resolve) => {
+      console.log('PASSWORD CREATION CONTEXT: Setting state...');
+      setPasswordCreationTitle(title);
+      setPasswordCreationMessage(message);
+      setPasswordCreationResolve(() => resolve);
+      setShowPasswordCreation(true);
+      console.log('PASSWORD CREATION CONTEXT: State set, alert should be visible');
     });
   };
 
@@ -40,6 +64,18 @@ export function PasswordPromptProvider({ children }: { children: React.ReactNode
     }
   };
 
+  const handlePasswordCreation = (password: string | null) => {
+    console.log('PASSWORD CREATION CONTEXT: handlePasswordCreation called with:', password ? '***' : 'null');
+    setShowPasswordCreation(false);
+    if (passwordCreationResolve) {
+      console.log('PASSWORD CREATION CONTEXT: Resolving promise...');
+      passwordCreationResolve(password);
+      setPasswordCreationResolve(null);
+    } else {
+      console.log('PASSWORD CREATION CONTEXT: No resolve function available!');
+    }
+  };
+
   return (
     <PasswordPromptContext.Provider
       value={{
@@ -47,7 +83,12 @@ export function PasswordPromptProvider({ children }: { children: React.ReactNode
         passwordPromptMessage,
         passwordPromptTitle,
         showPasswordPromptAlert,
+        showPasswordCreationAlert,
         handlePasswordPrompt,
+        showPasswordCreation,
+        passwordCreationMessage,
+        passwordCreationTitle,
+        handlePasswordCreation,
       }}
     >
       {children}

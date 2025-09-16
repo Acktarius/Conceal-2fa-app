@@ -86,7 +86,7 @@ export class WalletStorageManager {
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage: 'Authenticate to access your wallet',
         fallbackLabel: 'Use Password',
-        disableDeviceFallback: true, // SECURITY: Disable fallback to prevent bypass
+        disableDeviceFallback: false, // Allow PIN fallback for better user experience
       });
       
       if (result.success) {

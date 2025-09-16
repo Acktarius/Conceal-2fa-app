@@ -19,7 +19,7 @@ import { WalletService } from '../services/WalletService';
 import { Wallet} from '../model/Wallet';
 
 export default function WalletScreen() {
-  const { wallet, balance, maxKeys, isLoading, refreshBalance } = useWallet();
+  const { wallet, balance, maxKeys, isLoading, refreshBalance, refreshWallet, refreshCounter } = useWallet();
   const { theme } = useTheme();
   const KEY_STORAGE_COST = 0.0001;
   // Check wallet and show upgrade prompt if needed
@@ -35,10 +35,15 @@ export default function WalletScreen() {
           // Show upgrade prompt for local wallet
           const result = await WalletService.getOrCreateWallet('wallet');
           console.log('WALLET SCREEN: getOrCreateWallet result:', !!result);
-          if (result) {
+          
+          // Check if wallet was actually upgraded (no longer local)
+          if (result && !result.isLocal()) {
             // Wallet was upgraded, refresh the context
-            // TODO: Implement proper refresh mechanism
-            console.log('Wallet upgraded successfully');
+            console.log('Wallet upgraded successfully - triggering refresh');
+            // Trigger a wallet refresh to show the updated state
+            await refreshWallet(result);
+          } else if (result && result.isLocal()) {
+            console.log('Wallet remains local - no refresh needed');
           }
         } catch (error) {
           console.error('Error checking wallet:', error);
@@ -47,15 +52,18 @@ export default function WalletScreen() {
     };
 
     checkWallet();
-  }, [wallet]);
+  }, [wallet, refreshCounter]);
 
   const handleUpgradeWallet = async () => {
     try {
       const result = await WalletService.triggerWalletUpgrade();
-      if (result) {
-        // Refresh the wallet context
-        //window.location.reload(); // Simple refresh for now
-        console.log('WALLET SCREEN: Wallet upgraded successfully');
+      if (result && !result.isLocal()) {
+        // Wallet was upgraded, refresh the context
+        console.log('WALLET SCREEN: Wallet upgraded successfully - triggering refresh');
+        // Trigger a wallet refresh to show the updated state
+        await refreshWallet(result);
+      } else if (result && result.isLocal()) {
+        console.log('WALLET SCREEN: Wallet remains local - no refresh needed');
       } else {
         console.log('WALLET SCREEN: Upgrade cancelled by user');
       }
@@ -63,6 +71,7 @@ export default function WalletScreen() {
       console.error('Error upgrading wallet:', error);
     }
   };
+
 
   // Check if wallet is local-only using the existing method
   const isLocalWallet = wallet && wallet.isLocal();
@@ -173,13 +182,13 @@ export default function WalletScreen() {
                   <Text style={[styles.cardTitle, { color: theme.colors.text }]}>Receive CCX</Text>
                 </View>
                 
-                <View style={[styles.qrContainer, { backgroundColor: theme.colors.background }]}>
+                <View style={[styles.qrContainer, { backgroundColor: 'white' }]}>
                   {wallet?.getPublicAddress() && (
                     <QRCode
                       value={wallet.getPublicAddress()}
-                      size={200}
-                      backgroundColor={theme.colors.surface}
-                      color={theme.colors.text}
+                      size={250}
+                      backgroundColor="white"
+                      color="black"
                     />
                   )}
                 </View>
@@ -309,8 +318,13 @@ const createStyles = (theme: any) => StyleSheet.create({
   qrContainer: {
     alignItems: 'center',
     marginBottom: 20,
-    padding: 16,
+    padding: 20,
     borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   addressContainer: {
     marginBottom: 16,

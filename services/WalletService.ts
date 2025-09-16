@@ -3,9 +3,9 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import { WalletStorageManager } from './WalletStorageManager';
 import { BiometricService } from './BiometricService';
 import { Wallet, RawWallet } from '../model/Wallet';
+import { KeysRepository } from '../model/KeysRepository';
 import { SharedKey } from '../model/Transaction';
 import { Cn, CnNativeBride, CnRandom } from '../model/Cn';
-import { KeysRepository } from '../model/KeysRepository';
 import { BlockchainExplorerRpcDaemon } from '../model/blockchain/BlockchainExplorerRPCDaemon';
 import { Alert } from 'react-native';
 import { ImportService } from './ImportService';
@@ -156,7 +156,7 @@ export class WalletService {
     try {
       // Create a minimal local-only wallet with no blockchain data
       const wallet = new Wallet();
-      wallet.keys = { priv: { spend: '', view: '' }, pub: { spend: '', view: '' } }; // This makes it local-only
+      wallet.keys = KeysRepository.createEmptyKeys(); // This makes it local-only
       wallet.creationHeight = null; 
 
       
@@ -287,10 +287,7 @@ export class WalletService {
 
       // Upgrade the existing wallet with blockchain data
       const wallet = existingWallet;
-      wallet.keys = { 
-        priv: { spend: keys.spend.sec, view: keys.view.sec }, 
-        pub: { spend: keys.spend.pub, view: keys.view.pub } 
-      };
+      wallet.keys = KeysRepository.fromPriv(keys.spend.sec, keys.view.sec);
       wallet.creationHeight = creationHeight;
 
       // Save the upgraded wallet with appropriate encryption
@@ -470,6 +467,15 @@ export class WalletService {
   }
   */
 
+
+  /**
+   * Reset upgrade prompt flags (called after clear data)
+   */
+  static async resetUpgradeFlags(): Promise<void> {
+    this.flag_prompt_main_tab = false;
+    this.flag_prompt_wallet_tab = false;
+    console.log('Upgrade flags reset to false');
+  }
 
   /**
    * Manually trigger wallet upgrade (called from UI button)

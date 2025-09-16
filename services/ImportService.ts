@@ -4,7 +4,6 @@ import { KeysRepository } from '../model/KeysRepository';
 import { Cn, CnUtils } from '../model/Cn';
 import { BlockchainExplorerRpcDaemon } from '../model/blockchain/BlockchainExplorerRPCDaemon';
 import { Mnemonic } from '../model/Mnemonic';
-import { RNCamera } from 'react-native-camera';
 import { CoinUri } from '../model/CoinUri';
 import { WalletStorageManager } from './WalletStorageManager';
 import { BiometricService } from './BiometricService';
@@ -105,10 +104,7 @@ export class ImportService {
       }
 
       // Upgrade the existing wallet with blockchain keys
-      existingWallet.keys = { 
-        priv: { spend: keys.spend.sec, view: keys.view.sec }, 
-        pub: { spend: keys.spend.pub, view: keys.view.pub } 
-      };
+      existingWallet.keys = KeysRepository.fromPriv(keys.spend.sec, keys.view.sec);
 
       // Calculate creation height based on user input
       let creationHeight = 0;
@@ -140,56 +136,46 @@ export class ImportService {
     try {
       // Get current blockchain height
       const currentHeight = await this.blockchainExplorer!.getHeight();
-      
-      // Get QR data
-      const qrResult = await this.scanQRCode();
+      console.log('IMPORT: Current height:', currentHeight);
+      // Get QR data using our custom scanner
+      const qrResult = await this.getQRFromUser();
       const txDetails = CoinUri.decodeWallet(qrResult);
       
-      if (!txDetails || (!txDetails.spendKey && !txDetails.mnemonicSeed)) {
-        throw new Error('Invalid QR code format');
+      if (!txDetails || !txDetails.spendKey) {
+        throw new Error('Invalid QR code format - spend key required');
       }
 
+      // Extract keys from QR code (focus on keys, not mnemonic)
       let keys;
-      let seed = '';
-
-      if (txDetails.mnemonicSeed) {
-        // If QR contains mnemonic, detect language and decode
-        const detectedMnemonicLang = Mnemonic.detectLang(txDetails.mnemonicSeed.trim());
-        if (!detectedMnemonicLang) {
-          throw new Error('Could not detect mnemonic language in QR code');
-        }
-
-        const mnemonic_decoded = Mnemonic.mn_decode(txDetails.mnemonicSeed.trim(), detectedMnemonicLang);
-        if (!mnemonic_decoded) {
-          throw new Error('Invalid mnemonic in QR code');
-        }
-
-        keys = Cn.create_address(mnemonic_decoded);
-        seed = mnemonic_decoded;
-      } else if (txDetails.spendKey) {
-        // If QR contains spend key
+      
+      if (txDetails.spendKey) {
+        // Generate view key if not provided
         const viewKey = txDetails.viewKey || Cn.generate_keys(CnUtils.cn_fast_hash(txDetails.spendKey)).sec;
-        keys = {
-          spend: { sec: txDetails.spendKey, pub: '' },
-          view: { sec: viewKey, pub: '' },
-          public_addr: txDetails.address || ''
-        };
+        
+        // Use KeysRepository to create proper key structure
+        keys = KeysRepository.fromPriv(txDetails.spendKey, viewKey);
       } else {
-        throw new Error('Invalid QR code data');
+        throw new Error('Invalid QR code data - no spend key found');
       }
+
+      // Get the existing local wallet to upgrade
+      const existingWallet = await WalletStorageManager.getWallet();
+      if (!existingWallet) {
+        throw new Error('No existing wallet found to upgrade');
+      }
+
+      // Upgrade the existing wallet with blockchain keys
+      existingWallet.keys = keys;
 
       // Use provided height or default to current height - 10
       const height = txDetails.height ? parseInt(txDetails.height.toString()) : Math.max(0, currentHeight - 10);
-      
-      // Create wallet object with blockchain keys (not local-only)
-      const wallet = new Wallet();
-      wallet.keys = { 
-        priv: { spend: keys.spend.sec, view: keys.view.sec }, 
-        pub: { spend: keys.spend.pub, view: keys.view.pub } 
-      };
-      wallet.creationHeight = height;
+      existingWallet.creationHeight = height;
+      existingWallet.lastHeight = height;
 
-      return wallet;
+      // Encrypt and save the upgraded wallet based on current authentication mode
+      await this.saveImportedWallet(existingWallet);
+
+      return existingWallet;
     } catch (error) {
       console.error('Error importing from QR:', error);
       throw error;
@@ -263,25 +249,24 @@ export class ImportService {
     }
   }
 
-  private static async scanQRCode(): Promise<string> {
+  private static async getQRFromUser(): Promise<string> {
     return new Promise((resolve, reject) => {
-      // The QR scanning component should call this when a code is scanned:
-      const handleBarCodeRead = ({ type, data }: { type: string; data: string }) => {
-        if (type === RNCamera.Constants.BarCodeType.qr) {
-          resolve(data);
-        } else {
-          reject(new Error('Invalid QR code type'));
+      // Get the QR input context from global state
+      const qrInputContext = (global as any).qrInputContext;
+      
+      if (!qrInputContext) {
+        throw new Error('QR input context not available. App must be properly initialized.');
+      }
+
+      // Use our custom QR scanner modal
+      qrInputContext.showQRScannerModal(
+        (qrData: string) => {
+          resolve(qrData);
+        },
+        () => {
+          reject(new Error('USER_CANCELLED'));
         }
-      };
-
-      // The component should also provide a way to cancel scanning
-      const handleCancel = () => {
-        reject(new Error('USER_CANCELLED'));
-      };
-
-      // TODO: Show your QR scanning UI component here
-      // You'll need to implement this in your React Native UI
-      throw new Error('QR scanning UI not implemented');
+      );
     });
   }
 } 

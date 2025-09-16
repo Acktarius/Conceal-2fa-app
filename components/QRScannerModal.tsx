@@ -87,12 +87,23 @@ export default function QRScannerModal({ visible, onClose, onScan }: QRScannerMo
           />
           
           <View style={styles.overlay}>
-            <View style={styles.scanArea}>
-              <View style={[styles.corner, styles.topLeft]} />
-              <View style={[styles.corner, styles.topRight]} />
-              <View style={[styles.corner, styles.bottomLeft]} />
-              <View style={[styles.corner, styles.bottomRight]} />
+            {/* Top overlay */}
+            <View style={styles.topOverlay} />
+            
+            {/* Middle row with left overlay, scan area, and right overlay */}
+            <View style={styles.middleRow}>
+              <View style={styles.sideOverlay} />
+              <View style={styles.scanArea}>
+                <View style={[styles.corner, styles.topLeft]} />
+                <View style={[styles.corner, styles.topRight]} />
+                <View style={[styles.corner, styles.bottomLeft]} />
+                <View style={[styles.corner, styles.bottomRight]} />
+              </View>
+              <View style={styles.sideOverlay} />
             </View>
+            
+            {/* Bottom overlay */}
+            <View style={styles.bottomOverlay} />
           </View>
         </View>
 
@@ -153,47 +164,80 @@ const styles = StyleSheet.create({
   },
   overlay: {
     position: 'absolute',
-    top: 0,
+    top: 120, // Start overlay below the header
     left: 0,
     right: 0,
     bottom: 0,
+  },
+  topOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    marginTop: -125, // Half of scan area height to center it
+  },
+  middleRow: {
+    position: 'absolute',
+    top: '50%',
+    left: 0,
+    right: 0,
+    height: 250,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: -125, // Half of scan area height to center it
+  },
+  sideOverlay: {
+    flex: 1,
+    height: 250,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
   },
   scanArea: {
     width: 250,
     height: 250,
     position: 'relative',
   },
+  bottomOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    marginBottom: -125, // Half of scan area height to center it
+  },
   corner: {
     position: 'absolute',
-    width: 30,
-    height: 30,
+    width: 40,
+    height: 40,
     borderColor: '#FFFFFF',
+    borderRadius: 8,
   },
   topLeft: {
-    top: 0,
-    left: 0,
-    borderTopWidth: 3,
-    borderLeftWidth: 3,
+    top: -5,
+    left: -5,
+    borderTopWidth: 6,
+    borderLeftWidth: 6,
   },
   topRight: {
-    top: 0,
-    right: 0,
-    borderTopWidth: 3,
-    borderRightWidth: 3,
+    top: -5,
+    right: -5,
+    borderTopWidth: 6,
+    borderRightWidth: 6,
   },
   bottomLeft: {
-    bottom: 0,
-    left: 0,
-    borderBottomWidth: 3,
-    borderLeftWidth: 3,
+    bottom: -5,
+    left: -5,
+    borderBottomWidth: 6,
+    borderLeftWidth: 6,
   },
   bottomRight: {
-    bottom: 0,
-    right: 0,
-    borderBottomWidth: 3,
-    borderRightWidth: 3,
+    bottom: -5,
+    right: -5,
+    borderBottomWidth: 6,
+    borderRightWidth: 6,
   },
   instructions: {
     backgroundColor: 'rgba(0, 0, 0, 0.8)',

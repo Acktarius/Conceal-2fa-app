@@ -31,7 +31,7 @@ export class BiometricService {
           settings = JSON.parse(data);
         }
       }
-      return settings.biometricAuth || false;
+      return settings.biometricAuth !== false; // Default to true unless explicitly set to false
     } catch (error) {
       console.error('Error checking biometric enabled status:', error);
       return false;
@@ -49,7 +49,7 @@ export class BiometricService {
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage: 'Authenticate to access your wallet',
         fallbackLabel: 'Use Password',
-        disableDeviceFallback: true, // SECURITY: Disable fallback to prevent bypass
+        disableDeviceFallback: false, // Allow PIN fallback for better user experience
       });
       return result.success;
     } catch (error) {
