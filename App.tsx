@@ -58,6 +58,7 @@ import { SeedInputProvider, useSeedInput } from './contexts/SeedInputContext';
 import { QRInputProvider, useQRInput } from './contexts/QRInputContext';
 import { PasswordInputAlert } from './components/PasswordInputAlert';
 import { PasswordCreationAlert } from './components/PasswordCreationAlert';
+import { WalletService } from './services/WalletService'; // MAINTENANCE MODE: One-time wallet clearing for development/testing
 
 export default function App() {
   return (
@@ -120,6 +121,23 @@ function AppContent() {
     console.log('APP: Global QR context set:', !!(global as any).qrInputContext);
   }, [showQRScannerModal]);
 
+  // MAINTENANCE MODE: One-time wallet clearing for development/testing
+  /*
+  React.useEffect(() => {
+    const runMaintenance = async () => {
+      try {
+        console.log('MAINTENANCE: Starting one-time wallet clearing...');
+        await WalletService.clearStoredWalletForTesting();
+        console.log('MAINTENANCE: Wallet clearing completed successfully');
+      } catch (error) {
+        console.error('MAINTENANCE: Error during wallet clearing:', error);
+      }
+    };
+    
+    // Run maintenance immediately on app startup
+    runMaintenance();
+  }, []); // Empty dependency array = run once on mount
+  */
   // Debug log when alert state changes
   React.useEffect(() => {
     console.log('APP: Password prompt state changed:', { showPasswordPrompt, passwordPromptTitle, passwordPromptMessage });

@@ -29,6 +29,7 @@ import { WalletStorageManager } from '../services/WalletStorageManager';
 import { ExportService } from '../services/ExportService';
 import * as SecureStore from 'expo-secure-store';
 import { CustomNodeModal } from '../components/CustomNodeModal';
+import { BiometricService } from '../services/BiometricService';
 import { config } from '../config';
 // verifyOldPassword function moved here to avoid circular dependencies
 
@@ -52,6 +53,7 @@ export default function SettingsScreen() {
   const [showPasswordChangeAlert, setShowPasswordChangeAlert] = useState(false);
   const [showUnlockWalletAlert, setShowUnlockWalletAlert] = useState(false);
   const [showPasswordCreationAlert, setShowPasswordCreationAlert] = useState(false);
+  const [showClearDataOptions, setShowClearDataOptions] = useState(false);
   const [biometricAction, setBiometricAction] = useState<'enable' | 'disable'>('enable');
   
   // Expandable sections state
@@ -285,17 +287,62 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleClearData = async () => {
+  const handleToggleClearDataOptions = () => {
+    setShowClearDataOptions(!showClearDataOptions);
+  };
+
+
+  const handleClearWalletData = async () => {
     Alert.alert(
-      'Clear All Data',
-      'This will remove all services and wallet data. This action cannot be undone.',
+      'Clear Wallet Data',
+      'You are about to erase your wallet data and go back to local wallet mode (no blockchain sync). Your local 2FA keys will remain.',
       [
         {
-          text: 'Clear',
+          text: 'Confirm',
           style: 'destructive',
           onPress: async () => {
             try {
-              console.log('=== BEFORE CLEAR ===');
+              // Clear wallet data from storage and cache
+              await WalletService.clearWalletAndCache();
+              
+              // Reset upgrade prompt flags so new local wallet can show prompts
+              await WalletService.resetUpgradeFlags();
+              
+              // Clear the wallet context state to force reinitialization
+              await refreshWallet();
+              
+              // Navigate to HomeScreen (will show wallet creation/import options)
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Home' }],
+              });
+              
+            } catch (error) {
+              console.error('Error in handleClearWalletData:', error);
+              Alert.alert(
+                'Error',
+                'Failed to clear wallet data. Please try again.',
+                [{ text: 'OK' }]
+              );
+            }
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
+  };
+
+  const handleClearData = async () => {
+    Alert.alert(
+      'Clear All Data',
+      'You are about to erase ALL DATA. Only what was saved on Blockchain can be retrieved.',
+      [
+        {
+          text: 'Confirm',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              console.log('=== BEFORE CLEAR ALL ===');
               await StorageService.debugStorage();
               
               await WalletService.forceClearAll();
@@ -303,7 +350,7 @@ export default function SettingsScreen() {
               // Reset upgrade prompt flags so new local wallet can show prompts
               await WalletService.resetUpgradeFlags();
               
-              console.log('=== AFTER CLEAR ===');
+              console.log('=== AFTER CLEAR ALL ===');
               await StorageService.debugStorage();
               
               // Clear the wallet context state to force reinitialization
@@ -314,6 +361,8 @@ export default function SettingsScreen() {
                 index: 0,
                 routes: [{ name: 'Home' }],
               });
+              
+              Alert.alert('Success', 'All data cleared successfully. The app will restart.');
             } catch (error) {
               console.error('Error in handleClearData:', error);
               Alert.alert(
@@ -360,12 +409,26 @@ export default function SettingsScreen() {
 
   const handleEnableBiometric = async (password: string) => {
     try {
-      // 1. Verify the password by trying to decrypt the wallet
-      const currentWallet = await WalletStorageManager.getDecryptedWalletWithPassword(password);
+      console.log('BIOMETRIC ENABLE: Attempting to enable biometric with password length:', password.length);
+      
+      // 1. Get wallet from WalletService (already in memory, no password prompt)
+      const { WalletService } = await import('../services/WalletService');
+      const currentWallet = WalletService.getCachedWallet();
       if (!currentWallet) {
+        console.error('BIOMETRIC ENABLE: No wallet available in memory');
+        Alert.alert('Error', 'No wallet available');
+        return;
+      }
+      
+      // 2. Verify the password against stored hash (no wallet loading needed)
+      const storedDerivedKey = await WalletStorageManager.verifyPasswordAndGetKey(password);
+      if (!storedDerivedKey) {
+        console.error('BIOMETRIC ENABLE: Password verification failed');
         Alert.alert('Error', 'Password is incorrect');
         return;
       }
+      
+      console.log('BIOMETRIC ENABLE: Password verification successful, wallet decrypted');
       
       // 2. Generate and store biometric salt with the verified password
       await WalletStorageManager.generateAndStoreBiometricSalt(password);
@@ -387,8 +450,13 @@ export default function SettingsScreen() {
         biometricAuth: true
       });
       
-      Alert.alert('Success', 'Biometric authentication enabled successfully');
+      // Close the modal first, then show success alert
       setShowUnlockWalletAlert(false);
+      
+      // Show success alert after modal is closed
+      setTimeout(() => {
+        Alert.alert('Success', 'Biometric authentication enabled successfully');
+      }, 200);
     } catch (error) {
       console.error('Error enabling biometric:', error);
       Alert.alert('Error', 'Failed to enable biometric authentication. Please try again.');
@@ -397,31 +465,36 @@ export default function SettingsScreen() {
 
   const handleDisableBiometric = async (newPassword: string) => {
     try {
-      // 1. Get the current wallet (it's encrypted with biometric key)
-      const biometricKey = await WalletStorageManager.deriveBiometricKey();
-      if (!biometricKey) {
-        Alert.alert('Error', 'Failed to derive biometric key');
-        return;
-      }
+      // 1. Get the current wallet from WalletService (already decrypted in memory)
+      const { WalletService } = await import('../services/WalletService');
+      const currentWallet = WalletService.getCachedWallet();
       
-      const currentWallet = await WalletStorageManager.getDecryptedWalletWithPassword(biometricKey);
       if (!currentWallet) {
-        Alert.alert('Error', 'Could not decrypt wallet with biometric key');
+        Alert.alert('Error', 'No wallet available. Please restart the app and try again.');
         return;
       }
       
-      // 2. Re-encrypt the wallet with the NEW user password
-      await WalletStorageManager.saveEncryptedWallet(currentWallet, newPassword);
+      // 2. Re-encrypt the wallet with the NEW user password using persistent key approach
+      await WalletStorageManager.saveEncryptedWalletWithPersistentKey(currentWallet, newPassword);
       
-      // 3. Disable biometric authentication in settings
+      // 3. Store the password key for quiet saves (like after authentication)
+      const passwordKey = await WalletStorageManager.derivePasswordKey(newPassword);
+      WalletStorageManager.setCurrentSessionPasswordKey(passwordKey);
+      
+      // 4. Disable biometric authentication in settings
       setBiometricAuth(false);
       await StorageService.saveSettings({
         ...await StorageService.getSettings(),
         biometricAuth: false
       });
       
-      Alert.alert('Success', 'Biometric authentication disabled. You will now use password authentication.');
+      // Close the modal first, then show success alert
       setShowPasswordCreationAlert(false);
+      
+      // Show success alert after modal is closed
+      setTimeout(() => {
+        Alert.alert('Success', 'Biometric authentication disabled. You will now use password authentication.');
+      }, 200);
     } catch (error) {
       console.error('Error disabling biometric:', error);
       Alert.alert('Error', 'Failed to disable biometric authentication. Please try again.');
@@ -703,16 +776,53 @@ export default function SettingsScreen() {
             </View>
           </View>
 
-          {/* Data Management */}
+          {/* Storage Management */}
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Appearance</Text>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Storage</Text>
             <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
               <SettingItem
                 icon="trash-outline"
-                title="Clear All Data"
-                subtitle="Remove all services and wallet data"
-                onPress={handleClearData}
+                title="Clear Data"
+                subtitle="Clear wallet data or all app data"
+                onPress={handleToggleClearDataOptions}
+                rightElement={
+                  <Ionicons 
+                    name={showClearDataOptions ? "chevron-up" : "chevron-down"} 
+                    size={20} 
+                    color={theme.colors.textSecondary} 
+                  />
+                }
               />
+              {showClearDataOptions && (
+                <>
+                  <SettingItem
+                    icon="wallet-outline"
+                    title="Clear Wallet Data"
+                    subtitle="Clear wallet data and recreate empty local-only wallet"
+                    onPress={handleClearWalletData}
+                    rightElement={
+                      <Ionicons 
+                        name="chevron-forward" 
+                        size={20} 
+                        color={theme.colors.textSecondary} 
+                      />
+                    }
+                  />
+                  <SettingItem
+                    icon="trash-outline"
+                    title="Clear All Data"
+                    subtitle="Remove all services, wallet data, and settings"
+                    onPress={handleClearData}
+                    rightElement={
+                      <Ionicons 
+                        name="chevron-forward" 
+                        size={20} 
+                        color={theme.colors.textSecondary} 
+                      />
+                    }
+                  />
+                </>
+              )}
             </View>
           </View>
 
@@ -767,6 +877,7 @@ export default function SettingsScreen() {
         onCancel={handleCustomNodeCancel}
         onSave={handleCustomNodeSave}
       />
+      
     </GestureNavigator>
   );
 }

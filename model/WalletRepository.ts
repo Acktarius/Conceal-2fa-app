@@ -81,7 +81,9 @@ export class WalletRepository {
 				hasSpendKey: !!decodedRawWallet.keys?.priv?.spend,
 				hasViewKey: !!decodedRawWallet.keys?.priv?.view,
 				spendKeyLength: decodedRawWallet.keys?.priv?.spend?.length || 0,
-				viewKeyLength: decodedRawWallet.keys?.priv?.view?.length || 0
+				viewKeyLength: decodedRawWallet.keys?.priv?.view?.length || 0,
+				creationHeight: decodedRawWallet.creationHeight,
+				lastHeight: decodedRawWallet.lastHeight
 			});
 			
 			let wallet = Wallet.loadFromRaw(decodedRawWallet);
@@ -93,7 +95,9 @@ export class WalletRepository {
 				spendKeyLength: wallet.keys?.priv?.spend?.length || 0,
 				viewKeyLength: wallet.keys?.priv?.view?.length || 0,
 				address: wallet.getPublicAddress(),
-				isLocal: wallet.isLocal()
+				isLocal: wallet.isLocal(),
+				creationHeight: wallet.creationHeight,
+				lastHeight: wallet.lastHeight
 			});
 			
 			if(wallet.coinAddressPrefix !== config.addressPrefix)

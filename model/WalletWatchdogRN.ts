@@ -320,6 +320,15 @@ class BlockListRN {
     this.txQueue = new TxQueueRN(wallet, (blockNumber: number) => {
       this.wallet.lastHeight = Math.min(this.chainHeight, Math.max(this.wallet.lastHeight, blockNumber));
       this.watchdog.checkMempool();
+      
+      // Smart save mechanism: only save during big sync jobs
+      if (this.watchdog.isBigSyncJob) {
+        this.watchdog.blockCounter++;
+        if (this.watchdog.blockCounter >= 5000) {
+          this.watchdog.saveWallet('5000-block interval during big sync');
+          this.watchdog.blockCounter = 0;
+        }
+      }
     });
   }
 
@@ -596,6 +605,11 @@ export class WalletWatchdogRN {
   private useThreads: boolean = false;
   private maxThreads: number = 4; // Default, will be updated by updateThreadAllocation
 
+  // Smart save mechanism
+  public blockCounter: number = 0;
+  public isBigSyncJob: boolean = false; // true if currentHeight - lastHeight > 5000
+  private bigSyncJob_threshold: number = 5000;
+
   constructor(wallet: Wallet, explorer: BlockchainExplorer) {
     console.log('WalletWatchdogRN: Initializing React Native adapted WalletWatchdog');
     
@@ -609,6 +623,9 @@ export class WalletWatchdogRN {
     this.wallet = wallet;
     this.explorer = explorer;
     this.blockList = new BlockListRN(wallet, this);
+    
+    // Set global instance so BlockchainExplorerRPCDaemon can trigger saves
+    (global as any).walletWatchdogInstance = this;
 
     // Create parse workers
     for (let i = 0; i < this.maxCpuCores; ++i) {
@@ -859,6 +876,21 @@ export class WalletWatchdogRN {
     return this.lastBlockLoading;
   }
 
+  getBlockchainHeight = (): number => {
+    return this.lastMaximumHeight;
+  }
+
+  // Simple save method - delegates to WalletService.saveWallet() for consistency
+  saveWallet = async (reason: string = 'manual save'): Promise<void> => {
+    try {
+      console.log('WalletWatchdogRN: Delegating save to WalletService:', reason);
+      const { WalletService } = await import('../services/WalletService');
+      await WalletService.saveWallet(reason);
+    } catch (error) {
+      console.error('WalletWatchdogRN: Error saving wallet:', error);
+    }
+  }
+
   startSyncLoop = async () => {
     (async function(self) {
       while (!self.stopped) {
@@ -890,6 +922,26 @@ export class WalletWatchdogRN {
           if (self.lastBlockLoading > height) {
             self.lastBlockLoading = height;
           }
+
+          // Determine if this is a big sync job (>5000 blocks behind)
+          const blocksToSync = height - self.wallet.lastHeight;
+          self.isBigSyncJob = blocksToSync > self.bigSyncJob_threshold;
+          
+          if (self.isBigSyncJob && self.blockCounter === 0) {
+            console.log('WalletWatchdogRN: Big sync job detected - enabling 5000-block saves', {
+              blocksToSync,
+              walletLastHeight: self.wallet.lastHeight,
+              blockchainHeight: height
+            });
+          } else if (!self.isBigSyncJob && self.blockCounter > 0) {
+            console.log('WalletWatchdogRN: Small sync job - disabling counter saves', {
+              blocksToSync,
+              walletLastHeight: self.wallet.lastHeight,
+              blockchainHeight: height
+            });
+            self.blockCounter = 0; // Reset counter for small sync jobs
+          }
+
 
           if (height > self.lastMaximumHeight) {
             self.lastMaximumHeight = height;

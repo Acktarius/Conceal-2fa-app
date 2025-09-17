@@ -23,6 +23,7 @@ export default function WalletScreen() {
   const { theme } = useTheme();
   const KEY_STORAGE_COST = 0.0001;
   const [syncStatus, setSyncStatus] = useState<any>(null);
+  const [lastTap, setLastTap] = useState<number>(0);
 
 
   // Update sync status periodically for blockchain wallets
@@ -111,6 +112,25 @@ export default function WalletScreen() {
     }
   };
 
+  const handleSyncCardDoubleTap = async () => {
+    const now = Date.now();
+    const DOUBLE_TAP_DELAY = 300; // 300ms between taps
+    
+    if (now - lastTap < DOUBLE_TAP_DELAY) {
+      // Double tap detected - trigger manual save
+      try {
+        console.log('WALLET SCREEN: Double tap detected - triggering manual save');
+        await WalletService.triggerManualSave();
+        Alert.alert('Success', 'Wallet saved successfully!');
+      } catch (error) {
+        console.error('WALLET SCREEN: Error during manual save:', error);
+        Alert.alert('Error', 'Failed to save wallet. Please try again.');
+      }
+    } else {
+      setLastTap(now);
+    }
+  };
+
   const styles = createStyles(theme);
 
   if (isLoading) {
@@ -178,7 +198,11 @@ export default function WalletScreen() {
 
               {/* Synchronization Status */}
               {syncStatus && (
-                <View style={[styles.syncCard, { backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border }]}>
+                <TouchableOpacity 
+                  style={[styles.syncCard, { backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border }]}
+                  onPress={handleSyncCardDoubleTap}
+                  activeOpacity={0.8}
+                >
                   <View style={styles.syncHeader}>
                     <Ionicons 
                       name={syncStatus.isRunning ? "sync-outline" : "checkmark-circle-outline"} 
@@ -204,11 +228,16 @@ export default function WalletScreen() {
                   )}
                   
                   {syncStatus.isWalletSynced && (
-                    <Text style={[styles.syncText, { color: theme.colors.success }]}>
-                      ✓ Wallet is up to date with blockchain
-                    </Text>
+                    <View>
+                      <Text style={[styles.syncText, { color: theme.colors.success }]}>
+                        ✓ Wallet is up to date with blockchain
+                      </Text>
+                      <Text style={[styles.syncHint, { color: theme.colors.textSecondary }]}>
+                        Double tap to save manually
+                      </Text>
+                    </View>
                   )}
-                </View>
+                </TouchableOpacity>
               )}
 
               {/* Key Storage Info */}
@@ -380,6 +409,12 @@ const createStyles = (theme: any) => StyleSheet.create({
   syncText: {
     fontSize: 14,
     marginBottom: 4,
+  },
+  syncHint: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    marginTop: 4,
+    alignItems: 'center',
   },
   card: {
     borderRadius: 16,

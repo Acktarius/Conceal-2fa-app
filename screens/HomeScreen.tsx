@@ -17,7 +17,6 @@ import Header from '../components/Header';
 import FundingBanner from '../components/FundingBanner';
 import { TOTPService } from '../services/TOTPService';
 import { StorageService } from '../services/StorageService';
-import { BlockchainService } from '../services/BlockchainService';
 import { SharedKey } from '../model/Transaction';
 import { useWallet } from '../contexts/WalletContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -221,11 +220,10 @@ export default function HomeScreen() {
       revokeInQueue: sharedKey.revokeInQueue,
       extraStatus: sharedKey.extraStatus,
       extraSharedKey: sharedKey.extraSharedKey
-    });
-    
+    });   
     // 1. isLocal() (hash === '') and revokeInQueue = false -> Display
     if (sharedKey.isLocalOnly() && !sharedKey.revokeInQueue) {
-      console.log('Display: Local card, not in revoke queue');
+      //console.log('Display: Local card, not in revoke queue');
       return true;
     }
     

@@ -243,6 +243,11 @@ class NodeWorkersList {
 
   getSessionNode(): NodeWorker | null {
     if (!this.sessionNode || this.isSessionExpired() || this.sessionErrorCount >= this.maxSessionErrors) {
+      // Save wallet before picking a new node (30-minute session save)
+      this.saveWalletBeforeNodeChange().catch(error => {
+        console.error('NodeWorkersList: Error in saveWalletBeforeNodeChange:', error);
+      });
+      
       // Need to pick a new node
       this.sessionNode = this.pickRandomNode();
       this.sessionStartTime = Date.now();
@@ -341,6 +346,19 @@ class NodeWorkersList {
     this.usedNodeUrls.clear(); // Clear used nodes to allow fresh random selection
     this.sessionNode = null; // Clear current session node
   }
+
+  // Save wallet before node change (30-minute session save)
+  private async saveWalletBeforeNodeChange(): Promise<void> {
+    console.log('NodeWorkersList: Saving wallet before node change (30-minute session)');
+    // Use WalletService.saveWallet() for proper encryption and flag handling
+    try {
+      const { WalletService } = await import('../../services/WalletService');
+      await WalletService.saveWallet('30-minute session save before node change');
+    } catch (error) {
+      console.error('NodeWorkersList: Error saving wallet before node change:', error);
+    }
+  }
+
 }
 
 export type DaemonResponseGetInfo = {

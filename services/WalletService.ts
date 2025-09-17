@@ -1,5 +1,6 @@
 import * as Crypto from 'expo-crypto';
 import * as LocalAuthentication from 'expo-local-authentication';
+import * as SecureStore from 'expo-secure-store';
 import { WalletStorageManager } from './WalletStorageManager';
 import { BiometricService } from './BiometricService';
 import { Wallet, RawWallet } from '../model/Wallet';
@@ -26,6 +27,10 @@ export class WalletService {
 
   static hasActiveWallet(): boolean {
     return this.wallet !== null;
+  }
+
+  static getCachedWallet(): Wallet | null {
+    return this.wallet;
   }
 
   static async authenticateUser(): Promise<boolean> {
@@ -134,6 +139,7 @@ export class WalletService {
         console.log('WALLET SERVICE: flag_prompt_main_tab:', this.flag_prompt_main_tab);
         console.log('WALLET SERVICE: flag_prompt_wallet_tab:', this.flag_prompt_wallet_tab);
         console.log('WALLET SERVICE: callerScreen:', callerScreen);
+        console.log('WALLET SERVICE: Condition check (!main || !wallet):', (!this.flag_prompt_main_tab || !this.flag_prompt_wallet_tab));
         
         // Only show prompt if not prompted before
         if (!this.flag_prompt_main_tab || !this.flag_prompt_wallet_tab) {
@@ -178,8 +184,12 @@ export class WalletService {
 
           if (result === 'import') {
             wallet = await ImportService.importWallet();
+            // Update cached instance with the imported wallet
+            this.wallet = wallet;
           } else {
             wallet = await this.upgradeToBlockchainWallet();
+            // Update cached instance with the upgraded wallet
+            this.wallet = wallet;
           }
         }
       }
@@ -514,36 +524,103 @@ export class WalletService {
    * TEMPORARY: Clear stored wallet for testing purposes
    * TODO: Remove this function after testing
    */
-  /*
+  
   static async clearStoredWalletForTesting(): Promise<void> {
     try {
-      console.log('TESTING: Clearing stored wallet...');
+      console.log('TESTING: Starting complete app reset...');
+      
+      // 1. Clear all wallet data
       await WalletStorageManager.clearWallet();
-      console.log('TESTING: Stored wallet cleared successfully');
+      console.log('TESTING: Wallet data cleared');
+      
+      // 2. Clear custom node settings
+      await WalletStorageManager.clearCustomNode();
+      console.log('TESTING: Custom node cleared');
+      
+      // 3. Clear all session data
+      //WalletStorageManager.clearCurrentSessionPasswordKey();
+      //console.log('TESTING: Session data cleared');
+      
+      // 4. Reset all service flags
+      this.flag_prompt_main_tab = false;
+      this.flag_prompt_wallet_tab = false;
+      this.wallet = null;
+      console.log('TESTING: Service flags reset');
+      
+      // 5. Reset biometric to default (enabled)
+      const { StorageService } = await import('./StorageService');
+      await StorageService.saveSettings({
+        biometricAuth: true  // Default to enabled
+      });
+      console.log('TESTING: Biometric reset to default (enabled)');
+      
+      // 6. Clear any blockchain explorer state
+      if (this.blockchainExplorer) {
+        this.blockchainExplorer.cleanupSession();
+      }
+      console.log('TESTING: Blockchain explorer state cleared');
+      
+      // 7. Clear wallet watchdog
+      if (this.walletWatchdog) {
+        this.walletWatchdog.stop();
+        this.walletWatchdog = null;
+      }
+      console.log('TESTING: Wallet watchdog cleared');
+      
+      console.log('TESTING: Complete app reset finished successfully');
     } catch (error) {
-      console.error('TESTING: Error clearing stored wallet:', error);
+      console.error('TESTING: Error during complete app reset:', error);
       throw error;
     }
   }
-  */
-
+  
 
   /**
    * Reset upgrade prompt flags (called after clear data)
    */
   static async resetUpgradeFlags(): Promise<void> {
+    console.log('WALLET SERVICE: Resetting upgrade flags...');
+    console.log('WALLET SERVICE: Before reset - flag_prompt_main_tab:', this.flag_prompt_main_tab);
+    console.log('WALLET SERVICE: Before reset - flag_prompt_wallet_tab:', this.flag_prompt_wallet_tab);
+    console.log('WALLET SERVICE: Before reset - cached wallet exists:', !!this.wallet);
+    
     this.flag_prompt_main_tab = false;
     this.flag_prompt_wallet_tab = false;
-    console.log('Upgrade flags reset to false');
+    this.wallet = null; // Clear cached wallet instance
+    
+    console.log('WALLET SERVICE: After reset - flag_prompt_main_tab:', this.flag_prompt_main_tab);
+    console.log('WALLET SERVICE: After reset - flag_prompt_wallet_tab:', this.flag_prompt_wallet_tab);
+    console.log('WALLET SERVICE: After reset - cached wallet exists:', !!this.wallet);
+    console.log('WALLET SERVICE: Upgrade flags and cached wallet reset');
   }
+
+  static async clearWalletAndCache(): Promise<void> {
+    console.log('WALLET SERVICE: Clearing wallet from storage and cache...');
+    await WalletStorageManager.clearWallet();
+    this.wallet = null; // Clear cached instance
+    console.log('WALLET SERVICE: Wallet cleared from storage and cache');
+  }
+
+  static async clearCachedWallet(): Promise<void> {
+    console.log('WALLET SERVICE: Refreshing cached wallet from storage...');
+    this.wallet = null; // Clear cached instance to force reload from storage
+    console.log('WALLET SERVICE: Cached wallet cleared, will reload from storage on next access');
+  }
+
 
   /**
    * Start wallet synchronization with blockchain
    */
   static async startWalletSynchronization(): Promise<void> {
     try {
+      // Load wallet from storage if cached instance is null
       if (!this.wallet) {
-        throw new Error('No wallet available for synchronization');
+        console.log('WALLET SERVICE: No cached wallet, loading from storage...');
+        this.wallet = await WalletStorageManager.getWallet();
+        if (!this.wallet) {
+          throw new Error('No wallet available for synchronization');
+        }
+        console.log('WALLET SERVICE: Wallet loaded from storage for synchronization');
       }
 
       if (!this.blockchainExplorer) {
@@ -581,11 +658,17 @@ export class WalletService {
    * Get wallet synchronization status
    */
   static getWalletSyncStatus(): any {
-    if (this.walletWatchdog) {
+    if (this.walletWatchdog && this.wallet) {
+      const lastBlockLoading = this.walletWatchdog.getLastBlockLoading();
+      const blockList = this.walletWatchdog.getBlockList();
+      const blockchainHeight = this.walletWatchdog.getBlockchainHeight();
+      
       return {
-        isRunning: true, // WalletWatchdog doesn't expose stopped state, assume running if watchdog exists
-        lastBlockLoading: this.walletWatchdog.getLastBlockLoading(),
-        blockList: this.walletWatchdog.getBlockList()
+        isRunning: true,
+        lastBlockLoading: lastBlockLoading,
+        lastMaximumHeight: blockchainHeight,
+        transactionsInQueue: blockList ? blockList.getTxQueue().getSize() : 0,
+        isWalletSynced: lastBlockLoading >= blockchainHeight - 1 // Allow 1 block tolerance
       };
     }
     return {
@@ -595,6 +678,58 @@ export class WalletService {
       transactionsInQueue: 0,
       isWalletSynced: false
     };
+  }
+
+  static async triggerManualSave(): Promise<void> {
+    console.log('WalletService: Triggering manual save from UI');
+    await this.saveWallet('manual save from UI');
+  }
+
+  /**
+   * Improved saveWallet method - works in both biometric and password modes
+   * Uses stored session keys for quiet saves without re-authentication
+   */
+  static async saveWallet(reason: string = 'manual save'): Promise<void> {
+    try {
+      console.log('WalletService: Saving wallet:', reason);
+      
+      if (!this.wallet) {
+        throw new Error('No wallet available to save');
+      }
+      
+      // Get the current encryption key (user is already authenticated)
+      let encryptionKey: string | null = null;
+      
+      if (await BiometricService.isBiometricEnabled()) {
+        encryptionKey = await WalletStorageManager.deriveBiometricKey();
+      } else {
+        // For password mode, try to get the stored password key
+        // If user is synchronizing, they MUST be authenticated
+        encryptionKey = await WalletStorageManager.getStoredPasswordKey();
+        
+        if (!encryptionKey) {
+          console.error('WalletService: User is synchronizing but no password key found - this should not happen!');
+          console.error('WalletService: Continuing sync without backup (data loss risk)');
+          return;
+        }
+      }
+      
+      if (encryptionKey) {
+        // Encrypt and save directly (bypass saveEncryptedWallet to control flag setting)
+        const { WalletRepository } = await import('../model/WalletRepository');
+        const encryptedWallet = WalletRepository.save(this.wallet, encryptionKey);
+        await WalletStorageManager.saveEncryptedWalletData(encryptedWallet);
+        
+        // Set flag only for password mode (not biometric)
+        if (!(await BiometricService.isBiometricChecked())) {
+          await SecureStore.setItemAsync('wallet_has_password', 'true');
+        }
+        
+        console.log('WalletService: Wallet saved quietly (no re-authentication)');
+      }
+    } catch (error) {
+      console.error('WalletService: Error saving wallet:', error);
+    }
   }
 
   /**
@@ -628,7 +763,10 @@ export class WalletService {
       if (result === 'cancel') {
         return this.wallet!; // Return current wallet without changes
       } else if (result === 'import') {
-        return await ImportService.importWallet();
+        const importedWallet = await ImportService.importWallet();
+        // Update cached instance with the imported wallet
+        this.wallet = importedWallet;
+        return importedWallet;
       } else {
         return await this.upgradeToBlockchainWallet();
       }

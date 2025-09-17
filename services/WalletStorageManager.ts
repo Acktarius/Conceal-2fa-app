@@ -13,8 +13,13 @@ export class WalletStorageManager {
   private static readonly WALLET_HAS_PASSWORD_KEY = 'wallet_has_password';
   private static readonly BIOMETRIC_SALT_KEY = 'biometric_salt';
   private static readonly CUSTOM_NODE_KEY = 'custom_node_url';
+  private static readonly PASSWORD_DERIVED_KEY = 'password_derived_key';
+  private static readonly PASSWORD_HASH_KEY = 'password_hash';
+  
+  // Temporary storage for current session's password key (cleared on app restart)
+  private static currentSessionPasswordKey: string | null = null;
 
-  private static async saveEncryptedWalletData(encryptedData: any): Promise<void> {
+  static async saveEncryptedWalletData(encryptedData: any): Promise<void> {
     try {
       const data = JSON.stringify(encryptedData);
       if (Platform.OS === 'web') {
@@ -130,13 +135,26 @@ export class WalletStorageManager {
         return null;
       }
       
-      console.log('PASSWORD: Password provided, decrypting wallet...');
-      const wallet = await this.getDecryptedWalletWithPassword(password);
+      console.log('PASSWORD: Password provided, verifying and decrypting wallet...');
+      
+      // First verify the password against stored hash and get the stored derived key
+      const storedDerivedKey = await this.verifyPasswordAndGetKey(password);
+      if (!storedDerivedKey) {
+        console.log('PASSWORD: Password verification failed - invalid password');
+        return null;
+      }
+      
+      // Now decrypt the wallet using the stored derived key
+      const wallet = await this.getDecryptedWalletWithDerivedKey(storedDerivedKey);
       if (wallet) {
-        console.log('PASSWORD: Wallet decrypted successfully');
+        console.log('PASSWORD: Wallet decrypted successfully with stored derived key');
+        
+        // Store the derived key for quiet saves during sync
+        this.setCurrentSessionPasswordKey(storedDerivedKey);
+        
         return wallet;
       } else {
-        console.log('PASSWORD: Wallet decryption failed - invalid password');
+        console.log('PASSWORD: Wallet decryption failed with stored derived key');
         return null;
       }
     } catch (error) {
@@ -152,11 +170,15 @@ export class WalletStorageManager {
         localStorage.removeItem(this.ENCRYPTION_KEY);
         localStorage.removeItem(this.WALLET_HAS_PASSWORD_KEY);
         localStorage.removeItem(this.BIOMETRIC_SALT_KEY);
+        localStorage.removeItem(this.PASSWORD_DERIVED_KEY);
+        localStorage.removeItem(this.PASSWORD_HASH_KEY);
       } else {
         await AsyncStorage.removeItem(this.WALLET_KEY);
         await SecureStore.deleteItemAsync(this.ENCRYPTION_KEY);
         await SecureStore.deleteItemAsync(this.WALLET_HAS_PASSWORD_KEY);
         await SecureStore.deleteItemAsync(this.BIOMETRIC_SALT_KEY);
+        await SecureStore.deleteItemAsync(this.PASSWORD_DERIVED_KEY);
+        await SecureStore.deleteItemAsync(this.PASSWORD_HASH_KEY);
       }
     } catch (error) {
       console.error('Error clearing wallet:', error);
@@ -167,12 +189,54 @@ export class WalletStorageManager {
   // Methods that use WalletRepository for encryption/decryption
   static async saveEncryptedWallet(wallet: Wallet, password: string): Promise<void> {
     try {
-      const encryptedWallet = WalletRepository.save(wallet, password);
+      // Check authentication mode to determine key derivation
+      const isBiometricMode = await BiometricService.isBiometricEnabled();
+      
+      let encryptionKey: string;
+      
+      if (isBiometricMode) {
+        // Biometric mode: derive biometric key
+        const biometricKey = await this.deriveBiometricKey();
+        if (!biometricKey) {
+          throw new Error('Failed to derive biometric key');
+        }
+        encryptionKey = biometricKey;
+        console.log('BIOMETRIC: Encrypting with derived biometric key');
+      } else {
+        // Password mode: derive password key
+        encryptionKey = await this.derivePasswordKey(password);
+        console.log('PASSWORD: Encrypting with derived password key');
+      }
+      
+      // Always encrypt with derived key, never human password
+      const encryptedWallet = WalletRepository.save(wallet, encryptionKey);
       await this.saveEncryptedWalletData(encryptedWallet);
       await SecureStore.setItemAsync(this.WALLET_HAS_PASSWORD_KEY, 'true');
     } catch (error) {
       console.error('Error saving encrypted wallet:', error);
       throw new Error('Failed to save encrypted wallet');
+    }
+  }
+
+  /**
+   * New method for password mode with persistent derived keys
+   */
+  static async saveEncryptedWalletWithPersistentKey(wallet: Wallet, password: string): Promise<void> {
+    try {
+      // Derive the key and encrypt with it
+      const derivedKey = await this.derivePasswordKey(password);
+      const encryptedWallet = WalletRepository.save(wallet, derivedKey);
+      await this.saveEncryptedWalletData(encryptedWallet);
+      
+      // Store the persistent derived key and password hash
+      await this.storePersistentPasswordKey(password);
+      
+      // Set the password flag
+      await SecureStore.setItemAsync(this.WALLET_HAS_PASSWORD_KEY, 'true');
+      console.log('PASSWORD: Wallet encrypted with persistent derived key');
+    } catch (error) {
+      console.error('Error saving encrypted wallet with persistent key:', error);
+      throw new Error('Failed to save encrypted wallet with persistent key');
     }
   }
 
@@ -211,6 +275,35 @@ export class WalletStorageManager {
       return null;
     } catch (error) {
       console.error('Error getting decrypted wallet with password:', error);
+      return null;
+    }
+  }
+
+  static async getDecryptedWalletWithDerivedKey(derivedKey: string): Promise<Wallet | null> {
+    try {
+      // Get raw encrypted data directly
+      let data: string | null;
+      if (Platform.OS === 'web') {
+        data = localStorage.getItem(this.WALLET_KEY);
+      } else {
+        data = await AsyncStorage.getItem(this.WALLET_KEY);
+      }
+      
+      if (!data) return null;
+      
+      const parsedData = JSON.parse(data);
+      
+      // Check if this is encrypted data (has 'data' and 'nonce' properties)
+      if (parsedData.data && parsedData.nonce) {
+        // Decrypt with the stored derived key
+        return WalletRepository.decodeWithPassword(parsedData, derivedKey);
+      }
+      
+      // Unencrypted data is not allowed - this is a security violation
+      console.error('SECURITY VIOLATION: Found unencrypted wallet data in getDecryptedWalletWithDerivedKey!');
+      return null;
+    } catch (error) {
+      console.error('Error getting decrypted wallet with derived key:', error);
       return null;
     }
   }
@@ -504,6 +597,117 @@ export class WalletStorageManager {
       console.error('Error clearing custom node:', error);
       return false;
     }
+  }
+
+  /**
+   * Store the current session's password key for quiet saves during sync
+   * This is called after successful password authentication
+   */
+  static setCurrentSessionPasswordKey(passwordKey: string): void {
+    this.currentSessionPasswordKey = passwordKey;
+    console.log('PASSWORD KEY: Stored current session password key for quiet saves');
+  }
+
+  /**
+   * Get the current session's password key for quiet saves
+   * Returns null if no key is stored (user not authenticated or biometric mode)
+   */
+  static getStoredPasswordKey(): string | null {
+    return this.currentSessionPasswordKey;
+  }
+
+  /**
+   * Clear the current session's password key (called on logout/app restart)
+   */
+  static clearCurrentSessionPasswordKey(): void {
+    this.currentSessionPasswordKey = null;
+    console.log('PASSWORD KEY: Cleared current session password key');
+  }
+
+  /**
+   * Store the persistent derived password key and password hash
+   * This is called when setting up password mode
+   */
+  static async storePersistentPasswordKey(password: string): Promise<void> {
+    try {
+      const derivedKey = await this.derivePasswordKey(password);
+      const passwordHash = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, password);
+      
+      await SecureStore.setItemAsync(this.PASSWORD_DERIVED_KEY, derivedKey);
+      await SecureStore.setItemAsync(this.PASSWORD_HASH_KEY, passwordHash);
+      
+      console.log('PASSWORD KEY: Stored persistent derived key and password hash');
+    } catch (error) {
+      console.error('PASSWORD KEY: Error storing persistent key:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Verify password against stored hash and return stored derived key
+   * Returns null if password is invalid
+   */
+  static async verifyPasswordAndGetKey(password: string): Promise<string | null> {
+    try {
+      const storedHash = await SecureStore.getItemAsync(this.PASSWORD_HASH_KEY);
+      const storedKey = await SecureStore.getItemAsync(this.PASSWORD_DERIVED_KEY);
+      
+      if (!storedHash || !storedKey) {
+        console.log('PASSWORD KEY: No stored password data found');
+        return null;
+      }
+      
+      const passwordHash = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, password);
+      
+      if (passwordHash !== storedHash) {
+        console.log('PASSWORD KEY: Password hash mismatch - invalid password');
+        return null;
+      }
+      
+      console.log('PASSWORD KEY: Password verified, returning stored derived key');
+      return storedKey;
+    } catch (error) {
+      console.error('PASSWORD KEY: Error verifying password:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Clear persistent password data
+   */
+  static async clearPersistentPasswordData(): Promise<void> {
+    try {
+      await SecureStore.deleteItemAsync(this.PASSWORD_DERIVED_KEY);
+      await SecureStore.deleteItemAsync(this.PASSWORD_HASH_KEY);
+      console.log('PASSWORD KEY: Cleared persistent password data');
+    } catch (error) {
+      console.error('PASSWORD KEY: Error clearing persistent data:', error);
+    }
+  }
+
+  /**
+   * Derive password key from password (EXACT same as WalletRepository.getEncrypted())
+   */
+  static async derivePasswordKey(password: string): Promise<string> {
+    // Use the EXACT same key derivation as WalletRepository.getEncrypted()
+    let normalizedPassword = password;
+    if (normalizedPassword.length > 32) {
+      normalizedPassword = normalizedPassword.substr(0, 32);
+    }
+    if (normalizedPassword.length < 32) {
+      normalizedPassword = ('00000000000000000000000000000000' + normalizedPassword).slice(-32);
+    }
+    
+    // Convert to bytes (same as WalletRepository)
+    let privKey = new TextEncoder().encode(normalizedPassword);
+    
+    // Fix cyrillic (non-latin) passwords (same as WalletRepository)
+    if (privKey.length > 32) {
+      privKey = privKey.slice(-32);
+    }
+    
+    // Convert to hex string for storage
+    return Array.from(privKey).map(b => b.toString(16).padStart(2, '0')).join('');
   }
 
 } 

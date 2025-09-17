@@ -7,6 +7,7 @@ import { Mnemonic } from '../model/Mnemonic';
 import { CoinUri } from '../model/CoinUri';
 import { WalletStorageManager } from './WalletStorageManager';
 import { BiometricService } from './BiometricService';
+// Removed WalletService import to break require cycle
 
 export class ImportService {
   private static blockchainExplorer: BlockchainExplorerRpcDaemon | null = null;
@@ -122,6 +123,10 @@ export class ImportService {
       existingWallet.creationHeight = creationHeight;
       existingWallet.lastHeight = creationHeight;
 
+      // Update the cached wallet instance with imported data (no re-authentication needed)
+      // Note: WalletService will handle this via the returned wallet
+      console.log('IMPORT: Wallet ready for caching with imported data');
+
       // Encrypt and save the upgraded wallet based on current authentication mode
       await this.saveImportedWallet(existingWallet);
 
@@ -179,6 +184,10 @@ export class ImportService {
       existingWallet.lastHeight = height;
       
       console.log('QR IMPORT: Set wallet heights - creationHeight:', existingWallet.creationHeight, 'lastHeight:', existingWallet.lastHeight);
+
+      // Update the cached wallet instance with imported data (no re-authentication needed)
+      // Note: WalletService will handle this via the returned wallet
+      console.log('IMPORT: Wallet ready for caching with imported data');
 
       // Encrypt and save the upgraded wallet based on current authentication mode
       await this.saveImportedWallet(existingWallet);
