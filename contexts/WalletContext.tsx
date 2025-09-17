@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { WalletService } from '../services/WalletService';
-import { BlockchainService } from '../services/BlockchainService';
 import { StorageService } from '../services/StorageService';
 import { WalletStorageManager } from '../services/WalletStorageManager';
 import { Wallet } from '../model/Wallet';
@@ -52,16 +51,21 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         // If we got here, authentication was successful
         setIsAuthenticated(true);
         
-        // CRITICAL: Check for corrupted wallet data
-        if (wallet && wallet.getPublicAddress() && wallet.getPublicAddress().length < 20) {
-          console.error('CRITICAL: Corrupted wallet detected, clearing storage...');
-          await WalletService.forceClearAll();
-          // Restart initialization after clearing
-          return initializeWallet();
-        }
+        // Note: Removed aggressive corrupted wallet detection that was clearing valid wallets
         
         setWallet(wallet);
         await refreshBalance();
+        
+        // Start wallet synchronization if it's a blockchain wallet
+        if (wallet && !wallet.isLocal()) {
+          try {
+            await WalletService.startWalletSynchronization();
+            console.log('Wallet synchronization started for blockchain wallet');
+          } catch (error) {
+            console.error('Error starting wallet synchronization:', error);
+            // Continue without synchronization
+          }
+        }
       } catch (walletError) {
         console.error('Error with wallet operations:', walletError);
         console.error('Wallet error details:', {
@@ -109,22 +113,37 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
   const refreshWallet = async (providedWallet?: Wallet) => {
     try {
-      console.log('Refreshing wallet...');
+      console.log('REFRESH WALLET: Starting refresh...', {
+        hasProvidedWallet: !!providedWallet,
+        providedWalletAddress: providedWallet?.getPublicAddress() || 'none',
+        providedWalletIsLocal: providedWallet?.isLocal(),
+        providedWalletCreationHeight: providedWallet?.creationHeight,
+        providedWalletLastHeight: providedWallet?.lastHeight
+      });
       
       let walletToUse: Wallet | null = null;
       
       if (providedWallet) {
         // Use the provided wallet (no need to authenticate again)
-        console.log('Using provided wallet:', !!providedWallet, 'Address:', providedWallet?.getPublicAddress() || 'none', 'isLocal:', providedWallet?.isLocal());
+        console.log('REFRESH WALLET: Using provided wallet');
         walletToUse = providedWallet;
       } else {
         // Load wallet directly from storage without going through upgrade prompts
+        console.log('REFRESH WALLET: Loading wallet from storage...');
         walletToUse = await WalletStorageManager.getWallet();
         
         if (walletToUse) {
-          console.log('Wallet loaded from storage:', !!walletToUse, 'Address:', walletToUse?.getPublicAddress() || 'none', 'isLocal:', walletToUse?.isLocal());
+          console.log('REFRESH WALLET: Wallet loaded from storage:', {
+            hasWallet: !!walletToUse,
+            address: walletToUse?.getPublicAddress() || 'none',
+            isLocal: walletToUse?.isLocal(),
+            creationHeight: walletToUse?.creationHeight,
+            lastHeight: walletToUse?.lastHeight,
+            hasKeys: !!walletToUse?.keys,
+            hasSpendKey: !!walletToUse?.keys?.priv?.spend
+          });
         } else {
-          console.log('No wallet found during refresh - creating new local wallet');
+          console.log('REFRESH WALLET: No wallet found during refresh - creating new local wallet');
           // If no wallet exists, create a new local wallet
           walletToUse = await WalletService.createLocalWallet();
         }
@@ -133,6 +152,17 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       if (walletToUse) {
         setWallet(walletToUse);
         await refreshBalance();
+        
+        // Start wallet synchronization if it's a blockchain wallet
+        if (!walletToUse.isLocal()) {
+          try {
+            await WalletService.startWalletSynchronization();
+            console.log('Wallet synchronization started for blockchain wallet');
+          } catch (error) {
+            console.error('Error starting wallet synchronization:', error);
+            // Continue without synchronization
+          }
+        }
         
         // Increment refresh counter to force component re-renders
         setRefreshCounter(prev => prev + 1);
@@ -145,16 +175,17 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   };
 
   const refreshBalance = async () => {
-    if (wallet?.getPublicAddress()) {
+    if (wallet) {
       try {
-        const currentBalance = await BlockchainService.getBalance(wallet.getPublicAddress());
+        // Use wallet's own balance calculation with current blockchain height
+        // -1 means use current blockchain height (default behavior)
+        const currentBalance = wallet.availableAmount(-1);
         setBalance(currentBalance);
       } catch (error) {
-        console.error('Error fetching balance:', error);
+        console.error('Error calculating wallet balance:', error);
         setBalance(0);
       }
     } else {
-      // For local-only wallets or wallets without address, set balance to 0
       setBalance(0);
     }
   };

@@ -22,6 +22,29 @@ export default function WalletScreen() {
   const { wallet, balance, maxKeys, isLoading, refreshBalance, refreshWallet, refreshCounter } = useWallet();
   const { theme } = useTheme();
   const KEY_STORAGE_COST = 0.0001;
+  const [syncStatus, setSyncStatus] = useState<any>(null);
+
+
+  // Update sync status periodically for blockchain wallets
+  useEffect(() => {
+    if (wallet && !wallet.isLocal()) {
+      const updateSyncStatus = () => {
+        const status = WalletService.getWalletSyncStatus();
+        setSyncStatus(status);
+      };
+      
+      // Update immediately
+      updateSyncStatus();
+      
+      // Update every 5 seconds
+      const interval = setInterval(updateSyncStatus, 5000);
+      
+      return () => clearInterval(interval);
+    } else {
+      setSyncStatus(null);
+    }
+  }, [wallet, refreshCounter]);
+
   // Check wallet and show upgrade prompt if needed
   useEffect(() => {
     const checkWallet = async () => {
@@ -53,6 +76,7 @@ export default function WalletScreen() {
 
     checkWallet();
   }, [wallet, refreshCounter]);
+
 
   const handleUpgradeWallet = async () => {
     try {
@@ -151,6 +175,41 @@ export default function WalletScreen() {
                   <Text style={[styles.refreshText, { color: theme.colors.primary }]}>Refresh</Text>
                 </TouchableOpacity>
               </View>
+
+              {/* Synchronization Status */}
+              {syncStatus && (
+                <View style={[styles.syncCard, { backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border }]}>
+                  <View style={styles.syncHeader}>
+                    <Ionicons 
+                      name={syncStatus.isRunning ? "sync-outline" : "checkmark-circle-outline"} 
+                      size={24} 
+                      color={syncStatus.isWalletSynced ? theme.colors.success : theme.colors.warning} 
+                    />
+                    <Text style={[styles.syncTitle, { color: theme.colors.text }]}>
+                      {syncStatus.isWalletSynced ? 'Wallet Synced' : 'Synchronizing...'}
+                    </Text>
+                  </View>
+                  
+                  {syncStatus.isRunning && (
+                    <View style={styles.syncDetails}>
+                      <Text style={[styles.syncText, { color: theme.colors.textSecondary }]}>
+                        Block: {syncStatus.lastBlockLoading} / {syncStatus.lastMaximumHeight}
+                      </Text>
+                      {syncStatus.transactionsInQueue > 0 && (
+                        <Text style={[styles.syncText, { color: theme.colors.textSecondary }]}>
+                          Processing: {syncStatus.transactionsInQueue} transactions
+                        </Text>
+                      )}
+                    </View>
+                  )}
+                  
+                  {syncStatus.isWalletSynced && (
+                    <Text style={[styles.syncText, { color: theme.colors.success }]}>
+                      ✓ Wallet is up to date with blockchain
+                    </Text>
+                  )}
+                </View>
+              )}
 
               {/* Key Storage Info */}
               {balance === 0 && wallet?.getPublicAddress() ? (
@@ -294,6 +353,33 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontSize: 14,
     marginLeft: 4,
     fontWeight: '500',
+  },
+  syncCard: {
+    borderRadius: 16,
+    padding: 16,
+    margin: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  syncHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  syncTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  syncDetails: {
+    marginTop: 8,
+  },
+  syncText: {
+    fontSize: 14,
+    marginBottom: 4,
   },
   card: {
     borderRadius: 16,

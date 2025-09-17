@@ -22,6 +22,7 @@ import {CnTransactions, CnUtils} from "../Cn";
 import {Transaction} from "../Transaction";
 import {WalletWatchdog} from "../WalletWatchdog";
 import { config } from "../../config";
+import { WalletStorageManager } from "../../services/WalletStorageManager";
 
 export type NodeInfo = {
   "url": string,
@@ -172,12 +173,16 @@ class NodeWorkersList {
   }
 
   initializeSession(): void {
+    console.log('NodeWorkersList: initializeSession() called');
     // Pick a random node for the session
     this.sessionNode = this.pickRandomNode();
     this.sessionStartTime = Date.now();
     this.sessionErrorCount = 0;
     if (this.sessionNode) {
       this.usedNodeUrls.add(this.sessionNode.url);
+      console.log('NodeWorkersList: Session initialized with node:', this.sessionNode.url);
+    } else {
+      console.log('NodeWorkersList: Failed to initialize session - no node selected');
     }
   }
 
@@ -194,11 +199,18 @@ class NodeWorkersList {
   }
 
   private pickRandomNode(): NodeWorker | null {
+    console.log('NodeWorkersList: pickRandomNode() called');
+    console.log('NodeWorkersList: Total nodes available:', this.nodes.length);
+    console.log('NodeWorkersList: Used nodes:', Array.from(this.usedNodeUrls));
+    
     let availableNodes = this.nodes.filter(node => 
       !node.hasToManyErrors() && !this.usedNodeUrls.has(node.url)
     );
+    
+    console.log('NodeWorkersList: Available nodes (not used, no errors):', availableNodes.length);
 
     if (availableNodes.length === 0) {
+      console.log('NodeWorkersList: No available nodes, clearing used nodes and retrying...');
       // If all nodes have been used, reset and try again
       this.usedNodeUrls.clear();
       availableNodes = this.nodes.filter(node => !node.hasToManyErrors());
@@ -222,10 +234,14 @@ class NodeWorkersList {
     const shuffledNodes = [...availableNodes].sort(() => Math.random() - 0.5);
     const selectedNode = shuffledNodes[0];
     this.usedNodeUrls.add(selectedNode.url);
+    
+    console.log('NodeWorkersList: Selected node:', selectedNode.url);
+    console.log('NodeWorkersList: Updated used nodes:', Array.from(this.usedNodeUrls));
+    
     return selectedNode;
   }
 
-  private getSessionNode(): NodeWorker | null {
+  getSessionNode(): NodeWorker | null {
     if (!this.sessionNode || this.isSessionExpired() || this.sessionErrorCount >= this.maxSessionErrors) {
       // Need to pick a new node
       this.sessionNode = this.pickRandomNode();
@@ -322,6 +338,8 @@ class NodeWorkersList {
 
   stop = () => {
     this.nodes = [];
+    this.usedNodeUrls.clear(); // Clear used nodes to allow fresh random selection
+    this.sessionNode = null; // Clear current session node
   }
 }
 
@@ -401,24 +419,38 @@ export class BlockchainExplorerRpcDaemon implements BlockchainExplorer {
     return this.scannedHeight;
   }
 
-  resetNodes = () => {
+  resetNodes = async () => {
+    console.log('BlockchainExplorerRpcDaemon: resetNodes() called');
+    
     // Clean up current session before changing nodes
     this.nodeWorkers.cleanupSession();
     this.nodeWorkers.stop();
 
-    // Shuffle the node list for random selection
-    const shuffledNodes = [...config.nodeList].sort(() => Math.random() - 0.5);
-    this.nodeWorkers.start(shuffledNodes);
+    // Check if using custom node
+    const customNode = await WalletStorageManager.getCustomNode();
+    console.log('BlockchainExplorerRpcDaemon: resetNodes() - custom node check:', customNode ? 'CUSTOM NODE FOUND' : 'NO CUSTOM NODE');
     
-    // Initialize new session with the updated node configuration
-    this.nodeWorkers.initializeSession();
+    if (customNode) {
+      // Use custom node only
+      console.log('BlockchainExplorerRpcDaemon: Using custom node:', customNode);
+      this.nodeWorkers.start([customNode]);
+    } else {
+      // Use random node selection (original logic)
+      const shuffledNodes = [...config.nodeList].sort(() => Math.random() - 0.5);
+      console.log('BlockchainExplorerRpcDaemon: Using random node selection from', shuffledNodes.length, 'nodes');
+      console.log('BlockchainExplorerRpcDaemon: Shuffled nodes:', shuffledNodes);
+      this.nodeWorkers.start(shuffledNodes);
+    }
+    
+    console.log('BlockchainExplorerRpcDaemon: resetNodes() completed');
   }
   
   isInitialized = (): boolean => {
     return this.initialized;
   }
 
-  initialize = (): Promise<boolean> => {     
+
+  initialize = async (): Promise<boolean> => {     
     const doesMatch = (toCheck: string) => {
       return (element: string) => {
           return element.toLowerCase() === toCheck.toLowerCase();
@@ -426,30 +458,48 @@ export class BlockchainExplorerRpcDaemon implements BlockchainExplorer {
     }
 
     if (this.initialized) {
+      console.log('BlockchainExplorerRpcDaemon: Already initialized, skipping');
       return Promise.resolve(true);
     } else {
-      if (config.publicNodes) {
-        return fetch(config.publicNodes + '/list?hasSSL=true')
-          .then(response => response.json())
-          .then(result => {
-            if (result.success && (result.list.length > 0)) {
-              for (let i = 0; i < result.list.length; ++i) {
-                let finalUrl = "https://" + result.list[i].url.host + "/";
-
-                if (config.nodeList.findIndex(doesMatch(finalUrl)) == -1) {
-                  config.nodeList.push(finalUrl);
-                }
-              }
-            }
-            
-            this.initialized = true;
-            this.resetNodes();
-            return true;
-          })
-          .catch(() => false);
+      console.log('BlockchainExplorerRpcDaemon: Starting initialization...');
+      
+      // Check if user has set a custom node
+      const customNode = await WalletStorageManager.getCustomNode();
+      console.log('BlockchainExplorerRpcDaemon: Custom node check result:', customNode ? 'CUSTOM NODE SET' : 'NO CUSTOM NODE');
+      
+      if (customNode) {
+        // Use custom node directly - skip random node loading
+        console.log('BlockchainExplorerRpcDaemon: Using custom node, skipping random node loading');
+        this.initialized = true;
+        await this.resetNodes();
+        return true;
       } else {
-        return Promise.resolve(true);
-      }  
+        // Use random node selection (original logic)
+        if (config.publicNodes) {
+          return fetch(config.publicNodes + '/list?hasFeeAddr=true&isReachable=true&hasSSL=true')
+            .then(response => response.json())
+            .then(result => {
+              if (result.success && (result.list.length > 0)) {
+                for (let i = 0; i < result.list.length; ++i) {
+                  let finalUrl = "https://" + result.list[i].url.host + "/";
+
+                  if (config.nodeList.findIndex(doesMatch(finalUrl)) == -1) {
+                    config.nodeList.push(finalUrl);
+                    console.log('BlockchainExplorerRpcDaemon: Added random node:', finalUrl);
+                  }
+                }
+                console.log(`BlockchainExplorerRpcDaemon: Total nodes available: ${config.nodeList.length}`);
+              }
+              
+              this.initialized = true;
+              this.resetNodes();
+              return true;
+            })
+            .catch(() => false);
+        } else {
+          return Promise.resolve(true);
+        }
+      }
     }   
   }
 
@@ -654,6 +704,12 @@ export class BlockchainExplorerRpcDaemon implements BlockchainExplorer {
   // Get the current session node's fee address
   getSessionNodeFeeAddress(): Promise<string> {
     return this.nodeWorkers.getSessionNodeFeeAddress();
+  }
+
+  // Get the current session node URL
+  getCurrentSessionNodeUrl(): string | null {
+    const sessionNode = this.nodeWorkers.getSessionNode();
+    return sessionNode ? sessionNode.url : null;
   }
 }
 

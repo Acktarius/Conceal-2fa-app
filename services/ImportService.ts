@@ -166,11 +166,19 @@ export class ImportService {
 
       // Upgrade the existing wallet with blockchain keys
       existingWallet.keys = keys;
+      console.log('QR IMPORT: Set wallet keys:', {
+        hasKeys: !!existingWallet.keys,
+        hasSpendKey: !!existingWallet.keys?.priv?.spend,
+        spendKeyLength: existingWallet.keys?.priv?.spend?.length || 0,
+        isLocal: existingWallet.isLocal()
+      });
 
       // Use provided height or default to current height - 10
       const height = txDetails.height ? parseInt(txDetails.height.toString()) : Math.max(0, currentHeight - 10);
       existingWallet.creationHeight = height;
       existingWallet.lastHeight = height;
+      
+      console.log('QR IMPORT: Set wallet heights - creationHeight:', existingWallet.creationHeight, 'lastHeight:', existingWallet.lastHeight);
 
       // Encrypt and save the upgraded wallet based on current authentication mode
       await this.saveImportedWallet(existingWallet);

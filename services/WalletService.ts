@@ -10,6 +10,7 @@ import { BlockchainExplorerRpcDaemon } from '../model/blockchain/BlockchainExplo
 import { Alert } from 'react-native';
 import { ImportService } from './ImportService';
 import { StorageService } from './StorageService';
+import { WalletWatchdogRN } from '../model/WalletWatchdogRN';
 
 
 
@@ -17,6 +18,7 @@ export class WalletService {
   private static readonly ENCRYPTION_KEY = 'wallet_encryption_key';
   private static wallet: Wallet | null = null;
   private static blockchainExplorer: BlockchainExplorerRpcDaemon | null = null;
+  private static walletWatchdog: WalletWatchdogRN | null = null;
   
   // Session flags (reset to false on app launch)
   private static flag_prompt_main_tab = false;
@@ -64,6 +66,30 @@ export class WalletService {
     }
   }
 
+  static async reinitializeBlockchainExplorer(): Promise<void> {
+    try {
+      if (this.blockchainExplorer) {
+        // Reset nodes to pick up custom node changes (like WebWallet does)
+        await this.blockchainExplorer.resetNodes();
+        console.log('WALLET SERVICE: Blockchain explorer nodes reset for custom node changes');
+      }
+    } catch (error) {
+      console.error('WALLET SERVICE: Error resetting blockchain explorer nodes:', error);
+    }
+  }
+
+  static getCurrentSessionNodeUrl(): string | null {
+    try {
+      if (this.blockchainExplorer) {
+        return this.blockchainExplorer.getCurrentSessionNodeUrl();
+      }
+      return null;
+    } catch (error) {
+      console.error('WALLET SERVICE: Error getting current session node URL:', error);
+      return null;
+    }
+  }
+
   static async getOrCreateWallet(callerScreen?: 'home' | 'wallet'): Promise<Wallet> {
     try {
 
@@ -74,7 +100,25 @@ export class WalletService {
       }
 
       // Use already loaded wallet if available, otherwise load it
+      console.log('WALLET SERVICE: getOrCreateWallet - checking wallet state:', {
+        hasWalletInstance: !!this.wallet,
+        walletAddress: this.wallet?.getPublicAddress() || 'none',
+        walletIsLocal: this.wallet?.isLocal(),
+        walletCreationHeight: this.wallet?.creationHeight,
+        walletLastHeight: this.wallet?.lastHeight
+      });
+      
       let wallet = this.wallet || await WalletStorageManager.getWallet();
+      
+      console.log('WALLET SERVICE: getOrCreateWallet - wallet after load:', {
+        hasWallet: !!wallet,
+        walletAddress: wallet?.getPublicAddress() || 'none',
+        walletIsLocal: wallet?.isLocal(),
+        walletCreationHeight: wallet?.creationHeight,
+        walletLastHeight: wallet?.lastHeight,
+        loadedFromInstance: wallet === this.wallet,
+        loadedFromStorage: wallet !== this.wallet
+      });
       
       // If no wallet exists at all, create a local-only wallet first
       if (!wallet) {
@@ -270,18 +314,26 @@ export class WalletService {
       // Try to get blockchain height if possible, but don't block on it
       try {
         if (!this.blockchainExplorer) {
+          console.log('UPGRADE: Creating new BlockchainExplorerRpcDaemon for upgrade');
           this.blockchainExplorer = new BlockchainExplorerRpcDaemon();
+          
+          console.log('UPGRADE: Initializing blockchain explorer...');
           await Promise.race([
             this.blockchainExplorer.initialize(),
             new Promise((_, reject) => setTimeout(() => reject('TIMEOUT'), 5000))
           ]);
+          
+          console.log('UPGRADE: Getting blockchain height...');
           const currentHeight = await Promise.race([
             this.blockchainExplorer.getHeight(),
             new Promise<number>((_, reject) => setTimeout(() => reject('TIMEOUT'), 5000))
           ]);
+          
           creationHeight = Math.max(0, currentHeight - 10);
+          console.log('UPGRADE: Blockchain height retrieved:', currentHeight, 'creationHeight set to:', creationHeight);
         }
       } catch (error) {
+        console.log('UPGRADE: Failed to get blockchain height, using creationHeight = 0:', error);
         // We'll continue with creationHeight = 0
       }
 
@@ -313,14 +365,12 @@ export class WalletService {
       // Set the wallet instance
       this.wallet = wallet;
 
-      // Try to start blockchain monitoring in the background
-      if (this.blockchainExplorer) {
-        try {
-          this.blockchainExplorer.initializeSession();
-          const watchdog = this.blockchainExplorer.start(wallet);
-        } catch (error) {
-          // We'll try again later via service worker
-        }
+      // Start wallet synchronization after upgrade
+      try {
+        await this.startWalletSynchronization();
+      } catch (error) {
+        console.error('WALLET SERVICE: Error starting synchronization after upgrade:', error);
+        // Continue without synchronization for now
       }
 
 
@@ -391,9 +441,10 @@ export class WalletService {
   /**
    * Cleans up blockchain connection resources when the wallet session ends.
    * This does NOT delete the wallet data - it only:
-   * 1. Stops active node connections
-   * 2. Cleans up the blockchain monitoring session
-   * 3. Releases memory resources
+   * 1. Stops wallet synchronization
+   * 2. Stops active node connections
+   * 3. Cleans up the blockchain monitoring session
+   * 4. Releases memory resources
    * 
    * Call this when:
    * - User logs out
@@ -401,6 +452,9 @@ export class WalletService {
    * - Wallet component unmounts
    */
   static async cleanupWallet(): Promise<void> {
+    // Stop wallet synchronization
+    this.stopWalletSynchronization();
+    
     if (this.blockchainExplorer) {
       this.blockchainExplorer.cleanupSession();
     }
@@ -412,6 +466,9 @@ export class WalletService {
    * This is called when user clears all data.
    */
   static async resetWallet(): Promise<void> {
+    // Stop wallet synchronization
+    this.stopWalletSynchronization();
+    
     // Clear blockchain connections
     if (this.blockchainExplorer) {
       this.blockchainExplorer.cleanupSession();
@@ -431,6 +488,9 @@ export class WalletService {
    */
   static async forceClearAll(): Promise<void> {
     try {
+      // Stop wallet synchronization
+      this.stopWalletSynchronization();
+      
       // Clear blockchain connections
       if (this.blockchainExplorer) {
         this.blockchainExplorer.cleanupSession();
@@ -475,6 +535,66 @@ export class WalletService {
     this.flag_prompt_main_tab = false;
     this.flag_prompt_wallet_tab = false;
     console.log('Upgrade flags reset to false');
+  }
+
+  /**
+   * Start wallet synchronization with blockchain
+   */
+  static async startWalletSynchronization(): Promise<void> {
+    try {
+      if (!this.wallet) {
+        throw new Error('No wallet available for synchronization');
+      }
+
+      if (!this.blockchainExplorer) {
+        this.blockchainExplorer = new BlockchainExplorerRpcDaemon();
+        await this.blockchainExplorer.initialize();
+      }
+
+      // Create watchdog if not exists
+      if (!this.walletWatchdog) {
+        this.walletWatchdog = new WalletWatchdogRN(this.wallet, this.blockchainExplorer);
+      }
+
+      // Start synchronization
+      this.walletWatchdog.start();
+      
+      console.log('WALLET SERVICE: Wallet synchronization started');
+    } catch (error) {
+      console.error('WALLET SERVICE: Error starting wallet synchronization:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Stop wallet synchronization
+   */
+  static stopWalletSynchronization(): void {
+    if (this.walletWatchdog) {
+      this.walletWatchdog.stop();
+      this.walletWatchdog = null;
+      console.log('WALLET SERVICE: Wallet synchronization stopped');
+    }
+  }
+
+  /**
+   * Get wallet synchronization status
+   */
+  static getWalletSyncStatus(): any {
+    if (this.walletWatchdog) {
+      return {
+        isRunning: true, // WalletWatchdog doesn't expose stopped state, assume running if watchdog exists
+        lastBlockLoading: this.walletWatchdog.getLastBlockLoading(),
+        blockList: this.walletWatchdog.getBlockList()
+      };
+    }
+    return {
+      isRunning: false,
+      lastBlockLoading: 0,
+      lastMaximumHeight: 0,
+      transactionsInQueue: 0,
+      isWalletSynced: false
+    };
   }
 
   /**

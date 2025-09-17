@@ -12,6 +12,7 @@ export class WalletStorageManager {
   private static readonly ENCRYPTION_KEY = 'wallet_encryption_key';
   private static readonly WALLET_HAS_PASSWORD_KEY = 'wallet_has_password';
   private static readonly BIOMETRIC_SALT_KEY = 'biometric_salt';
+  private static readonly CUSTOM_NODE_KEY = 'custom_node_url';
 
   private static async saveEncryptedWalletData(encryptedData: any): Promise<void> {
     try {
@@ -472,4 +473,37 @@ export class WalletStorageManager {
       );
     });
   }
+
+  // Custom Node Management Methods
+  static async getCustomNode(): Promise<string | null> {
+    try {
+      return await SecureStore.getItemAsync(this.CUSTOM_NODE_KEY);
+    } catch (error) {
+      console.error('Error getting custom node:', error);
+      return null;
+    }
+  }
+
+  static async setCustomNode(nodeUrl: string): Promise<boolean> {
+    try {
+      await SecureStore.setItemAsync(this.CUSTOM_NODE_KEY, nodeUrl);
+      console.log('Custom node saved:', nodeUrl);
+      return true;
+    } catch (error) {
+      console.error('Error saving custom node:', error);
+      return false;
+    }
+  }
+
+  static async clearCustomNode(): Promise<boolean> {
+    try {
+      await SecureStore.deleteItemAsync(this.CUSTOM_NODE_KEY);
+      console.log('Custom node cleared, reverting to default');
+      return true;
+    } catch (error) {
+      console.error('Error clearing custom node:', error);
+      return false;
+    }
+  }
+
 } 

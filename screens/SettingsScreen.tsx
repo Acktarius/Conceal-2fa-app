@@ -20,7 +20,6 @@ import GestureNavigator from '../components/GestureNavigator';
 import { StorageService } from '../services/StorageService';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { BlockchainSyncWorker } from '../services/BlockchainSyncWorker';
 import { WalletService } from '../services/WalletService';
 import { Mnemonic } from '../model/Mnemonic';
 import { PasswordChangeAlert } from '../components/PasswordChangeAlert';
@@ -29,6 +28,8 @@ import { PasswordCreationAlert } from '../components/PasswordCreationAlert';
 import { WalletStorageManager } from '../services/WalletStorageManager';
 import { ExportService } from '../services/ExportService';
 import * as SecureStore from 'expo-secure-store';
+import { CustomNodeModal } from '../components/CustomNodeModal';
+import { config } from '../config';
 // verifyOldPassword function moved here to avoid circular dependencies
 
 type RootStackParamList = {
@@ -42,6 +43,12 @@ export default function SettingsScreen() {
   const [blockchainSync, setBlockchainSync] = useState(false);
   const [autoShare, setAutoShare] = useState(false);
   const [biometricAuth, setBiometricAuth] = useState(false);
+  const [showBlockchainSyncToggle, setShowBlockchainSyncToggle] = useState(false);
+  
+  // Custom Node Modal state
+  const [showCustomNodeModal, setShowCustomNodeModal] = useState(false);
+  const [currentNodeUrl, setCurrentNodeUrl] = useState('');
+  const [nodeDisplayName, setNodeDisplayName] = useState('Default Node');
   const [showPasswordChangeAlert, setShowPasswordChangeAlert] = useState(false);
   const [showUnlockWalletAlert, setShowUnlockWalletAlert] = useState(false);
   const [showPasswordCreationAlert, setShowPasswordCreationAlert] = useState(false);
@@ -69,7 +76,53 @@ export default function SettingsScreen() {
   // Load settings on mount
   useEffect(() => {
     loadSettings();
-  }, []);
+    checkBlockchainSyncVisibility();
+    loadNodeInfo();
+  }, [wallet]);
+
+  const loadNodeInfo = async () => {
+    try {
+      const customNode = await WalletStorageManager.getCustomNode();
+      
+      if (customNode) {
+        setCurrentNodeUrl(customNode);
+        // Extract domain from URL for display (HTTPS only, no port)
+        try {
+          const url = new URL(customNode);
+          setNodeDisplayName(`Custom: ${url.hostname}`);
+        } catch {
+          setNodeDisplayName('Custom Node');
+        }
+      } else {
+        // Get the actual current session node URL
+        const currentSessionNodeUrl = WalletService.getCurrentSessionNodeUrl();
+        
+        if (currentSessionNodeUrl) {
+          setCurrentNodeUrl(currentSessionNodeUrl);
+          try {
+            const url = new URL(currentSessionNodeUrl);
+            setNodeDisplayName(`Random: ${url.hostname}`);
+          } catch {
+            setNodeDisplayName('Random Node');
+          }
+        } else {
+          // Fallback to default if no session node available
+          const currentNode = config.nodeList[0];
+          setCurrentNodeUrl(currentNode);
+          try {
+            const url = new URL(currentNode);
+            setNodeDisplayName(`Default: ${url.hostname}`);
+          } catch {
+            setNodeDisplayName('Default Node');
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error loading node info:', error);
+      setCurrentNodeUrl(config.nodeList[0]);
+      setNodeDisplayName('Default Node');
+    }
+  };
 
   const loadSettings = async () => {
     try {
@@ -83,6 +136,35 @@ export default function SettingsScreen() {
     }
   };
 
+  const checkBlockchainSyncVisibility = async () => {
+    try {
+      if (!wallet) {
+        setShowBlockchainSyncToggle(false);
+        return;
+      }
+
+      // Check visibility conditions:
+      // 1. Wallet is not local (!wallet.isLocal())
+      // 2. Wallet is synchronized with blockchain
+      // 3. Wallet has sufficient balance (> 0.0111 CCX)
+      const isSynced = await WalletService.getWalletSyncStatus().isWalletSynced;
+      const hasBalance = wallet.amount > 0.0111;
+
+      const shouldShow = !wallet.isLocal() && isSynced && hasBalance;
+      setShowBlockchainSyncToggle(shouldShow);
+
+      console.log('Blockchain Sync Toggle Visibility Check:', {
+        isLocal: wallet.isLocal(),
+        isSynced,
+        hasBalance,
+        shouldShow
+      });
+    } catch (error) {
+      console.error('Error checking blockchain sync visibility:', error);
+      setShowBlockchainSyncToggle(false);
+    }
+  };
+
   const handleBlockchainSyncToggle = async (value: boolean) => {
     try {
       setBlockchainSync(value);
@@ -91,18 +173,49 @@ export default function SettingsScreen() {
         blockchainSync: value
       });
 
-      // Start or stop blockchain sync worker
-      const syncWorker = BlockchainSyncWorker.getInstance();
+      // TODO: Implement shared key blockchain backup functionality
       if (value) {
-        await syncWorker.start();
+        console.log('Blockchain Sync enabled: Will backup shared keys to blockchain');
+        // TODO: Future implementation: Push all sharedKey transactions to blockchain
       } else {
-        syncWorker.stop();
+        console.log('Blockchain Sync disabled: Shared keys remain local only');
+        // TODO: Future implementation: Stop backing up shared keys to blockchain
       }
     } catch (error) {
       console.error('Error toggling blockchain sync:', error);
       // Revert the toggle if there was an error
       setBlockchainSync(!value);
     }
+  };
+
+  const handleCustomNodeSave = async (newNodeUrl: string): Promise<boolean> => {
+    try {
+      let success: boolean;
+      if (newNodeUrl.trim() === '') {
+        // Empty string means reset to default (clear custom node)
+        success = await WalletStorageManager.clearCustomNode();
+      } else {
+        // Save the custom node
+        success = await WalletStorageManager.setCustomNode(newNodeUrl);
+      }
+      
+      if (success) {
+        // Re-initialize blockchain explorer to pick up custom node changes
+        await WalletService.reinitializeBlockchainExplorer();
+        
+        // Reload node info to update display
+        await loadNodeInfo();
+        setShowCustomNodeModal(false);
+      }
+      return success;
+    } catch (error) {
+      console.error('Error saving custom node:', error);
+      return false;
+    }
+  };
+
+  const handleCustomNodeCancel = () => {
+    setShowCustomNodeModal(false);
   };
 
   const handleShowSeed = () => {
@@ -451,23 +564,41 @@ export default function SettingsScreen() {
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Blockchain</Text>
             <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
+              {showBlockchainSyncToggle && (
+                <SettingItem
+                  icon="cloud-outline"
+                  title="Blockchain Sync"
+                  subtitle="Backup automatically all shared keys to blockchain"
+                  rightElement={
+                    <Switch
+                      value={blockchainSync}
+                      onValueChange={handleBlockchainSyncToggle}
+                      trackColor={{ 
+                        false: theme.colors.border,
+                        true: theme.colors.primary
+                      }}
+                      thumbColor={theme.colors.background}
+                      ios_backgroundColor={theme.colors.border}
+                    />
+                  }
+                />
+              )}
+              
+              {/* Remote Node Configuration */}
               <SettingItem
-                icon="cloud-outline"
-                title="Blockchain Sync"
-                subtitle="Sync keys with Conceal Network"
+                icon="server-outline"
+                title="Remote Node"
+                subtitle={nodeDisplayName}
+                onPress={() => setShowCustomNodeModal(true)}
                 rightElement={
-                  <Switch
-                    value={blockchainSync}
-                    onValueChange={handleBlockchainSyncToggle}
-                    trackColor={{ 
-                      false: theme.colors.border,
-                      true: theme.colors.primary
-                    }}
-                    thumbColor={theme.colors.background}
-                    ios_backgroundColor={theme.colors.border}
+                  <Ionicons 
+                    name="chevron-forward" 
+                    size={20} 
+                    color={theme.colors.textSecondary} 
                   />
                 }
               />
+              
               <SettingItem
                 icon="share-outline"
                 title="Auto-Share Codes"
@@ -627,6 +758,14 @@ export default function SettingsScreen() {
         message="Enter a new password for your wallet. This will replace biometric authentication."
         onCancel={() => setShowPasswordCreationAlert(false)}
         onConfirm={handleDisableBiometric}
+      />
+      
+      {/* Custom Node Modal */}
+      <CustomNodeModal
+        visible={showCustomNodeModal}
+        currentNode={currentNodeUrl}
+        onCancel={handleCustomNodeCancel}
+        onSave={handleCustomNodeSave}
       />
     </GestureNavigator>
   );

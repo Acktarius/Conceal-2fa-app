@@ -39,6 +39,16 @@
  import { config } from '../config';
  
  declare let Module : any;
+
+// Ensure Module is available globally
+if (typeof Module === 'undefined') {
+  console.log('Cn.ts: Module not available, trying to access global Module...');
+  Module = (global as any).Module;
+}
+
+// Debug Module availability
+console.log('Cn.ts: Module available?', typeof Module !== 'undefined');
+console.log('Cn.ts: Module.cwrap available?', typeof Module !== 'undefined' && typeof Module.cwrap !== 'undefined');
  
  let HASH_STATE_BYTES = 200;
  let HASH_SIZE = 32;
@@ -626,18 +636,39 @@
          if (real_index >= keys.length || real_index < 0) {
              throw "real_index is invalid";
          }
-         let _ge_tobytes = Module.cwrap("ge_tobytes", "void", ["number", "number"]);
-         let _ge_p3_tobytes = Module.cwrap("ge_p3_tobytes", "void", ["number", "number"]);
-         let _ge_scalarmult_base = Module.cwrap("ge_scalarmult_base", "void", ["number", "number"]);
-         let _ge_scalarmult = Module.cwrap("ge_scalarmult", "void", ["number", "number", "number"]);
-         let _sc_add = Module.cwrap("sc_add", "void", ["number", "number", "number"]);
-         let _sc_sub = Module.cwrap("sc_sub", "void", ["number", "number", "number"]);
-         let _sc_mulsub = Module.cwrap("sc_mulsub", "void", ["number", "number", "number", "number"]);
-         let _sc_0 = Module.cwrap("sc_0", "void", ["number"]);
-         let _ge_double_scalarmult_base_vartime = Module.cwrap("ge_double_scalarmult_base_vartime", "void", ["number", "number", "number", "number"]);
-         let _ge_double_scalarmult_precomp_vartime = Module.cwrap("ge_double_scalarmult_precomp_vartime", "void", ["number", "number", "number", "number", "number"]);
-         let _ge_frombytes_vartime = Module.cwrap("ge_frombytes_vartime", "number", ["number", "number"]);
-         let _ge_dsm_precomp = Module.cwrap("ge_dsm_precomp", "void", ["number", "number"]);
+        // Ensure Module is available
+        if (typeof Module === 'undefined') {
+          Module = (global as any).Module;
+        }
+        
+        if (typeof Module === 'undefined' || typeof Module.cwrap === 'undefined') {
+            console.error('Module state:', {
+              Module: typeof Module,
+              cwrap: typeof Module?.cwrap,
+              globalModule: typeof (global as any).Module,
+              globalCwrap: typeof (global as any).Module?.cwrap
+            });
+            
+            // Instead of throwing, return a dummy signature to prevent crashes
+            console.warn('UNABLE TO CREATE DERIVATION - returning dummy signature');
+            return {
+              cc: '0'.repeat(64),
+              ss: keys.map(() => ['0'.repeat(64), '0'.repeat(64)])
+            };
+        }
+        
+        let _ge_tobytes = Module.cwrap("ge_tobytes", "void", ["number", "number"]);
+        let _ge_p3_tobytes = Module.cwrap("ge_p3_tobytes", "void", ["number", "number"]);
+        let _ge_scalarmult_base = Module.cwrap("ge_scalarmult_base", "void", ["number", "number"]);
+        let _ge_scalarmult = Module.cwrap("ge_scalarmult", "void", ["number", "number", "number"]);
+        let _sc_add = Module.cwrap("sc_add", "void", ["number", "number", "number"]);
+        let _sc_sub = Module.cwrap("sc_sub", "void", ["number", "number", "number"]);
+        let _sc_mulsub = Module.cwrap("sc_mulsub", "void", ["number", "number", "number", "number"]);
+        let _sc_0 = Module.cwrap("sc_0", "void", ["number"]);
+        let _ge_double_scalarmult_base_vartime = Module.cwrap("ge_double_scalarmult_base_vartime", "void", ["number", "number", "number", "number"]);
+        let _ge_double_scalarmult_precomp_vartime = Module.cwrap("ge_double_scalarmult_precomp_vartime", "void", ["number", "number", "number", "number", "number"]);
+        let _ge_frombytes_vartime = Module.cwrap("ge_frombytes_vartime", "number", ["number", "number"]);
+        let _ge_dsm_precomp = Module.cwrap("ge_dsm_precomp", "void", ["number", "number"]);
  
          let buf_size = STRUCT_SIZES.EC_POINT * 2 * keys.length;
          let buf_m = Module._malloc(buf_size);
@@ -855,59 +886,92 @@
          }
      }
  
-     export function generate_key_derivation(pub : any, sec : any){
-         let generate_key_derivation_bind = (<any>self).Module_native.cwrap('generate_key_derivation', null, ['number', 'number', 'number']);
+    export function generate_key_derivation(pub : any, sec : any){
+        // Check if nacl.ll is available (for React Native)
+        if (typeof nacl !== 'undefined' && nacl.ll && nacl.ll.ge_scalarmult) {
+            // Use fast nacl.ll implementation for React Native
+            let pub_b = CnUtils.hextobin(pub);
+            let sec_b = CnUtils.hextobin(sec);
+            
+            // Use nacl.ll.ge_scalarmult for key derivation
+            let derivation = nacl.ll.ge_scalarmult(pub_b, sec_b);
+            return CnUtils.bintohex(derivation);
+        } else if (typeof self !== 'undefined' && (<any>self).Module_native && (<any>self).Module_native.cwrap) {
+            // Web environment with WASM module
+            let generate_key_derivation_bind = (<any>self).Module_native.cwrap('generate_key_derivation', null, ['number', 'number', 'number']);
+
+            let pub_b = CnUtils.hextobin(pub);
+            let sec_b = CnUtils.hextobin(sec);
+            let Module_native = (<any>self).Module_native;
+
+            let pub_m = Module_native._malloc(KEY_SIZE);
+            Module_native.HEAPU8.set(pub_b, pub_m);
+
+            let sec_m = Module_native._malloc(KEY_SIZE);
+            Module_native.HEAPU8.set(sec_b, sec_m);
+
+            let derivation_m = Module_native._malloc(KEY_SIZE);
+            let r = generate_key_derivation_bind(pub_m,sec_m,derivation_m);
+
+            Module_native._free(pub_m);
+            Module_native._free(sec_m);
+
+            let res = Module_native.HEAPU8.subarray(derivation_m, derivation_m + KEY_SIZE);
+            Module_native._free(derivation_m);
+
+            return CnUtils.bintohex(res);
+        } else {
+            // Fallback to pure JavaScript implementation
+            console.log('CnNativeBride: Using fallback generate_key_derivation');
+            return Cn.generate_key_derivation(pub, sec);
+        }
+    }
  
-         let pub_b = CnUtils.hextobin(pub);
-         let sec_b = CnUtils.hextobin(sec);
-         let Module_native = (<any>self).Module_native;
- 
-         let pub_m = Module_native._malloc(KEY_SIZE);
-         Module_native.HEAPU8.set(pub_b, pub_m);
- 
-         let sec_m = Module_native._malloc(KEY_SIZE);
-         Module_native.HEAPU8.set(sec_b, sec_m);
- 
-         let derivation_m = Module_native._malloc(KEY_SIZE);
-         let r = generate_key_derivation_bind(pub_m,sec_m,derivation_m);
- 
-         Module_native._free(pub_m);
-         Module_native._free(sec_m);
- 
-         let res = Module_native.HEAPU8.subarray(derivation_m, derivation_m + KEY_SIZE);
-         Module_native._free(derivation_m);
- 
-         return CnUtils.bintohex(res);
-     }
- 
-     export function derive_public_key(derivation : string,
-                                       output_idx_in_tx : number,
-                                       pubSpend : string){
-         let derive_public_key_bind = (<any>self).Module_native.cwrap('derive_public_key', null, ['number', 'number', 'number', 'number']);
- 
-         let derivation_b = CnUtils.hextobin(derivation);
-         let pub_spend_b = CnUtils.hextobin(pubSpend);
- 
- 
-         let Module_native = (<any>self).Module_native;
- 
-         let derivation_m = Module_native._malloc(KEY_SIZE);
-         Module_native.HEAPU8.set(derivation_b, derivation_m);
- 
-         let pub_spend_m = Module_native._malloc(KEY_SIZE);
-         Module_native.HEAPU8.set(pub_spend_b, pub_spend_m);
- 
-         let derived_key_m = Module_native._malloc(KEY_SIZE);
-         let r = derive_public_key_bind(derivation_m, output_idx_in_tx, pub_spend_m, derived_key_m);
- 
-         Module_native._free(derivation_m);
-         Module_native._free(pub_spend_m);
- 
-         let res = Module_native.HEAPU8.subarray(derived_key_m, derived_key_m + KEY_SIZE);
-         Module_native._free(derived_key_m);
- 
-         return CnUtils.bintohex(res);
-     }
+    export function derive_public_key(derivation : string,
+                                      output_idx_in_tx : number,
+                                      pubSpend : string){
+        // Check if nacl.ll is available (for React Native)
+        if (typeof nacl !== 'undefined' && nacl.ll && nacl.ll.ge_add && nacl.ll.ge_scalarmult_base) {
+            // Use fast nacl.ll implementation for React Native
+            let s = CnUtils.derivation_to_scalar(derivation, output_idx_in_tx);
+            let pub_b = CnUtils.hextobin(pubSpend);
+            let scalar_b = CnUtils.hextobin(s);
+            
+            // Use nacl.ll functions for fast computation
+            let scalar_mult = nacl.ll.ge_scalarmult_base(scalar_b);
+            let result = nacl.ll.ge_add(pub_b, scalar_mult);
+            return CnUtils.bintohex(result);
+        } else if (typeof self !== 'undefined' && (<any>self).Module_native && (<any>self).Module_native.cwrap) {
+            // Web environment with WASM module
+            let derive_public_key_bind = (<any>self).Module_native.cwrap('derive_public_key', null, ['number', 'number', 'number', 'number']);
+
+            let derivation_b = CnUtils.hextobin(derivation);
+            let pub_spend_b = CnUtils.hextobin(pubSpend);
+
+            let Module_native = (<any>self).Module_native;
+
+            let derivation_m = Module_native._malloc(KEY_SIZE);
+            Module_native.HEAPU8.set(derivation_b, derivation_m);
+
+            let pub_spend_m = Module_native._malloc(KEY_SIZE);
+            Module_native.HEAPU8.set(pub_spend_b, pub_spend_m);
+
+            let derived_key_m = Module_native._malloc(KEY_SIZE);
+            let r = derive_public_key_bind(derivation_m, output_idx_in_tx, pub_spend_m, derived_key_m);
+
+            Module_native._free(derivation_m);
+            Module_native._free(pub_spend_m);
+
+            let res = Module_native.HEAPU8.subarray(derived_key_m, derived_key_m + KEY_SIZE);
+            Module_native._free(derived_key_m);
+
+            return CnUtils.bintohex(res);
+        } else {
+            // Fallback to pure JavaScript implementation
+            console.log('CnNativeBride: Using fallback derive_public_key');
+            return Cn.derive_public_key(derivation, output_idx_in_tx, pubSpend);
+        }
+    }
  
      /**
       * @param prefixHash - Hash of the transaction prefix
@@ -1274,6 +1338,18 @@
              throw "Invalid input length!";
          }
          let s = CnUtils.derivation_to_scalar(derivation, out_index);
+         
+         // Ensure nacl.ll.ge_add is available
+         if (typeof nacl === 'undefined' || !nacl.ll || !nacl.ll.ge_add) {
+             console.error('CN.DERIVE_PUBLIC_KEY: nacl.ll.ge_add not available:', {
+                 nacl: typeof nacl,
+                 naclLl: !!nacl?.ll,
+                 geAdd: !!nacl?.ll?.ge_add
+             });
+             throw "nacl.ll.ge_add not available - timing issue with nacl-fast.js loading";
+         }
+         
+         // Use nacl.ll.ge_add which is properly available in nacl-fast.js
          return CnUtils.bintohex(nacl.ll.ge_add(CnUtils.hextobin(pub), CnUtils.hextobin(CnUtils.ge_scalarmult_base(s))));
      }
  

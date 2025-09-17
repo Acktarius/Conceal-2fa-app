@@ -42,6 +42,12 @@ import './lib/base58.js';
 import './lib/cn_utils.js';
 //import './lib/cn_utils_native.js'; WIP modifying cn_utils.js to work with React Native and avoiding use of cn_utils_native.js
 
+// Debug nacl availability after all imports
+console.log('APP: After crypto imports - nacl available:', !!(global as any).nacl);
+console.log('APP: nacl.ll available:', !!(global as any).nacl?.ll);
+console.log('APP: nacl.ll.ge_add available:', !!(global as any).nacl?.ll?.ge_add);
+console.log('APP: nacl.ll.ge_scalarmult_base available:', !!(global as any).nacl?.ll?.ge_scalarmult_base);
+
 
 
 import TabNavigator from './components/TabNavigator';

@@ -76,7 +76,26 @@ export class WalletRepository {
 		}
 
 		if(decodedRawWallet !== null){
+			console.log('WALLET REPO: Decoded raw wallet keys:', {
+				hasKeys: !!decodedRawWallet.keys,
+				hasSpendKey: !!decodedRawWallet.keys?.priv?.spend,
+				hasViewKey: !!decodedRawWallet.keys?.priv?.view,
+				spendKeyLength: decodedRawWallet.keys?.priv?.spend?.length || 0,
+				viewKeyLength: decodedRawWallet.keys?.priv?.view?.length || 0
+			});
+			
 			let wallet = Wallet.loadFromRaw(decodedRawWallet);
+			
+			console.log('WALLET REPO: Loaded wallet keys:', {
+				hasKeys: !!wallet.keys,
+				hasSpendKey: !!wallet.keys?.priv?.spend,
+				hasViewKey: !!wallet.keys?.priv?.view,
+				spendKeyLength: wallet.keys?.priv?.spend?.length || 0,
+				viewKeyLength: wallet.keys?.priv?.view?.length || 0,
+				address: wallet.getPublicAddress(),
+				isLocal: wallet.isLocal()
+			});
+			
 			if(wallet.coinAddressPrefix !== config.addressPrefix)
 				return null;
 			return wallet;
@@ -102,6 +121,18 @@ export class WalletRepository {
 		console.log('WALLET REPO: Starting save with password length:', password.length);
 		console.log('WALLET REPO: nacl available?', typeof global.nacl !== 'undefined');
 		console.log('WALLET REPO: nacl.randomBytes available?', typeof global.nacl?.randomBytes === 'function');
+		
+		// Debug wallet keys before saving
+		console.log('WALLET REPO: Wallet keys before save:', {
+			hasKeys: !!wallet.keys,
+			hasSpendKey: !!wallet.keys?.priv?.spend,
+			hasViewKey: !!wallet.keys?.priv?.view,
+			spendKeyLength: wallet.keys?.priv?.spend?.length || 0,
+			viewKeyLength: wallet.keys?.priv?.view?.length || 0,
+			address: wallet.getPublicAddress(),
+			isLocal: wallet.isLocal()
+		});
+		
 		return this.getEncrypted(wallet, password);
 	}
 
