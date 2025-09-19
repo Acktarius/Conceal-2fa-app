@@ -1,59 +1,37 @@
 // JSBigInt Polyfill for React Native
-// This provides compatibility with the JSBigInt library using native BigInt
+// This extends the original BigInteger library from biginteger.js with additional convenience methods
 
-// Create a JSBigInt class that wraps BigInt
-class JSBigIntClass {
-  private value: bigint;
+import { config } from '../../config';
 
-  constructor(value: string | number | bigint) {
-    this.value = BigInt(value);
-  }
+// Wait for the original BigInteger to be loaded
+const originalJSBigInt = (global as any).JSBigInt;
 
-  compare(other: JSBigIntClass | bigint): number {
-    const otherValue = other instanceof JSBigIntClass ? other.value : BigInt(other);
-    if (this.value < otherValue) return -1;
-    if (this.value > otherValue) return 1;
-    return 0;
-  }
-
-  subtract(other: JSBigIntClass | bigint): JSBigIntClass {
-    const otherValue = other instanceof JSBigIntClass ? other.value : BigInt(other);
-    return new JSBigIntClass(this.value - otherValue);
-  }
-
-  divide(other: JSBigIntClass | bigint): JSBigIntClass {
-    const otherValue = other instanceof JSBigIntClass ? other.value : BigInt(other);
-    return new JSBigIntClass(this.value / otherValue);
-  }
-
-  pow(exponent: number): JSBigIntClass {
-    return new JSBigIntClass(this.value ** BigInt(exponent));
-  }
-
-  toString(radix?: number): string {
-    return this.value.toString(radix);
-  }
-
-  valueOf(): bigint {
-    return this.value;
-  }
+if (!originalJSBigInt) {
+  console.warn('JSBigIntPolyfill: Original JSBigInt not found, polyfill may not work correctly');
 }
 
-// Create JSBigInt constructor function
-const JSBigInt = function(value: string | number | bigint): JSBigIntClass {
-  return new JSBigIntClass(value);
-} as any;
+// Extend the original BigInteger prototype with convenience methods
+if (originalJSBigInt && originalJSBigInt.prototype) {
+  // Add toNumber method
+  originalJSBigInt.prototype.toNumber = function() {
+    return this.valueOf();
+  };
 
-// Add static methods and properties
-JSBigInt.ZERO = new JSBigIntClass(0);
-JSBigInt.parse = function(value: string, radix: number = 10): JSBigIntClass {
-  return new JSBigIntClass(radix === 16 ? `0x${value}` : value);
-};
+  // Add toNumberFixed method
+  originalJSBigInt.prototype.toNumberFixed = function(decimals: number): string {
+    return this.toNumber().toFixed(decimals);
+  };
 
-// Make JSBigInt available globally
-(global as any).JSBigInt = JSBigInt;
+  // Add toHuman method - converts atomic units to human-readable format
+  originalJSBigInt.prototype.toHuman = function(): number {
+    const humanValue = this.toNumber() / Math.pow(10, config.coinUnitPlaces);
+    return humanValue;
+  };
 
-// Also make it available as a global variable
-declare global {
-  var JSBigInt: any;
-} 
+  console.log('JSBigIntPolyfill: Successfully extended original JSBigInt with convenience methods');
+} else {
+  console.error('JSBigIntPolyfill: Failed to extend original JSBigInt - prototype not found');
+}
+
+// The polyfill extends the original JSBigInt from biginteger.js
+// All original functionality is preserved, we just add convenience methods 

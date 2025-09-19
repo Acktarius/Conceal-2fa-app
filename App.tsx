@@ -26,6 +26,7 @@ import './lib/polyfills/path-polyfill.js';
 import './lib/polyfills/nacl-polyfill.js';
 
 import './lib/biginteger.js';
+import './lib/polyfills/JSBigIntPolyfill.ts';  // Polyfill loaded on top of original
 import './lib/sha3.js';  // Provides keccak_256 function
 
 // Import Conceal configuration and make it globally available (after JSBigInt is loaded)

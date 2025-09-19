@@ -17,11 +17,12 @@ import { useTheme } from '../contexts/ThemeContext';
 import GestureNavigator from '../components/GestureNavigator';
 import { WalletService } from '../services/WalletService';
 import { Wallet} from '../model/Wallet';
+import { config } from '../config';
 
 export default function WalletScreen() {
   const { wallet, balance, maxKeys, isLoading, refreshBalance, refreshWallet, refreshCounter } = useWallet();
   const { theme } = useTheme();
-  const KEY_STORAGE_COST = 0.0001;
+  const KEY_STORAGE_COST = config.messageTxAmount.add(config.coinFee).add(config.remoteNodeFee);
   const [syncStatus, setSyncStatus] = useState<any>(null);
   const [lastTap, setLastTap] = useState<number>(0);
 
@@ -181,10 +182,10 @@ export default function WalletScreen() {
                   <Text style={[styles.balanceLabel, { color: theme.colors.text }]}>CCX Balance</Text>
                 </View>
                 <Text style={[styles.balanceAmount, { color: theme.colors.primary }]}>
-                  {balance.toFixed(4)}
+                  {balance.toHuman().toFixed(4)}
                 </Text>
                 <Text style={[styles.balanceUsd, { color: theme.colors.textSecondary }]}>
-                  Keys available: {maxKeys}
+                  Keys available: {maxKeys.toString()}
                 </Text>
                 <TouchableOpacity
                   style={[styles.refreshButton, { backgroundColor: theme.colors.primaryLight }]}
@@ -241,7 +242,7 @@ export default function WalletScreen() {
               )}
 
               {/* Key Storage Info */}
-              {balance === 0 && wallet?.getPublicAddress() ? (
+              {balance.compare(new JSBigInt(0)) === 0 && wallet?.getPublicAddress() ? (
                 <View style={[styles.welcomeCard, { backgroundColor: theme.colors.primaryLight }]}>
                   <Ionicons name="wallet-outline" size={32} color={theme.colors.primary} />
                   <Text style={[styles.welcomeTitle, { color: theme.colors.primary }]}>Welcome to SecureAuth!</Text>
@@ -256,8 +257,8 @@ export default function WalletScreen() {
                   <View style={styles.infoContent}>
                     <Text style={[styles.infoTitle, { color: theme.colors.primary }]}>Blockchain Sync Available</Text>
                     <Text style={[styles.infoText, { color: theme.colors.primary }]}>
-                      Each 2FA key sync costs {KEY_STORAGE_COST.toFixed(4)} CCX. 
-                      You can currently sync {maxKeys} keys to the blockchain.
+                      Each 2FA key sync costs {KEY_STORAGE_COST.toHuman().toFixed(4)} CCX. 
+                      You can currently sync {maxKeys.toString()} keys to the blockchain.
                     </Text>
                   </View>
                 </View>
@@ -299,7 +300,7 @@ export default function WalletScreen() {
               </View>
 
               {/* Funding Info Card */}
-              {balance === 0 && (
+              {balance.compare(new JSBigInt(0)) === 0 && (
                 <View style={[styles.fundingCard, { backgroundColor: theme.colors.primaryLight }]}>
                   <Ionicons name="people-outline" size={24} color={theme.colors.primary} />
                   <View style={styles.infoContent}>
