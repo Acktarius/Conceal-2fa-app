@@ -7,8 +7,8 @@ import { config } from '../config';
 
 interface WalletContextType {
   wallet: Wallet | null;
-  balance: number;
-  maxKeys: number;
+  balance: typeof JSBigInt;
+  maxKeys: typeof JSBigInt;
   isLoading: boolean;
   isAuthenticated: boolean;
   refreshBalance: () => Promise<void>;
@@ -22,14 +22,14 @@ const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [wallet, setWallet] = useState<Wallet | null>(null);
-  const [balance, setBalance] = useState(0);
+  const [balance, setBalance] = useState(new JSBigInt(0));
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [refreshCounter, setRefreshCounter] = useState(0);
 
-  const KEY_STORAGE_COST = 0.0001; // CCX cost per key storage
+  const KEY_STORAGE_COST = config.messageTxAmount.add(config.coinFee).add(config.remoteNodeFee);
 
-  const maxKeys = Math.floor(balance / KEY_STORAGE_COST);
+  const maxKeys = balance.divide(KEY_STORAGE_COST);
 
   useEffect(() => {
     initializeWallet();
@@ -67,7 +67,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           // Calculate balance immediately using the loaded wallet object
           console.log('BALANCE DEBUG: wallet.amount raw value:', wallet.amount);
           console.log('BALANCE DEBUG: wallet.availableAmount(-1):', wallet.availableAmount(-1));
-          const currentBalance = wallet.amount / Math.pow(10, config.coinUnitPlaces);
+          const currentBalance = new JSBigInt(wallet.amount);
           setBalance(currentBalance);
           console.log('BALANCE DEBUG: Set balance immediately after wallet load:', currentBalance);
           
@@ -104,7 +104,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           name: walletError.name
         });
         // Don't change authentication state, just set balance to 0
-        setBalance(0);
+        setBalance(new JSBigInt(0));
       }
     } catch (error) {
       console.error('Error initializing wallet:', error);
@@ -117,7 +117,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       if (error.message === 'Authentication required') {
         setIsAuthenticated(false);
       }
-      setBalance(0);
+      setBalance(new JSBigInt(0));
     } finally {
       setIsLoading(false);
       console.log('Wallet initialization completed, isLoading set to false');
@@ -216,22 +216,16 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         
         // Use wallet's own balance calculation with current blockchain height
         // -1 means use current blockchain height (default behavior)
-        const currentBalance = wallet.amount / Math.pow(10, config.coinUnitPlaces);
-        
-        console.log('BALANCE DEBUG: Calculated balance:', {
-          rawAmount: wallet.amount,
-          currentBalance: currentBalance,
-          coinUnitPlaces: config.coinUnitPlaces
-        });
+          const currentBalance = new JSBigInt(wallet.amount);
         
         setBalance(currentBalance);
       } catch (error) {
         console.error('Error calculating wallet balance:', error);
-        setBalance(0);
+        setBalance(new JSBigInt(0));
       }
     } else {
       console.log('BALANCE DEBUG: No wallet available, setting balance to 0');
-      setBalance(0);
+      setBalance(new JSBigInt(0));
     }
   };
 
