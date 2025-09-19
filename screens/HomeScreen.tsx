@@ -62,13 +62,13 @@ export default function HomeScreen() {
     console.log('updateCodes called, current sharedKeys count:', sharedKeys.length);
     setSharedKeys(prevSharedKeys => {
       Promise.all(prevSharedKeys.map(async sharedKey => {
-        console.log('Updating SharedKey:', {
+        /*console.log('Updating SharedKey:', {
           name: sharedKey.name,
           hash: sharedKey.hash,
           isLocal: sharedKey.isLocalOnly(),
           revokeInQueue: sharedKey.revokeInQueue
         });
-        
+        */
         const updatedCode = await TOTPService.generateTOTP(sharedKey.secret);
         const updatedTimeRemaining = TOTPService.getTimeRemaining();
         
@@ -81,7 +81,7 @@ export default function HomeScreen() {
         
         return updatedSharedKey;
       })).then(updatedSharedKeys => {
-        console.log('Setting updated sharedKeys, count:', updatedSharedKeys.length);
+        // console.log('Setting updated sharedKeys, count:', updatedSharedKeys.length);
         setSharedKeys(updatedSharedKeys);
       });
       

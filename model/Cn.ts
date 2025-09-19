@@ -5,8 +5,8 @@
  *     Copyright (c) 2018-2020, The Qwertycoin Project
  *     Copyright (c) 2018-2020, The Masari Project
  *     Copyright (c) 2022, The Karbo Developers
- *     Copyright (c) 2022 - 2025, Conceal Devs
- *     Copyright (c) 2022 - 2025, Conceal Network
+ *     Copyright (c) 2022 - 2025, Conceal Network, Conceal Devs
+ *     Copyright (c) 2025, Acktarius 
  * 
  *     All rights reserved.
  *     Redistribution and use in source and binary forms, with or without modification,
@@ -40,15 +40,10 @@
  
  declare let Module : any;
 
-// Ensure Module is available globally
+// Ensure Module is available globally (from crypto.js)
 if (typeof Module === 'undefined') {
-  console.log('Cn.ts: Module not available, trying to access global Module...');
   Module = (global as any).Module;
 }
-
-// Debug Module availability
-console.log('Cn.ts: Module available?', typeof Module !== 'undefined');
-console.log('Cn.ts: Module.cwrap available?', typeof Module !== 'undefined' && typeof Module.cwrap !== 'undefined');
  
  let HASH_STATE_BYTES = 200;
  let HASH_SIZE = 32;
@@ -293,12 +288,58 @@ console.log('Cn.ts: Module.cwrap available?', typeof Module !== 'undefined' && t
          return CnUtils.ge_add(point1, point2n);
      }
  
-     export function sec_key_to_pub(sec : string) : string {
-         if (sec.length !== 64) {
-             throw "Invalid sec length";
-         }
-         return CnUtils.bintohex(nacl.ll.ge_scalarmult_base(hextobin(sec)));
-     }
+export function sec_key_to_pub(sec : string) : string {
+    if (sec.length !== 64) {
+        throw "Invalid sec length";
+    }
+    
+    console.log('CnUtils: sec_key_to_pub called with:', sec);
+    console.log('CnUtils: nacl.ll available:', !!nacl.ll);
+    console.log('CnUtils: nacl.ll.ge_scalarmult_base available:', !!nacl.ll?.ge_scalarmult_base);
+    console.log('CnUtils: Module available:', !!Module);
+    console.log('CnUtils: Module.ccall available:', !!Module?.ccall);
+    
+    // Debug: Check what we're actually passing
+    let secBytes = hextobin(sec);
+    console.log('CnUtils: Input sec:', sec);
+    console.log('CnUtils: secBytes length:', secBytes.length);
+    console.log('CnUtils: secBytes first 8 bytes:', Array.from(secBytes.slice(0, 8)));
+    console.log('CnUtils: secBytes last 8 bytes:', Array.from(secBytes.slice(-8)));
+    
+    // Try Module.ccall first (more reliable)
+    if (Module && Module.ccall) {
+        try {
+            console.log('CnUtils: Trying Module.ccall approach');
+            let result = Module.ccall('sec_key_to_pub', 'string', ['string'], [sec]);
+            console.log('CnUtils: Module.ccall result:', result);
+            return result;
+        } catch (e) {
+            console.log('CnUtils: Module.ccall failed:', e);
+        }
+    }
+    
+    // Fallback to nacl.ll.ge_scalarmult_base
+    console.log('CnUtils: Using nacl.ll.ge_scalarmult_base fallback');
+    
+    // Check nacl.ll availability
+    console.log('CnUtils: nacl.ll:', !!nacl.ll);
+    console.log('CnUtils: nacl.ll.ge_scalarmult_base:', !!nacl.ll?.ge_scalarmult_base);
+    
+    if (!nacl.ll || !nacl.ll.ge_scalarmult_base) {
+        throw new Error('nacl.ll.ge_scalarmult_base not available');
+    }
+    
+    // Call the function (same as web wallet)
+    let result = nacl.ll.ge_scalarmult_base(secBytes);
+    console.log('CnUtils: nacl.ll.ge_scalarmult_base result length:', result.length);
+    console.log('CnUtils: nacl.ll.ge_scalarmult_base result first 8 bytes:', Array.from(result.slice(0, 8)));
+    console.log('CnUtils: nacl.ll.ge_scalarmult_base result last 8 bytes:', Array.from(result.slice(-8)));
+    
+    let hexResult = CnUtils.bintohex(result);
+    console.log('CnUtils: Final hex result:', hexResult);
+    
+    return hexResult;
+}
  
      export function valid_hex(hex : string) {
          let exp = new RegExp("[0-9a-fA-F]{" + hex.length + "}");
@@ -886,92 +927,138 @@ console.log('Cn.ts: Module.cwrap available?', typeof Module !== 'undefined' && t
          }
      }
  
-    export function generate_key_derivation(pub : any, sec : any){
-        // Check if nacl.ll is available (for React Native)
-        if (typeof nacl !== 'undefined' && nacl.ll && nacl.ll.ge_scalarmult) {
-            // Use fast nacl.ll implementation for React Native
-            let pub_b = CnUtils.hextobin(pub);
-            let sec_b = CnUtils.hextobin(sec);
-            
-            // Use nacl.ll.ge_scalarmult for key derivation
-            let derivation = nacl.ll.ge_scalarmult(pub_b, sec_b);
-            return CnUtils.bintohex(derivation);
-        } else if (typeof self !== 'undefined' && (<any>self).Module_native && (<any>self).Module_native.cwrap) {
-            // Web environment with WASM module
-            let generate_key_derivation_bind = (<any>self).Module_native.cwrap('generate_key_derivation', null, ['number', 'number', 'number']);
+	export function generate_key_derivation(pub : any, sec : any){
+		// IMPORTANT: This function uses Module from crypto.js (NOT cn_utils_native.js)
+		// We removed cn_utils_native.js import from App.tsx to avoid Module conflicts
+		// This function implements the C++ generate_key_derivation logic using crypto.js functions
+		
+		// Convert hex strings to byte arrays
+		let pub_b = CnUtils.hextobin(pub);
+		let sec_b = CnUtils.hextobin(sec);
+		
+		try {
+			// Allocate buffers using Module (crypto.js) - following C++ struct sizes
+			const pub_m = Module._malloc(KEY_SIZE);           // 32 bytes for public key
+			const sec_m = Module._malloc(KEY_SIZE);          // 32 bytes for secret key
+			const point_m = Module._malloc(STRUCT_SIZES.GE_P3);    // 160 bytes for ge_p3
+			const point2_m = Module._malloc(STRUCT_SIZES.GE_P2);   // 120 bytes for ge_p2
+			const point3_m = Module._malloc(STRUCT_SIZES.GE_P1P1);  // 160 bytes for ge_p1p1
+			const derivation_m = Module._malloc(KEY_SIZE);    // 32 bytes for result
+			
+			if (!pub_m || !sec_m || !point_m || !point2_m || !point3_m || !derivation_m) {
+				console.error('Cn.generate_key_derivation: Failed to allocate buffers');
+				return null;
+			}
+			
+			try {
+				// Copy data to allocated memory
+				Module.HEAPU8.set(pub_b, pub_m);
+				Module.HEAPU8.set(sec_b, sec_m);
+				// Step 1: Validate secret key (sc_check equivalent)
+				// TODO: Implement sc_check validation
+				// Step 2: Convert public key to point (ge_frombytes_vartime equivalent)
+				Module._ge_frombytes_vartime(point_m, pub_m);
+				// Step 3: Scalar multiplication (ge_scalarmult equivalent)
+				Module._ge_scalarmult(point2_m, sec_m, point_m);
+				// Step 4: Multiply by 8 (ge_mul8 equivalent)
+				Module._ge_mul8(point3_m, point2_m);
+				// Step 5: Convert point format (ge_p1p1_to_p2 equivalent)
+				Module._ge_p1p1_to_p2(point2_m, point3_m);
+				// Step 6: Convert to bytes (ge_tobytes equivalent)
+				Module._ge_tobytes(derivation_m, point2_m);
+				
+				// Get result
+				let resultBytes = Module.HEAPU8.subarray(derivation_m, derivation_m + KEY_SIZE);
+				let hexResult = CnUtils.bintohex(resultBytes);
+				
+				return hexResult;
+				
+			} finally {
+				// Free allocated memory
+				if (pub_m) Module._free(pub_m);
+				if (sec_m) Module._free(sec_m);
+				if (point_m) Module._free(point_m);
+				if (point2_m) Module._free(point2_m);
+				if (point3_m) Module._free(point3_m);
+				if (derivation_m) Module._free(derivation_m);
+			}
+		} catch (error) {
+			console.error('Cn.generate_key_derivation: Error during crypto operations:', error);
+			return null;
+		}
+	}
 
-            let pub_b = CnUtils.hextobin(pub);
-            let sec_b = CnUtils.hextobin(sec);
-            let Module_native = (<any>self).Module_native;
 
-            let pub_m = Module_native._malloc(KEY_SIZE);
-            Module_native.HEAPU8.set(pub_b, pub_m);
+	export function derive_public_key(derivation : string,
+									  output_idx_in_tx : number,
+									  pubSpend : string){
+		// IMPORTANT: This function implements the C++ derive_public_key logic using crypto.js functions
+		// C++ logic: ge_frombytes_vartime -> derivation_to_scalar -> ge_scalarmult_base -> ge_p3_to_cached -> ge_add -> ge_p1p1_to_p2 -> ge_tobytes
+		
+		let derivation_b = CnUtils.hextobin(derivation);
+		let pub_spend_b = CnUtils.hextobin(pubSpend);
 
-            let sec_m = Module_native._malloc(KEY_SIZE);
-            Module_native.HEAPU8.set(sec_b, sec_m);
+		try {
+			// Allocate buffers for the C++ logic
+			let derivation_m = Module._malloc(KEY_SIZE);
+			let pub_spend_m = Module._malloc(KEY_SIZE);
+			let scalar_m = Module._malloc(KEY_SIZE);
+			let point1_m = Module._malloc(STRUCT_SIZES.GE_P3);    // ge_p3 for base public key
+			let point2_m = Module._malloc(STRUCT_SIZES.GE_P3);    // ge_p3 for scalar multiplication result
+			let point3_m = Module._malloc(STRUCT_SIZES.GE_CACHED); // ge_cached for cached point
+			let point4_m = Module._malloc(STRUCT_SIZES.GE_P1P1);  // ge_p1p1 for addition result
+			let point5_m = Module._malloc(STRUCT_SIZES.GE_P2);   // ge_p2 for final result
+			let derived_key_m = Module._malloc(KEY_SIZE);
+			
+			if (!derivation_m || !pub_spend_m || !scalar_m || !point1_m || !point2_m || !point3_m || !point4_m || !point5_m || !derived_key_m) {
+				console.error('Cn.derive_public_key: Failed to allocate buffers');
+				return null;
+			}
+			
+			try {
+				// Copy input data
+				Module.HEAPU8.set(derivation_b, derivation_m);
+				Module.HEAPU8.set(pub_spend_b, pub_spend_m);
 
-            let derivation_m = Module_native._malloc(KEY_SIZE);
-            let r = generate_key_derivation_bind(pub_m,sec_m,derivation_m);
-
-            Module_native._free(pub_m);
-            Module_native._free(sec_m);
-
-            let res = Module_native.HEAPU8.subarray(derivation_m, derivation_m + KEY_SIZE);
-            Module_native._free(derivation_m);
-
-            return CnUtils.bintohex(res);
-        } else {
-            // Fallback to pure JavaScript implementation
-            console.log('CnNativeBride: Using fallback generate_key_derivation');
-            return Cn.generate_key_derivation(pub, sec);
-        }
-    }
- 
-    export function derive_public_key(derivation : string,
-                                      output_idx_in_tx : number,
-                                      pubSpend : string){
-        // Check if nacl.ll is available (for React Native)
-        if (typeof nacl !== 'undefined' && nacl.ll && nacl.ll.ge_add && nacl.ll.ge_scalarmult_base) {
-            // Use fast nacl.ll implementation for React Native
-            let s = CnUtils.derivation_to_scalar(derivation, output_idx_in_tx);
-            let pub_b = CnUtils.hextobin(pubSpend);
-            let scalar_b = CnUtils.hextobin(s);
-            
-            // Use nacl.ll functions for fast computation
-            let scalar_mult = nacl.ll.ge_scalarmult_base(scalar_b);
-            let result = nacl.ll.ge_add(pub_b, scalar_mult);
-            return CnUtils.bintohex(result);
-        } else if (typeof self !== 'undefined' && (<any>self).Module_native && (<any>self).Module_native.cwrap) {
-            // Web environment with WASM module
-            let derive_public_key_bind = (<any>self).Module_native.cwrap('derive_public_key', null, ['number', 'number', 'number', 'number']);
-
-            let derivation_b = CnUtils.hextobin(derivation);
-            let pub_spend_b = CnUtils.hextobin(pubSpend);
-
-            let Module_native = (<any>self).Module_native;
-
-            let derivation_m = Module_native._malloc(KEY_SIZE);
-            Module_native.HEAPU8.set(derivation_b, derivation_m);
-
-            let pub_spend_m = Module_native._malloc(KEY_SIZE);
-            Module_native.HEAPU8.set(pub_spend_b, pub_spend_m);
-
-            let derived_key_m = Module_native._malloc(KEY_SIZE);
-            let r = derive_public_key_bind(derivation_m, output_idx_in_tx, pub_spend_m, derived_key_m);
-
-            Module_native._free(derivation_m);
-            Module_native._free(pub_spend_m);
-
-            let res = Module_native.HEAPU8.subarray(derived_key_m, derived_key_m + KEY_SIZE);
-            Module_native._free(derived_key_m);
-
-            return CnUtils.bintohex(res);
-        } else {
-            // Fallback to pure JavaScript implementation
-            console.log('CnNativeBride: Using fallback derive_public_key');
-            return Cn.derive_public_key(derivation, output_idx_in_tx, pubSpend);
-        }
-    }
+				// Step 1: ge_frombytes_vartime - Convert base public key to point
+				Module._ge_frombytes_vartime(point1_m, pub_spend_m);
+				// Step 2: derivation_to_scalar - Convert derivation + output_index to scalar
+				let scalar_hex = CnUtils.derivation_to_scalar(derivation, output_idx_in_tx);
+				let scalar_b = CnUtils.hextobin(scalar_hex);
+				Module.HEAPU8.set(scalar_b, scalar_m);
+				// Step 3: ge_scalarmult_base - Scalar multiplication with base point
+				Module._ge_scalarmult_base(point2_m, scalar_m);
+				// Step 4: ge_p3_to_cached - Convert point to cached format
+				Module._ge_p3_to_cached(point3_m, point2_m);
+				// Step 5: ge_add - Add two points
+				Module._ge_add(point4_m, point1_m, point3_m);
+				// Step 6: ge_p1p1_to_p2 - Convert point format
+				Module._ge_p1p1_to_p2(point5_m, point4_m);
+				// Step 7: ge_tobytes - Convert result to bytes
+				Module._ge_tobytes(derived_key_m, point5_m);
+				// Get result
+				let res = Module.HEAPU8.subarray(derived_key_m, derived_key_m + KEY_SIZE);
+				let hexResult = CnUtils.bintohex(res);
+				
+				return hexResult;
+				
+			} finally {
+				// Free allocated memory
+				if (derivation_m) Module._free(derivation_m);
+				if (pub_spend_m) Module._free(pub_spend_m);
+				if (scalar_m) Module._free(scalar_m);
+				if (point1_m) Module._free(point1_m);
+				if (point2_m) Module._free(point2_m);
+				if (point3_m) Module._free(point3_m);
+				if (point4_m) Module._free(point4_m);
+				if (point5_m) Module._free(point5_m);
+				if (derived_key_m) Module._free(derived_key_m);
+			}
+		} catch (error) {
+			console.error('Cn.derive_public_key: Error during crypto operations:', error);
+			return null;
+		}
+	}
  
      /**
       * @param prefixHash - Hash of the transaction prefix

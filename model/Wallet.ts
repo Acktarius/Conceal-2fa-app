@@ -186,7 +186,15 @@ export class Wallet extends Observable {
     }
 
 		wallet._lastHeight = raw.lastHeight;
-		if (typeof raw.encryptedKeys === 'string' && raw.encryptedKeys !== '') {
+		
+		// Prioritize raw.keys object (new format)
+		if (typeof raw.keys !== 'undefined' && raw.keys && raw.keys.priv && raw.keys.priv.spend && raw.keys.priv.view) {
+			console.log('WALLET: Loading from raw.keys object format');
+			wallet.keys = raw.keys;
+		}
+		// Fallback to raw.encryptedKeys string (old format)
+		else if (typeof raw.encryptedKeys === 'string' && raw.encryptedKeys !== '') {
+			console.log('WALLET: Loading from raw.encryptedKeys string format');
 			if (raw.encryptedKeys.length === 128) {
 				let privView = raw.encryptedKeys.substr(0, 64);
 				let privSpend = raw.encryptedKeys.substr(64, 64);
@@ -207,8 +215,6 @@ export class Wallet extends Observable {
 					}
 				};
 			}
-		} else if (typeof raw.keys !== 'undefined') {
-			wallet.keys = raw.keys;
 		} else {
 			// Default empty keys structure if none provided
 			wallet.keys = KeysRepository.createEmptyKeys();

@@ -59,6 +59,7 @@ export default function SettingsScreen() {
   // Expandable sections state
   const [showRecoverySeed, setShowRecoverySeed] = useState(false);
   const [showExportQR, setShowExportQR] = useState(false);
+  const [showRescanOptions, setShowRescanOptions] = useState(false);
   const [recoverySeed, setRecoverySeed] = useState('');
   const [exportQRData, setExportQRData] = useState('');
   
@@ -291,6 +292,106 @@ export default function SettingsScreen() {
     setShowClearDataOptions(!showClearDataOptions);
   };
 
+  const handleToggleRescanOptions = () => {
+    setShowRescanOptions(!showRescanOptions);
+  };
+
+  const handleRescanFromCreationHeight = async () => {
+    if (!wallet) {
+      Alert.alert('Error', 'No wallet available for rescan');
+      return;
+    }
+
+    Alert.alert(
+      'Rescan from Creation Height',
+      `This will clear all transactions and rescan from block ${wallet.creationHeight}. This may take some time.`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Confirm',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              console.log('RESCAN: Starting rescan from creation height:', wallet.creationHeight);
+              
+              // Clear all transactions, deposits, and withdrawals
+              wallet.clearTransactions();
+              
+              // Set lastHeight to creationHeight
+              wallet.lastHeight = wallet.creationHeight;
+              
+              // Save the wallet with cleared data
+              await WalletService.saveWallet('rescan from creation height');
+              
+              // Trigger wallet refresh to update UI
+              refreshWallet();
+              
+              // Signal wallet update to trigger watchdog rescan
+              await WalletService.signalWalletUpdate();
+              
+              Alert.alert('Success', 'Rescan initiated from creation height. Synchronization will restart.');
+              setShowRescanOptions(false);
+            } catch (error) {
+              console.error('Error during rescan from creation height:', error);
+              Alert.alert('Error', 'Failed to initiate rescan. Please try again.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleRescanFromZero = async () => {
+    if (!wallet) {
+      Alert.alert('Error', 'No wallet available for rescan');
+      return;
+    }
+
+    Alert.alert(
+      'Rescan from Block 0',
+      'This will clear all transactions and rescan from the very beginning of the blockchain. This will take a very long time.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Confirm',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              console.log('RESCAN: Starting rescan from block 0');
+              
+              // Clear all transactions, deposits, and withdrawals
+              wallet.clearTransactions();
+              
+              // Set lastHeight to 0
+              wallet.lastHeight = 0;
+              
+              // Save the wallet with cleared data
+              await WalletService.saveWallet('rescan from block 0');
+              
+              // Trigger wallet refresh to update UI
+              refreshWallet();
+              
+              // Signal wallet update to trigger watchdog rescan
+              await WalletService.signalWalletUpdate();
+              
+              Alert.alert('Success', 'Rescan initiated from block 0. Synchronization will restart from the beginning.');
+              setShowRescanOptions(false);
+            } catch (error) {
+              console.error('Error during rescan from zero:', error);
+              Alert.alert('Error', 'Failed to initiate rescan. Please try again.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
 
   const handleClearWalletData = async () => {
     Alert.alert(
@@ -440,8 +541,10 @@ export default function SettingsScreen() {
         return;
       }
       
-      // Re-encrypt wallet with biometric key
-      await WalletStorageManager.saveEncryptedWallet(currentWallet, biometricKey);
+      // Re-encrypt wallet with biometric key directly (bypass mode check)
+      const { WalletRepository } = await import('../model/WalletRepository');
+      const encryptedWallet = WalletRepository.save(currentWallet, biometricKey);
+      await WalletStorageManager.saveEncryptedWalletData(encryptedWallet);
       
       // 4. Enable biometric authentication in settings
       setBiometricAuth(true);
@@ -563,6 +666,60 @@ export default function SettingsScreen() {
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Wallet Management</Text>
             <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
+              {/* Only show Rescan Wallet for blockchain wallets (not local-only) */}
+              {wallet && !wallet.isLocal() && (
+                <>
+                  <SettingItem
+                    icon="refresh-outline"
+                    title="Rescan Wallet"
+                    subtitle={showRescanOptions ? "Hide rescan options" : "Rescan blockchain for transactions"}
+                    onPress={handleToggleRescanOptions}
+                    rightElement={
+                      <Ionicons 
+                        name={showRescanOptions ? "chevron-up" : "chevron-down"} 
+                        size={20} 
+                        color={theme.colors.textSecondary} 
+                      />
+                    }
+                  />
+                  
+                  {/* Rescan Options Expandable Section */}
+                  {showRescanOptions && (
+                    <View style={[styles.expandableSection, { backgroundColor: theme.colors.background }]}>
+                      <TouchableOpacity
+                        style={[styles.rescanOption, { backgroundColor: theme.colors.surface }]}
+                        onPress={handleRescanFromCreationHeight}
+                      >
+                        <Ionicons name="play-outline" size={20} color={theme.colors.primary} />
+                        <View style={styles.rescanOptionText}>
+                          <Text style={[styles.rescanOptionTitle, { color: theme.colors.text }]}>
+                            Rescan from Creation Height
+                          </Text>
+                          <Text style={[styles.rescanOptionSubtitle, { color: theme.colors.textSecondary }]}>
+                            {wallet ? `Block ${wallet.creationHeight}` : 'Block 0'}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                      
+                      <TouchableOpacity
+                        style={[styles.rescanOption, { backgroundColor: theme.colors.surface }]}
+                        onPress={handleRescanFromZero}
+                      >
+                        <Ionicons name="refresh-outline" size={20} color={theme.colors.warning} />
+                        <View style={styles.rescanOptionText}>
+                          <Text style={[styles.rescanOptionTitle, { color: theme.colors.text }]}>
+                            Rescan from Block 0
+                          </Text>
+                          <Text style={[styles.rescanOptionSubtitle, { color: theme.colors.textSecondary }]}>
+                            Complete blockchain rescan (very slow)
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </>
+              )}
+
               <SettingItem
                 icon="key-outline"
                 title="Show Recovery Seed"
@@ -979,6 +1136,27 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  rescanOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  rescanOptionText: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  rescanOptionTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  rescanOptionSubtitle: {
+    fontSize: 14,
+    marginTop: 2,
   },
 }
 )

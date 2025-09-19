@@ -125,8 +125,22 @@ export class WalletService {
         loadedFromStorage: wallet !== this.wallet
       });
       
+      // Debug wallet keys after load
+      if (wallet && wallet.keys) {
+        console.log('WALLET SERVICE: Wallet keys after load:', {
+          hasSpendKey: !!wallet.keys.priv?.spend,
+          hasViewKey: !!wallet.keys.priv?.view,
+          spendKey: wallet.keys.priv?.spend,
+          viewKey: wallet.keys.priv?.view
+        });
+      }
+      
       // If no wallet exists at all, create a local-only wallet first
+      // BUT: If this is due to authentication failure, we should NOT create a new wallet
+      // as this would overwrite the existing blockchain wallet
       if (!wallet) {
+        console.log('WALLET SERVICE: No wallet loaded - this might be due to authentication failure');
+        console.log('WALLET SERVICE: Creating new local wallet (this will overwrite existing wallet if authentication failed)');
         wallet = await this.createLocalWallet();
       }
       
@@ -597,7 +611,29 @@ export class WalletService {
   static async clearWalletAndCache(): Promise<void> {
     console.log('WALLET SERVICE: Clearing wallet from storage and cache...');
     await WalletStorageManager.clearWallet();
+    await WalletStorageManager.clearCustomNode()
+    //WalletStorageManager.clearCurrentSessionPasswordKey();
+    //console.log('TESTING: Session data cleared');
+    
+    // 4. Reset all service flags
+    this.flag_prompt_main_tab = false;
+    this.flag_prompt_wallet_tab = false;
     this.wallet = null; // Clear cached instance
+    const { StorageService } = await import('./StorageService');
+    await StorageService.saveSettings({
+      biometricAuth: true  // Default to enabled
+    });
+    console.log('WALLET SERVICE: Biometric reset to default (enabled)');
+    
+    // Clear any blockchain explorer state
+    if (this.blockchainExplorer) {
+      this.blockchainExplorer.cleanupSession();
+    }
+    // Clear wallet watchdog
+    if (this.walletWatchdog) {
+      this.walletWatchdog.stop();
+      this.walletWatchdog = null;
+    }
     console.log('WALLET SERVICE: Wallet cleared from storage and cache');
   }
 
@@ -725,7 +761,7 @@ export class WalletService {
           await SecureStore.setItemAsync('wallet_has_password', 'true');
         }
         
-        console.log('WalletService: Wallet saved quietly (no re-authentication)');
+        console.log('WalletService: Wallet saved quietly (no re-authentication) - lastHeight:', this.wallet.lastHeight);
       }
     } catch (error) {
       console.error('WalletService: Error saving wallet:', error);
@@ -773,6 +809,20 @@ export class WalletService {
     } catch (error) {
       console.error('Error triggering wallet upgrade:', error);
       throw error;
+    }
+  }
+
+  // Signal wallet update to trigger watchdog rescan
+  static async signalWalletUpdate(): Promise<void> {
+    try {
+      console.log('WalletService: Signaling wallet update for rescan');
+      if (this.walletWatchdog) {
+        this.walletWatchdog.signalWalletUpdate();
+      } else {
+        console.log('WalletService: No wallet watchdog available for signal');
+      }
+    } catch (error) {
+      console.error('WalletService: Error signaling wallet update:', error);
     }
   }
 

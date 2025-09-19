@@ -3,6 +3,7 @@ import { WalletService } from '../services/WalletService';
 import { StorageService } from '../services/StorageService';
 import { WalletStorageManager } from '../services/WalletStorageManager';
 import { Wallet } from '../model/Wallet';
+import { config } from '../config';
 
 interface WalletContextType {
   wallet: Wallet | null;
@@ -54,7 +55,36 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         // Note: Removed aggressive corrupted wallet detection that was clearing valid wallets
         
         setWallet(wallet);
-        await refreshBalance();
+        
+        // Debug: Log all transactions in the wallet
+        if (wallet) {
+          const transactions = wallet.getAll();
+          console.log('WALLET DEBUG: Wallet loaded with transactions:', {
+            totalTransactions: transactions.length,
+            transactions
+            });
+          
+          // Calculate balance immediately using the loaded wallet object
+          console.log('BALANCE DEBUG: wallet.amount raw value:', wallet.amount);
+          console.log('BALANCE DEBUG: wallet.availableAmount(-1):', wallet.availableAmount(-1));
+          const currentBalance = wallet.amount / Math.pow(10, config.coinUnitPlaces);
+          setBalance(currentBalance);
+          console.log('BALANCE DEBUG: Set balance immediately after wallet load:', currentBalance);
+          
+          // Debug individual transactions to see why balance is 0
+          console.log('BALANCE DEBUG: Transaction details:', transactions.map(tx => ({
+            txHash: tx.hash?.substring(0, 16) + '...',
+            isFullyChecked: tx.isFullyChecked(),
+            outsCount: tx.outs?.length || 0,
+            insCount: tx.ins?.length || 0,
+            outs: tx.outs?.map(out => ({ amount: out.amount, type: out.type })) || [],
+            ins: tx.ins?.map(inp => ({ amount: inp.amount, type: inp.type })) || []
+          })));
+        } else {
+          console.log('WALLET DEBUG: No wallet available');
+        }
+        
+        // Note: refreshBalance() removed - balance is already calculated and set above
         
         // Start wallet synchronization if it's a blockchain wallet
         if (wallet && !wallet.isLocal()) {
@@ -177,15 +207,30 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const refreshBalance = async () => {
     if (wallet) {
       try {
+        // Debug: Log wallet state before balance calculation
+        const transactions = wallet.getAll();
+        console.log('BALANCE DEBUG: Before balance calculation:', {
+          transactionsCount: transactions.length,
+          rawAmount: wallet.amount
+        });
+        
         // Use wallet's own balance calculation with current blockchain height
         // -1 means use current blockchain height (default behavior)
-        const currentBalance = wallet.availableAmount(-1);
+        const currentBalance = wallet.amount / Math.pow(10, config.coinUnitPlaces);
+        
+        console.log('BALANCE DEBUG: Calculated balance:', {
+          rawAmount: wallet.amount,
+          currentBalance: currentBalance,
+          coinUnitPlaces: config.coinUnitPlaces
+        });
+        
         setBalance(currentBalance);
       } catch (error) {
         console.error('Error calculating wallet balance:', error);
         setBalance(0);
       }
     } else {
+      console.log('BALANCE DEBUG: No wallet available, setting balance to 0');
       setBalance(0);
     }
   };

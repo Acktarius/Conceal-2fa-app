@@ -48,7 +48,7 @@ export class WalletStorageManager {
       
       // Check if this is encrypted data (has 'data' and 'nonce' properties)
       if (parsedData.data && parsedData.nonce) {
-        console.log('Found encrypted wallet data, checking authentication mode...');
+        console.log('WALLET STORAGE: Found encrypted wallet data, checking authentication mode...');
         
         const isBiometricEnabled = await BiometricService.isBiometricEnabled();
         console.log('Authentication mode:', isBiometricEnabled ? 'BIOMETRIC' : 'PASSWORD');
@@ -100,6 +100,12 @@ export class WalletStorageManager {
         const wallet = await this.getDecryptedWalletWithBiometric();
         if (wallet) {
           console.log('BIOMETRIC: Wallet decrypted successfully');
+          console.log('BIOMETRIC: Wallet keys after decryption:', {
+            hasSpendKey: !!wallet.keys?.priv?.spend,
+            hasViewKey: !!wallet.keys?.priv?.view,
+            spendKey: wallet.keys?.priv?.spend,
+            viewKey: wallet.keys?.priv?.view
+          });
           return wallet;
         } else {
           console.log('BIOMETRIC: Wallet decryption failed');
@@ -148,6 +154,12 @@ export class WalletStorageManager {
       const wallet = await this.getDecryptedWalletWithDerivedKey(storedDerivedKey);
       if (wallet) {
         console.log('PASSWORD: Wallet decrypted successfully with stored derived key');
+        console.log('PASSWORD: Wallet keys after decryption:', {
+          hasSpendKey: !!wallet.keys?.priv?.spend,
+          hasViewKey: !!wallet.keys?.priv?.view,
+          spendKey: wallet.keys?.priv?.spend,
+          viewKey: wallet.keys?.priv?.view
+        });
         
         // Store the derived key for quiet saves during sync
         this.setCurrentSessionPasswordKey(storedDerivedKey);

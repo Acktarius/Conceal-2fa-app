@@ -1,5 +1,6 @@
 {
   "expo": {
+    "sdkVersion": "54.0.0",
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -11,8 +12,11 @@
     },
     "android": {
       "permissions": [
-        "CAMERA"
-      ]
+        "CAMERA",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.acktarius.blockchain2faapp"
     },
     "plugins": [
       [
@@ -21,7 +25,14 @@
           "cameraPermission": "Allow SecureAuth to access your camera to scan QR codes."
         }
       ],
-      "expo-secure-store"
-    ]
+      "./withAndroidStrategiesPlugin",
+      "expo-secure-store",
+      "expo-font"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "55b2b55e-df3e-4357-9a2c-c562b160e22e"
+      }
+    }
   }
 }

@@ -1,4 +1,5 @@
 /// <reference path="./d/config.d.ts" />
+
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
@@ -10,17 +11,20 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 // Import expo-crypto for standard crypto operations
 import * as ExpoCrypto from 'expo-crypto';
 
+// import './lib/polyfills/core.min.js';  // Temporarily disabled - might be causing infinite recursion
+// Import encoding polyfills FIRST (critical for TextDecoder/TextEncoder)
+import './lib/polyfills/textEncoding/encoding-indexes.js';
+import './lib/polyfills/textEncoding/encoding.js';
 // Import polyfills for React Native compatibility (matching web wallet order)
 import './lib/polyfills/require-polyfill.js';
 import './lib/polyfills/module-polyfill.js';
 import './lib/polyfills/process-polyfill.js';
-// import './lib/polyfills/core.min.js';  // Temporarily disabled - might be causing infinite recursion
-import './lib/polyfills/textEncoding/encoding-indexes.js';
-import './lib/polyfills/textEncoding/encoding.js';
+
 import './lib/polyfills/crypto.js';
 import './lib/polyfills/fs-polyfill.js';
 import './lib/polyfills/path-polyfill.js';
 import './lib/polyfills/nacl-polyfill.js';
+
 import './lib/biginteger.js';
 import './lib/sha3.js';  // Provides keccak_256 function
 
@@ -34,19 +38,31 @@ import { config } from './config';
 console.log('ExpoCrypto available:', !!ExpoCrypto);
 console.log('Global Module available:', !!(global as any).Module);
 
+
 // Import cryptographic libraries (matching web wallet order)
 import './lib/crypto.js';
 import './lib/nacl-fast.js';  // This provides nacl.ll functions (matching web wallet)
 import './lib/nacl-util.min.js';
 import './lib/base58.js';
+
+// Import Conceal-specific native cryptographic functions (PRIORITY for derivation)
+// import './lib/cn_utils_native.js';  // DISABLED: Using crypto.js instead
+
 import './lib/cn_utils.js';
-//import './lib/cn_utils_native.js'; WIP modifying cn_utils.js to work with React Native and avoiding use of cn_utils_native.js
 
 // Debug nacl availability after all imports
 console.log('APP: After crypto imports - nacl available:', !!(global as any).nacl);
 console.log('APP: nacl.ll available:', !!(global as any).nacl?.ll);
 console.log('APP: nacl.ll.ge_add available:', !!(global as any).nacl?.ll?.ge_add);
 console.log('APP: nacl.ll.ge_scalarmult_base available:', !!(global as any).nacl?.ll?.ge_scalarmult_base);
+console.log('APP: nacl.util available:', !!(global as any).nacl?.util);
+
+// Debug Module availability (from crypto.js)
+console.log('APP: self.Module available:', typeof self !== 'undefined' && !!(self as any).Module);
+console.log('APP: Module.cwrap available:', typeof self !== 'undefined' && !!(self as any).Module?.ccall);
+console.log('APP: Module._malloc available:', typeof self !== 'undefined' && !!(self as any).Module?._malloc);
+console.log('APP: Module functions:', typeof self !== 'undefined' ? Object.keys((self as any).Module || {}).length : 'N/A');
+console.log('APP: nacl.util.encodeBase64 available:', !!(global as any).nacl?.util?.encodeBase64);
 
 
 
@@ -138,6 +154,7 @@ function AppContent() {
     runMaintenance();
   }, []); // Empty dependency array = run once on mount
   */
+
   // Debug log when alert state changes
   React.useEffect(() => {
     console.log('APP: Password prompt state changed:', { showPasswordPrompt, passwordPromptTitle, passwordPromptMessage });

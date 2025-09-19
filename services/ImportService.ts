@@ -106,6 +106,19 @@ export class ImportService {
 
       // Upgrade the existing wallet with blockchain keys
       existingWallet.keys = KeysRepository.fromPriv(keys.spend.sec, keys.view.sec);
+      
+      console.log('QR IMPORT: Wallet keys after upgrade:', {
+        spendKey: existingWallet.keys.priv.spend,
+        viewKey: existingWallet.keys.priv.view
+      });
+      
+      console.log('QR IMPORT: Wallet keys structure:', {
+        hasKeys: !!existingWallet.keys,
+        hasSpendKey: !!existingWallet.keys?.priv?.spend,
+        hasViewKey: !!existingWallet.keys?.priv?.view,
+        spendKeyLength: existingWallet.keys?.priv?.spend?.length || 0,
+        viewKeyLength: existingWallet.keys?.priv?.view?.length || 0
+      });
 
       // Calculate creation height based on user input
       let creationHeight = 0;
@@ -154,13 +167,43 @@ export class ImportService {
       let keys;
       
       if (txDetails.spendKey) {
-        // Generate view key if not provided
-        const viewKey = txDetails.viewKey || Cn.generate_keys(CnUtils.cn_fast_hash(txDetails.spendKey)).sec;
+        // Spend key is present - this is the primary case
+        console.log('QR IMPORT: Spend key provided:', txDetails.spendKey);
+        
+        let viewkey = txDetails.viewKey || '';
+        if (viewkey === '') {
+          // Generate view key from spend key (same as web wallet)
+          console.log('QR IMPORT: No view key provided, generating from spend key');
+          viewkey = Cn.generate_keys(CnUtils.cn_fast_hash(txDetails.spendKey)).sec;
+          console.log('QR IMPORT: Generated view key:', viewkey);
+        } else {
+          console.log('QR IMPORT: View key provided:', txDetails.viewKey);
+        }
         
         // Use KeysRepository to create proper key structure
-        keys = KeysRepository.fromPriv(txDetails.spendKey, viewKey);
+        keys = KeysRepository.fromPriv(txDetails.spendKey, viewkey);
+        
+        console.log('QR IMPORT: Keys after KeysRepository.fromPriv:', {
+          spendKey: keys.priv.spend,
+          viewKey: keys.priv.view
+        });
+      } else if (txDetails.viewKey && txDetails.address) {
+        // View key only case (if public address is provided)
+        console.log('QR IMPORT: View key only case with public address');
+        const decodedPublic = Cn.decode_address(txDetails.address);
+        keys = {
+          priv: {
+            spend: '',
+            view: txDetails.viewKey
+          },
+          pub: {
+            spend: decodedPublic.spend,
+            view: decodedPublic.view,
+          }
+        };
+        console.log('QR IMPORT: Keys for view-only case:', keys);
       } else {
-        throw new Error('Invalid QR code data - no spend key found');
+        throw new Error('Invalid QR code data - spend key is required');
       }
 
       // Get the existing local wallet to upgrade

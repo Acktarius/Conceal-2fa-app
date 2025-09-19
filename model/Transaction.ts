@@ -103,6 +103,8 @@ export class Transaction {
     tx.extraSharedKey = raw.extraSharedKey || '';
     tx.messageViewed = raw.messageViewed || false;
     tx.ttl = raw.ttl || 0;
+    tx.outs = raw.outs || [];
+    tx.ins = raw.ins || [];
     return tx;
   }
 
@@ -194,7 +196,9 @@ export class Transaction {
       extraStatus: this.extraStatus,
       extraSharedKey: this.extraSharedKey,
       messageViewed: this.messageViewed,
-      ttl: this.ttl
+      ttl: this.ttl,
+      outs: this.outs,
+      ins: this.ins
     };
   }
 

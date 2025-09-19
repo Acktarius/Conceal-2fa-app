@@ -36,27 +36,27 @@ import {TransactionsExplorer} from "./TransactionsExplorer";
 import { config } from "../config";
 
 // Smart thread management with fallback for Expo Go compatibility
-let Thread: any = null;
+let ThreadManager: any = null;
 let threadSupportAvailable = false;
 
 try {
-  Thread = require('react-native-threads').Thread;
-  if (Thread && typeof Thread === 'function') {
+  ThreadManager = require('react-native-multithreading').ThreadManager;
+  if (ThreadManager && typeof ThreadManager === 'function') {
     // Test actual thread creation to verify it works
     try {
-      const testThread = new Thread('./workers/ParseTransactionsRN.ts');
+      const testThread = ThreadManager.createThread('./workers/ParseTransactionsRN.ts');
       testThread.terminate(); // Clean up test thread
       threadSupportAvailable = true;
-      console.log('WalletWatchdogRN: react-native-threads fully functional - multi-threading enabled');
+      console.log('WalletWatchdogRN: react-native-multithreading fully functional - multi-threading enabled');
     } catch (threadError) {
-      console.log('WalletWatchdogRN: react-native-threads detected but thread creation fails - using single-threaded fallback');
+      console.log('WalletWatchdogRN: react-native-multithreading detected but thread creation fails - using single-threaded fallback');
       console.log('WalletWatchdogRN: Thread creation error:', threadError.message);
     }
   } else {
-    console.log('WalletWatchdogRN: react-native-threads detected but not functional - using single-threaded fallback');
+    console.log('WalletWatchdogRN: react-native-multithreading detected but not functional - using single-threaded fallback');
   }
 } catch (error) {
-  console.log('WalletWatchdogRN: react-native-threads not available - using single-threaded fallback');
+  console.log('WalletWatchdogRN: react-native-multithreading not available - using single-threaded fallback');
 }
 
 interface IBlockRange {
@@ -111,7 +111,7 @@ class TxQueueRN {
     }
 
     try {
-      this.workerProcess = new Thread('./workers/ParseTransactionsRN.ts');
+      this.workerProcess = ThreadManager.createThread('./workers/ParseTransactionsRN.ts');
       this.workerProcess.onmessage = (message: string) => {
         try {
           const data = typeof message === 'string' ? JSON.parse(message) : message;
@@ -466,7 +466,7 @@ class ParseWorkerRN {
     }
 
     try {
-      this.workerProcess = new Thread('./workers/TransferProcessingRN.ts');
+      this.workerProcess = ThreadManager.createThread('./workers/TransferProcessingRN.ts');
       this.workerProcess.onmessage = (message: string) => {
         try {
           const data = typeof message === 'string' ? JSON.parse(message) : message;
@@ -810,13 +810,22 @@ export class WalletWatchdogRN {
       console.log(`WalletWatchdogRN: Processing ${transactions.length} transactions synchronously`);
       
       for (const rawTx of transactions) {
-        if (TransactionsExplorer.ownsTx(rawTx, this.wallet)) {
+        // Debug: Check if this transaction belongs to us
+        const isOwned = TransactionsExplorer.ownsTx(rawTx, this.wallet);
+        if (isOwned) {
+          console.log(`WalletWatchdogRN: Found owned transaction at height ${rawTx.height}, hash: ${rawTx.hash}`);
           // Process the transaction
           const txData = TransactionsExplorer.parse(rawTx, this.wallet);
           if (txData && txData.transaction) {
             this.wallet.addNew(txData.transaction);
             this.wallet.addDeposits(txData.deposits);
             this.wallet.addWithdrawals(txData.withdrawals);
+            console.log(`WalletWatchdogRN: Successfully processed owned transaction at height ${rawTx.height}`);
+          }
+        } else {
+          // Debug: Log transactions that are NOT owned (for debugging)
+          if (rawTx.height >= 1901870 && rawTx.height <= 1901875) {
+            console.log(`WalletWatchdogRN: Transaction at height ${rawTx.height} is NOT owned by wallet`);
           }
         }
       }

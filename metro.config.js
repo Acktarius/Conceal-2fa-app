@@ -2,10 +2,7 @@ const { getDefaultConfig } = require('expo/metro-config');
 
 const config = getDefaultConfig(__dirname);
 
-// Disable Metro's Node.js module detection
-config.resolver.platforms = ['native', 'android', 'ios', 'web'];
-
-// Configure resolver to handle Node.js modules using aliases only
+// Configure resolver aliases for polyfills (manual imports handled in App.tsx)
 config.resolver.alias = {
   ...config.resolver.alias,
   crypto: require.resolve('./lib/polyfills/crypto.js'),

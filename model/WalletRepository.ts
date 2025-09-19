@@ -86,6 +86,14 @@ export class WalletRepository {
 				lastHeight: decodedRawWallet.lastHeight
 			});
 			
+			// Debug actual key values from decoded raw wallet
+			if (decodedRawWallet.keys?.priv?.spend) {
+				console.log('WALLET REPO: Decoded spend key value:', decodedRawWallet.keys.priv.spend);
+			}
+			if (decodedRawWallet.keys?.priv?.view) {
+				console.log('WALLET REPO: Decoded view key value:', decodedRawWallet.keys.priv.view);
+			}
+			
 			let wallet = Wallet.loadFromRaw(decodedRawWallet);
 			
 			console.log('WALLET REPO: Loaded wallet keys:', {
@@ -99,6 +107,14 @@ export class WalletRepository {
 				creationHeight: wallet.creationHeight,
 				lastHeight: wallet.lastHeight
 			});
+			
+			// Debug actual key values loaded
+			if (wallet.keys?.priv?.spend) {
+				console.log('WALLET REPO: Spend key value after load:', wallet.keys.priv.spend);
+			}
+			if (wallet.keys?.priv?.view) {
+				console.log('WALLET REPO: View key value after load:', wallet.keys.priv.view);
+			}
 			
 			if(wallet.coinAddressPrefix !== config.addressPrefix)
 				return null;
@@ -136,6 +152,14 @@ export class WalletRepository {
 			address: wallet.getPublicAddress(),
 			isLocal: wallet.isLocal()
 		});
+		
+		// Debug actual key values
+		if (wallet.keys?.priv?.spend) {
+			console.log('WALLET REPO: Spend key value before save:', wallet.keys.priv.spend);
+		}
+		if (wallet.keys?.priv?.view) {
+			console.log('WALLET REPO: View key value before save:', wallet.keys.priv.view);
+		}
 		
 		return this.getEncrypted(wallet, password);
 	}

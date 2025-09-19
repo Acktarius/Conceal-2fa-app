@@ -222,8 +222,19 @@ declare var config: {
        let derivation = null;
        try {
          derivation = CnNativeBride.generate_key_derivation(tx_pub_key, wallet.keys.priv.view);
+         if (rawTransaction.height >= 1901870 && rawTransaction.height <= 1901875) {
+           console.log(`TransactionsExplorer: Generated derivation for height ${rawTransaction.height}:`, derivation ? 'SUCCESS' : 'FAILED');
+          console.log(`TransactionsExplorer: Wallet keys - View: ${wallet.keys.priv.view ? 'EXISTS' : 'MISSING'}, Spend: ${wallet.keys.priv.spend ? 'EXISTS' : 'MISSING'}`);
+          console.log(`TransactionsExplorer: Transaction pub key: ${tx_pub_key}`);
+          console.log(`TransactionsExplorer: Wallet view key: ${wallet.keys.priv.view}`);
+          console.log(`TransactionsExplorer: Wallet private spend key: ${wallet.keys.priv.spend}`);
+          console.log(`TransactionsExplorer: Wallet public spend key: ${wallet.keys.pub.spend}`);
+         }
        } catch (e) {
          console.error('UNABLE TO CREATE DERIVATION', e);
+         if (rawTransaction.height >= 1901870 && rawTransaction.height <= 1901875) {
+           console.error(`TransactionsExplorer: Derivation failed for height ${rawTransaction.height}:`, e);
+         }
          return false;
        }
   
@@ -240,7 +251,13 @@ declare var config: {
           let publicEphemeral = CnNativeBride.derive_public_key(derivation, keyIndex, wallet.keys.pub.spend);
            if (txout_k.key == publicEphemeral) {
              logDebugMsg("Found our tx...");
+             if (rawTransaction.height >= 1901870 && rawTransaction.height <= 1901875) {
+               console.log(`TransactionsExplorer: MATCH FOUND at height ${rawTransaction.height}! Key match: ${txout_k.key} == ${publicEphemeral}`);
+             }
              return true;
+           }
+           if (rawTransaction.height >= 1901870 && rawTransaction.height <= 1901875) {
+             console.log(`TransactionsExplorer: Key mismatch at height ${rawTransaction.height}: ${txout_k.key} != ${publicEphemeral}`);
            }
            ++keyIndex;
          } else if (out.target.type == "03" && (typeof txout_k.keys !== 'undefined')) {
