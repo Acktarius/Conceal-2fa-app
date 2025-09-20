@@ -23,7 +23,7 @@ import {Transaction} from "../Transaction";
 import {WalletWatchdog} from "../WalletWatchdog";
 import { config } from "../../config";
 import { WalletStorageManager } from "../../services/WalletStorageManager";
-import { WalletService } from "../../services/WalletService";
+import { dependencyContainer } from "../../services/DependencyContainer";
 
 export type NodeInfo = {
   "url": string,
@@ -353,7 +353,8 @@ class NodeWorkersList {
     console.log('NodeWorkersList: Saving wallet before node change (30-minute session)');
     // Use WalletService.saveWallet() for proper encryption and flag handling
     try {
-      await WalletService.saveWallet('30-minute session save before node change');
+      const walletOps = dependencyContainer.getWalletOperations();
+      await walletOps.saveWallet('30-minute session save before node change');
     } catch (error) {
       console.error('NodeWorkersList: Error saving wallet before node change:', error);
     }

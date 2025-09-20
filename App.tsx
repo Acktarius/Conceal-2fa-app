@@ -6,6 +6,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 // Polyfills are handled by metro.config.js aliases and polyfill files
 
@@ -79,20 +80,25 @@ import { PasswordCreationAlert } from './components/PasswordCreationAlert';
 import { WalletService } from './services/WalletService'; // MAINTENANCE MODE: One-time wallet clearing for development/testing
 
 export default function App() {
+  // Register services in dependency container to break circular dependencies
+  WalletService.registerInContainer();
+  
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeProvider>
-        <PasswordPromptProvider>
-          <SeedInputProvider>
-            <QRInputProvider>
-              <WalletProvider>
-                <AppContent />
-              </WalletProvider>
-            </QRInputProvider>
-          </SeedInputProvider>
-        </PasswordPromptProvider>
-      </ThemeProvider>
-    </GestureHandlerRootView>
+    <SafeAreaProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <ThemeProvider>
+          <PasswordPromptProvider>
+            <SeedInputProvider>
+              <QRInputProvider>
+                <WalletProvider>
+                  <AppContent />
+                </WalletProvider>
+              </QRInputProvider>
+            </SeedInputProvider>
+          </PasswordPromptProvider>
+        </ThemeProvider>
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
   );
 }
 

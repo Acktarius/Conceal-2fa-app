@@ -13,10 +13,10 @@ import { ImportService } from './ImportService';
 import { StorageService } from './StorageService';
 import { WalletRepository } from '../model/WalletRepository';
 import { WalletWatchdogRN } from '../model/WalletWatchdogRN';
+import { IWalletOperations } from './interfaces/IWalletOperations';
+import { dependencyContainer } from './DependencyContainer';
 
-
-
-export class WalletService {
+export class WalletService implements IWalletOperations {
   private static readonly ENCRYPTION_KEY = 'wallet_encryption_key';
   private static wallet: Wallet | null = null;
   private static blockchainExplorer: BlockchainExplorerRpcDaemon | null = null;
@@ -25,6 +25,36 @@ export class WalletService {
   // Session flags (reset to false on app launch)
   private static flag_prompt_main_tab = false;
   private static flag_prompt_wallet_tab = false;
+
+  // Register this service in the dependency container
+  static registerInContainer(): void {
+    dependencyContainer.registerWalletOperations(new WalletService());
+  }
+
+  // Instance methods that delegate to static methods (for interface compliance)
+  async saveWallet(reason?: string): Promise<void> {
+    return WalletService.saveWallet(reason);
+  }
+
+  getWalletSyncStatus(): any {
+    return WalletService.getWalletSyncStatus();
+  }
+
+  async signalWalletUpdate(): Promise<void> {
+    return WalletService.signalWalletUpdate();
+  }
+
+  async triggerManualSave(): Promise<void> {
+    return WalletService.triggerManualSave();
+  }
+
+  async reinitializeBlockchainExplorer(): Promise<void> {
+    return WalletService.reinitializeBlockchainExplorer();
+  }
+
+  getCurrentSessionNodeUrl(): string | null {
+    return WalletService.getCurrentSessionNodeUrl();
+  }
 
   static hasActiveWallet(): boolean {
     return this.wallet !== null;
