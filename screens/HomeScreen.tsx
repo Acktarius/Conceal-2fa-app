@@ -262,13 +262,13 @@ export default function HomeScreen() {
   };
 
 
-  const styles = createStyles(theme);
+  // Styles are now handled by Tailwind CSS classes
 
   const renderContent = () => {
 
     return (
       <>
-                  <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false}>
             <FundingBanner 
               balance={balance}
               maxKeys={maxKeys}
@@ -276,26 +276,26 @@ export default function HomeScreen() {
             />
             
             {/* Services Grid */}
-            <View style={styles.servicesContainer}>
+            <View className="py-4">
               {!isAuthenticated ? (
-                <View style={styles.emptyState}>
+                <View className="flex-1 items-center justify-center py-20">
                   <Ionicons name="lock-closed" size={64} color={theme.colors.textSecondary} />
-                  <Text style={[styles.emptyStateTitle, { color: theme.colors.text }]}>
+                  <Text className="text-xl font-semibold mt-4 mb-2" style={{ color: theme.colors.text }}>
                     Authentication Required
                   </Text>
                 </View>
               ) : sharedKeys.length === 0 ? (
-                <View style={styles.emptyState}>
+                <View className="flex-1 items-center justify-center py-20">
                   <Ionicons name="shield-outline" size={64} color={theme.colors.textSecondary} />
-                  <Text style={[styles.emptyStateTitle, { color: theme.colors.text }]}>
+                  <Text className="text-xl font-semibold mt-4 mb-2" style={{ color: theme.colors.text }}>
                     No 2FA Services Added
                   </Text>
-                  <Text style={[styles.emptyStateSubtitle, { color: theme.colors.textSecondary }]}>
+                  <Text className="text-base text-center leading-6 px-8" style={{ color: theme.colors.textSecondary }}>
                     Tap the + button to add your first 2FA service
                   </Text>
                 </View>
               ) : (
-                <View style={styles.servicesGrid}>
+                <View className="flex-row flex-wrap justify-between">
                   {sharedKeys
                     .filter(shouldDisplaySharedKey)
                     .map((sharedKey) => {
@@ -327,7 +327,8 @@ export default function HomeScreen() {
         
         {/* Floating Action Button */}
         <TouchableOpacity
-          style={[styles.fab, { backgroundColor: theme.colors.primary }]}
+          className="absolute bottom-5 right-5 w-14 h-14 rounded-full justify-center items-center shadow-lg z-50"
+          style={{ backgroundColor: theme.colors.primary }}
           onPress={() => setShowAddModal(true)}
         >
           <Ionicons name="add" size={24} color={theme.colors.background} />
@@ -338,139 +339,10 @@ export default function HomeScreen() {
 
   return (
     <GestureNavigator>
-      <View style={styles.container}>
+      <View className="flex-1" style={{ backgroundColor: theme.colors.background }}>
         <Header title="Authenticator" />
         {renderContent()}
       </View>
     </GestureNavigator>
   );
 }
-
-const createStyles = (theme: any) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  fab: {
-    position: 'absolute',
-    bottom: 20,
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 8,
-    zIndex: 100,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  scrollView: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
-  emptyState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 80,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyDescription: {
-    fontSize: 16,
-    textAlign: 'center',
-    lineHeight: 24,
-    paddingHorizontal: 32,
-  },
-  servicesList: {
-    paddingVertical: 16,
-  },
-  addButton: {
-    position: 'absolute',
-    bottom: 24,
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 8,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    ...(Platform.OS === 'web' && {
-      transition: 'all 0.2s ease-in-out',
-    }),
-  },
-  authContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-    backgroundColor: theme.colors.background,
-  },
-  authTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginTop: 20,
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  authSubtitle: {
-    fontSize: 18,
-    marginBottom: 30,
-    textAlign: 'center',
-  },
-  authButton: {
-    width: '100%',
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  authButtonText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  servicesContainer: {
-    paddingVertical: 16,
-  },
-  servicesHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  servicesTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  servicesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  emptyStateTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyStateSubtitle: {
-    fontSize: 16,
-    textAlign: 'center',
-    lineHeight: 24,
-    paddingHorizontal: 32,
-  },
-});

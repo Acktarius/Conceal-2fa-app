@@ -132,16 +132,16 @@ export default function WalletScreen() {
     }
   };
 
-  const styles = createStyles(theme);
+  // Styles are now handled by Tailwind CSS classes
 
   if (isLoading) {
     return (
       <GestureNavigator>
-        <View style={[styles.container, styles.centered]}>
+        <View className="flex-1 justify-center items-center" style={{ backgroundColor: theme.colors.background }}>
           <Header title="Wallet" />
-          <View style={styles.loadingContainer}>
+          <View className="flex-1 items-center justify-center">
             <Ionicons name="wallet-outline" size={48} color={theme.colors.textSecondary} />
-            <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>Loading wallet...</Text>
+            <Text className="text-base mt-3" style={{ color: theme.colors.textSecondary }}>Loading wallet...</Text>
           </View>
         </View>
       </GestureNavigator>
@@ -150,78 +150,81 @@ export default function WalletScreen() {
 
   return (
     <GestureNavigator>
-      <View style={styles.container}>
+      <View className="flex-1" style={{ backgroundColor: theme.colors.background }}>
         <Header title="Wallet" />
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false}>
           {isLocalWallet ? (
             // Local Wallet Mode
-            <View style={[styles.localWalletCard, { backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border }]}>
-              <View style={styles.localWalletHeader}>
+            <View className="rounded-2xl p-6 items-center m-4 shadow-lg border" style={{ backgroundColor: theme.colors.card, borderColor: theme.colors.border }}>
+              <View className="items-center mb-4">
                 <Ionicons name="wallet-outline" size={32} color={theme.colors.textSecondary} />
-                <Text style={[styles.localWalletTitle, { color: theme.colors.text }]}>Local Wallet Mode</Text>
+                <Text className="text-xl font-semibold mt-2" style={{ color: theme.colors.text }}>Local Wallet Mode</Text>
               </View>
-              <Text style={[styles.localWalletText, { color: theme.colors.textSecondary }]}>
+              <Text className="text-sm text-center leading-5 mb-6" style={{ color: theme.colors.textSecondary }}>
                 Your wallet is currently in local-only mode. Upgrade to blockchain mode to sync your 2FA keys and access full features.
               </Text>
               <TouchableOpacity
-                style={[styles.upgradeButton, { backgroundColor: theme.colors.primary }]}
+                className="flex-row items-center justify-center rounded-xl px-5 py-3"
+                style={{ backgroundColor: theme.colors.primary }}
                 onPress={handleUpgradeWallet}
                 activeOpacity={0.8}
               >
                 <Ionicons name="arrow-up-outline" size={20} color="white" />
-                <Text style={styles.upgradeButtonText}>Upgrade to Blockchain Wallet</Text>
+                <Text className="text-base font-semibold text-white ml-2">Upgrade to Blockchain Wallet</Text>
               </TouchableOpacity>
             </View>
           ) : (
             // Normal Wallet Mode
             <>
               {/* Balance Card */}
-              <View style={[styles.balanceCard, { backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border }]}>
-                <View style={styles.balanceHeader}>
+              <View className="rounded-2xl p-6 items-center m-4 shadow-lg border" style={{ backgroundColor: theme.colors.card, borderColor: theme.colors.border }}>
+                <View className="flex-row items-center mb-3">
                   <Ionicons name="wallet-outline" size={24} color={theme.colors.primary} />
-                  <Text style={[styles.balanceLabel, { color: theme.colors.text }]}>CCX Balance</Text>
+                  <Text className="text-base ml-2 font-medium" style={{ color: theme.colors.text }}>CCX Balance</Text>
                 </View>
-                <Text style={[styles.balanceAmount, { color: theme.colors.primary }]}>
+                <Text className="text-3xl font-bold mb-1" style={{ color: theme.colors.primary }}>
                   {balance.toHuman().toFixed(4)}
                 </Text>
-                <Text style={[styles.balanceUsd, { color: theme.colors.textSecondary }]}>
+                <Text className="text-sm mb-3" style={{ color: theme.colors.textSecondary }}>
                   Keys available: {maxKeys.toString()}
                 </Text>
                 <TouchableOpacity
-                  style={[styles.refreshButton, { backgroundColor: theme.colors.primaryLight }]}
+                  className="flex-row items-center rounded-lg px-3 py-1.5"
+                  style={{ backgroundColor: theme.colors.primaryLight }}
                   onPress={refreshBalance}
                   activeOpacity={0.8}
                 >
                   <Ionicons name="refresh-outline" size={16} color={theme.colors.primary} />
-                  <Text style={[styles.refreshText, { color: theme.colors.primary }]}>Refresh</Text>
+                  <Text className="text-sm font-medium ml-1" style={{ color: theme.colors.primary }}>Refresh</Text>
                 </TouchableOpacity>
               </View>
 
               {/* Synchronization Status */}
               {syncStatus && (
                 <TouchableOpacity 
-                  style={[styles.syncCard, { backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border }]}
+                  className="rounded-2xl p-4 m-4 shadow-lg border"
+                  style={{ backgroundColor: theme.colors.card, borderColor: theme.colors.border }}
                   onPress={handleSyncCardDoubleTap}
                   activeOpacity={0.8}
                 >
-                  <View style={styles.syncHeader}>
+                  <View className="flex-row items-center mb-2">
                     <Ionicons 
                       name={syncStatus.isRunning ? "sync-outline" : "checkmark-circle-outline"} 
                       size={24} 
                       color={syncStatus.isWalletSynced ? theme.colors.success : theme.colors.warning} 
                     />
-                    <Text style={[styles.syncTitle, { color: theme.colors.text }]}>
+                    <Text className="text-base font-semibold ml-2" style={{ color: theme.colors.text }}>
                       {syncStatus.isWalletSynced ? 'Wallet Synced' : 'Synchronizing...'}
                     </Text>
                   </View>
                   
                   {syncStatus.isRunning && (
-                    <View style={styles.syncDetails}>
-                      <Text style={[styles.syncText, { color: theme.colors.textSecondary }]}>
+                    <View className="mt-2">
+                      <Text className="text-sm mb-1" style={{ color: theme.colors.textSecondary }}>
                         Block: {syncStatus.lastBlockLoading} / {syncStatus.lastMaximumHeight}
                       </Text>
                       {syncStatus.transactionsInQueue > 0 && (
-                        <Text style={[styles.syncText, { color: theme.colors.textSecondary }]}>
+                        <Text className="text-sm" style={{ color: theme.colors.textSecondary }}>
                           Processing: {syncStatus.transactionsInQueue} transactions
                         </Text>
                       )}
@@ -230,10 +233,10 @@ export default function WalletScreen() {
                   
                   {syncStatus.isWalletSynced && (
                     <View>
-                      <Text style={[styles.syncText, { color: theme.colors.success }]}>
+                      <Text className="text-sm" style={{ color: theme.colors.success }}>
                         ✓ Wallet is up to date with blockchain
                       </Text>
-                      <Text style={[styles.syncHint, { color: theme.colors.textSecondary }]}>
+                      <Text className="text-xs italic mt-1" style={{ color: theme.colors.textSecondary }}>
                         Double tap to save manually
                       </Text>
                     </View>
@@ -243,20 +246,20 @@ export default function WalletScreen() {
 
               {/* Key Storage Info */}
               {balance.compare(new JSBigInt(0)) === 0 && wallet?.getPublicAddress() ? (
-                <View style={[styles.welcomeCard, { backgroundColor: theme.colors.primaryLight }]}>
+                <View className="rounded-2xl p-5 items-center m-4" style={{ backgroundColor: theme.colors.primaryLight }}>
                   <Ionicons name="wallet-outline" size={32} color={theme.colors.primary} />
-                  <Text style={[styles.welcomeTitle, { color: theme.colors.primary }]}>Welcome to SecureAuth!</Text>
-                  <Text style={[styles.welcomeText, { color: theme.colors.primary }]}>
+                  <Text className="text-lg font-semibold mt-3 mb-2" style={{ color: theme.colors.primary }}>Welcome to SecureAuth!</Text>
+                  <Text className="text-sm text-center leading-5" style={{ color: theme.colors.primary }}>
                     Your wallet has been created with 0 CCX. To sync your 2FA keys to the blockchain, 
                     ask a friend to send you some CCX to your address below.
                   </Text>
                 </View>
               ) : (
-                <View style={[styles.infoCard, { backgroundColor: theme.colors.primaryLight }]}>
+                <View className="rounded-2xl p-4 flex-row items-start m-4" style={{ backgroundColor: theme.colors.primaryLight }}>
                   <Ionicons name="information-circle-outline" size={24} color={theme.colors.primary} />
-                  <View style={styles.infoContent}>
-                    <Text style={[styles.infoTitle, { color: theme.colors.primary }]}>Blockchain Sync Available</Text>
-                    <Text style={[styles.infoText, { color: theme.colors.primary }]}>
+                  <View className="flex-1 ml-3">
+                    <Text className="text-base font-semibold mb-1" style={{ color: theme.colors.primary }}>Blockchain Sync Available</Text>
+                    <Text className="text-sm leading-5" style={{ color: theme.colors.primary }}>
                       Each 2FA key sync costs {KEY_STORAGE_COST.toHuman().toFixed(4)} CCX. 
                       You can currently sync {maxKeys.toString()} keys to the blockchain.
                     </Text>
@@ -265,13 +268,13 @@ export default function WalletScreen() {
               )}
 
               {/* Wallet Address Card */}
-              <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
-                <View style={styles.cardHeader}>
+              <View className="rounded-2xl p-5 m-4 shadow-lg" style={{ backgroundColor: theme.colors.card }}>
+                <View className="flex-row items-center mb-4">
                   <Ionicons name="qr-code-outline" size={24} color={theme.colors.text} />
-                  <Text style={[styles.cardTitle, { color: theme.colors.text }]}>Receive CCX</Text>
+                  <Text className="text-lg font-semibold ml-2" style={{ color: theme.colors.text }}>Receive CCX</Text>
                 </View>
                 
-                <View style={[styles.qrContainer, { backgroundColor: 'white' }]}>
+                <View className="items-center mb-5 p-5 rounded-xl shadow-md" style={{ backgroundColor: 'white' }}>
                   {wallet?.getPublicAddress() && (
                     <QRCode
                       value={wallet.getPublicAddress()}
@@ -282,30 +285,31 @@ export default function WalletScreen() {
                   )}
                 </View>
                 
-                <View style={styles.addressContainer}>
-                  <Text style={[styles.addressLabel, { color: theme.colors.textSecondary }]}>Your Wallet Address:</Text>
-                  <Text style={[styles.addressText, { color: theme.colors.text, backgroundColor: theme.colors.background }]} numberOfLines={2}>
+                <View className="mb-4">
+                  <Text className="text-sm mb-2" style={{ color: theme.colors.textSecondary }}>Your Wallet Address:</Text>
+                  <Text className="text-xs font-mono p-3 rounded-lg" style={{ color: theme.colors.text, backgroundColor: theme.colors.background }} numberOfLines={2}>
                     {wallet?.getPublicAddress() || 'Loading...'}
                   </Text>
                 </View>
                 
                 <TouchableOpacity
-                  style={[styles.copyButton, { backgroundColor: theme.colors.primaryLight }]}
+                  className="flex-row items-center justify-center rounded-xl p-3"
+                  style={{ backgroundColor: theme.colors.primaryLight }}
                   onPress={handleCopyAddress}
                   activeOpacity={0.8}
                 >
                   <Ionicons name="copy-outline" size={20} color={theme.colors.primary} />
-                  <Text style={[styles.copyButtonText, { color: theme.colors.primary }]}>Copy Address</Text>
+                  <Text className="text-base font-semibold ml-2" style={{ color: theme.colors.primary }}>Copy Address</Text>
                 </TouchableOpacity>
               </View>
 
               {/* Funding Info Card */}
               {balance.compare(new JSBigInt(0)) === 0 && (
-                <View style={[styles.fundingCard, { backgroundColor: theme.colors.primaryLight }]}>
+                <View className="rounded-2xl p-4 flex-row items-start m-4" style={{ backgroundColor: theme.colors.primaryLight }}>
                   <Ionicons name="people-outline" size={24} color={theme.colors.primary} />
-                  <View style={styles.infoContent}>
-                    <Text style={[styles.infoTitle, { color: theme.colors.primary }]}>Get Started</Text>
-                    <Text style={[styles.infoText, { color: theme.colors.primary }]}>
+                  <View className="flex-1 ml-3">
+                    <Text className="text-base font-semibold mb-1" style={{ color: theme.colors.primary }}>Get Started</Text>
+                    <Text className="text-sm leading-5" style={{ color: theme.colors.primary }}>
                       Share your wallet address with a friend or colleague to receive CCX. 
                       Even a small amount (0.1 CCX) allows you to sync multiple keys!
                     </Text>
@@ -320,241 +324,4 @@ export default function WalletScreen() {
   );
 }
 
-const createStyles = (theme: any) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  centered: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scrollView: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadingText: {
-    fontSize: 16,
-    marginTop: 12,
-  },
-  balanceCard: {
-    borderRadius: 16,
-    padding: 24,
-    alignItems: 'center',
-    margin: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  balanceHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  balanceLabel: {
-    fontSize: 16,
-    marginLeft: 8,
-    fontWeight: '500',
-  },
-  balanceAmount: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  balanceUsd: {
-    fontSize: 14,
-    marginBottom: 12,
-  },
-  refreshButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  refreshText: {
-    fontSize: 14,
-    marginLeft: 4,
-    fontWeight: '500',
-  },
-  syncCard: {
-    borderRadius: 16,
-    padding: 16,
-    margin: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  syncHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  syncTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  syncDetails: {
-    marginTop: 8,
-  },
-  syncText: {
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  syncHint: {
-    fontSize: 12,
-    fontStyle: 'italic',
-    marginTop: 4,
-    alignItems: 'center',
-  },
-  card: {
-    borderRadius: 16,
-    padding: 20,
-    margin: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  qrContainer: {
-    alignItems: 'center',
-    marginBottom: 20,
-    padding: 20,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  addressContainer: {
-    marginBottom: 16,
-  },
-  addressLabel: {
-    fontSize: 14,
-    marginBottom: 8,
-  },
-  addressText: {
-    fontSize: 12,
-    fontFamily: 'monospace',
-    padding: 12,
-    borderRadius: 8,
-  },
-  copyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 12,
-    padding: 12,
-  },
-  copyButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  infoCard: {
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    margin: 16,
-  },
-  infoContent: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  infoTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  infoText: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  welcomeCard: {
-    borderRadius: 16,
-    padding: 20,
-    alignItems: 'center',
-    margin: 16,
-  },
-  welcomeTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  welcomeText: {
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  fundingCard: {
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    margin: 16,
-  },
-  localWalletCard: {
-    borderRadius: 16,
-    padding: 24,
-    alignItems: 'center',
-    margin: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  localWalletHeader: {
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  localWalletTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginTop: 8,
-  },
-  localWalletText: {
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 24,
-  },
-  upgradeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 12,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  upgradeButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: 'white',
-    marginLeft: 8,
-  },
-});
+// Styles are now handled by Tailwind CSS classes
