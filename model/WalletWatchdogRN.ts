@@ -34,6 +34,7 @@ import {BlockchainExplorer, RawDaemon_Transaction} from "./blockchain/Blockchain
 import {Transaction, TransactionData, Deposit} from "./Transaction";
 import {TransactionsExplorer} from "./TransactionsExplorer";
 import { config } from "../config";
+import { WalletService } from "../services/WalletService";
 
 // Smart thread management with fallback for Expo Go compatibility
 let ThreadManager: any = null;
@@ -893,7 +894,6 @@ export class WalletWatchdogRN {
   saveWallet = async (reason: string = 'manual save'): Promise<void> => {
     try {
       console.log('WalletWatchdogRN: Delegating save to WalletService:', reason);
-      const { WalletService } = await import('../services/WalletService');
       await WalletService.saveWallet(reason);
     } catch (error) {
       console.error('WalletWatchdogRN: Error saving wallet:', error);

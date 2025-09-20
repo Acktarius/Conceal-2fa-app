@@ -11,6 +11,7 @@ import { BlockchainExplorerRpcDaemon } from '../model/blockchain/BlockchainExplo
 import { Alert } from 'react-native';
 import { ImportService } from './ImportService';
 import { StorageService } from './StorageService';
+import { WalletRepository } from '../model/WalletRepository';
 import { WalletWatchdogRN } from '../model/WalletWatchdogRN';
 
 
@@ -562,7 +563,6 @@ export class WalletService {
       console.log('TESTING: Service flags reset');
       
       // 5. Reset biometric to default (enabled)
-      const { StorageService } = await import('./StorageService');
       await StorageService.saveSettings({
         biometricAuth: true  // Default to enabled
       });
@@ -619,7 +619,6 @@ export class WalletService {
     this.flag_prompt_main_tab = false;
     this.flag_prompt_wallet_tab = false;
     this.wallet = null; // Clear cached instance
-    const { StorageService } = await import('./StorageService');
     await StorageService.saveSettings({
       biometricAuth: true  // Default to enabled
     });
@@ -752,7 +751,6 @@ export class WalletService {
       
       if (encryptionKey) {
         // Encrypt and save directly (bypass saveEncryptedWallet to control flag setting)
-        const { WalletRepository } = await import('../model/WalletRepository');
         const encryptedWallet = WalletRepository.save(this.wallet, encryptionKey);
         await WalletStorageManager.saveEncryptedWalletData(encryptedWallet);
         

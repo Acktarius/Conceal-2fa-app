@@ -20,6 +20,19 @@
     },
     "plugins": [
       [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "buildToolsVersion": "35.0.0",
+            "kotlinVersion": "2.2.0",
+            "org.gradle.java.home": "/usr/lib/jvm/java-17-openjdk-amd64",
+            "androidSdkPath": "/home/katana/Android/Sdk"
+          }
+        }
+      ],
+      [
         "expo-camera",
         {
           "cameraPermission": "Allow SecureAuth to access your camera to scan QR codes."
@@ -29,6 +42,9 @@
       "expo-secure-store",
       "expo-font"
     ],
+    "web": {
+      "bundler": "metro"
+    },
     "extra": {
       "eas": {
         "projectId": "55b2b55e-df3e-4357-9a2c-c562b160e22e"

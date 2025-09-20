@@ -1,5 +1,6 @@
 /// <reference path="./d/config.d.ts" />
 
+import "./global.css";
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';

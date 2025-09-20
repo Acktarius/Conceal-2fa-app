@@ -18,14 +18,15 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useWallet } from '../contexts/WalletContext';
 import GestureNavigator from '../components/GestureNavigator';
 import { StorageService } from '../services/StorageService';
+import { WalletService } from '../services/WalletService';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { WalletService } from '../services/WalletService';
 import { Mnemonic } from '../model/Mnemonic';
 import { PasswordChangeAlert } from '../components/PasswordChangeAlert';
 import { UnlockWalletAlert } from '../components/UnlockWalletAlert';
 import { PasswordCreationAlert } from '../components/PasswordCreationAlert';
 import { WalletStorageManager } from '../services/WalletStorageManager';
+import { WalletRepository } from '../model/WalletRepository';
 import { ExportService } from '../services/ExportService';
 import * as SecureStore from 'expo-secure-store';
 import { CustomNodeModal } from '../components/CustomNodeModal';
@@ -73,8 +74,6 @@ export default function SettingsScreen() {
   const { theme, toggleTheme, isDark } = useTheme();
   const { wallet, refreshWallet } = useWallet();
   const navigation = useNavigation<NavigationProp>();
-
-  const styles = createStyles(theme, isDark);
 
   // Load settings on mount
   useEffect(() => {
@@ -513,7 +512,6 @@ export default function SettingsScreen() {
       console.log('BIOMETRIC ENABLE: Attempting to enable biometric with password length:', password.length);
       
       // 1. Get wallet from WalletService (already in memory, no password prompt)
-      const { WalletService } = await import('../services/WalletService');
       const currentWallet = WalletService.getCachedWallet();
       if (!currentWallet) {
         console.error('BIOMETRIC ENABLE: No wallet available in memory');
@@ -542,7 +540,6 @@ export default function SettingsScreen() {
       }
       
       // Re-encrypt wallet with biometric key directly (bypass mode check)
-      const { WalletRepository } = await import('../model/WalletRepository');
       const encryptedWallet = WalletRepository.save(currentWallet, biometricKey);
       await WalletStorageManager.saveEncryptedWalletData(encryptedWallet);
       
@@ -569,7 +566,6 @@ export default function SettingsScreen() {
   const handleDisableBiometric = async (newPassword: string) => {
     try {
       // 1. Get the current wallet from WalletService (already decrypted in memory)
-      const { WalletService } = await import('../services/WalletService');
       const currentWallet = WalletService.getCachedWallet();
       
       if (!currentWallet) {
@@ -618,15 +614,15 @@ export default function SettingsScreen() {
     rightElement?: React.ReactNode;
   }) => (
     <TouchableOpacity
-      style={styles.settingItem}
+      className="flex-row items-center justify-between p-4"
       onPress={onPress}
       activeOpacity={onPress ? 0.7 : 1}
     >
-      <View style={styles.settingLeft}>
+      <View className="flex-row items-center flex-1">
         <Ionicons name={icon as any} size={24} color={theme.colors.text} />
-        <View style={styles.settingText}>
-          <Text style={[styles.settingTitle, { color: theme.colors.text }]}>{title}</Text>
-          {subtitle && <Text style={[styles.settingSubtitle, { color: theme.colors.textSecondary }]}>{subtitle}</Text>}
+        <View className="ml-3 flex-1">
+          <Text className="text-base font-medium" style={{ color: theme.colors.text }}>{title}</Text>
+          {subtitle && <Text className="text-sm mt-0.5" style={{ color: theme.colors.textSecondary }}>{subtitle}</Text>}
         </View>
       </View>
       {rightElement || (onPress && <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />)}
@@ -635,13 +631,13 @@ export default function SettingsScreen() {
 
   return (
     <GestureNavigator>
-      <View style={styles.container}>
+      <View className="flex-1" style={{ backgroundColor: theme.colors.background }}>
         <Header title="Settings" />
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false}>
           {/* Appearance Settings */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Appearance</Text>
-            <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
+          <View className="mb-6">
+            <Text className="text-base font-semibold mb-2 ml-1" style={{ color: theme.colors.text }}>Appearance</Text>
+            <View className="rounded-2xl shadow-lg" style={{ backgroundColor: theme.colors.card }}>
               <SettingItem
                 icon="moon-outline"
                 title="Dark Mode"
@@ -663,9 +659,9 @@ export default function SettingsScreen() {
           </View>
 
           {/* Wallet Management */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Wallet Management</Text>
-            <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
+          <View className="mb-6">
+            <Text className="text-base font-semibold mb-2 ml-1" style={{ color: theme.colors.text }}>Wallet Management</Text>
+            <View className="rounded-2xl shadow-lg" style={{ backgroundColor: theme.colors.card }}>
               {/* Only show Rescan Wallet for blockchain wallets (not local-only) */}
               {wallet && !wallet.isLocal() && (
                 <>
@@ -685,32 +681,34 @@ export default function SettingsScreen() {
                   
                   {/* Rescan Options Expandable Section */}
                   {showRescanOptions && (
-                    <View style={[styles.expandableSection, { backgroundColor: theme.colors.background }]}>
+                    <View className="p-4 mt-2 rounded-xl border" style={{ backgroundColor: theme.colors.background, borderColor: theme.colors.border }}>
                       <TouchableOpacity
-                        style={[styles.rescanOption, { backgroundColor: theme.colors.surface }]}
+                        className="flex-row items-center p-4 rounded-lg mb-2 border"
+                        style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border }}
                         onPress={handleRescanFromCreationHeight}
                       >
                         <Ionicons name="play-outline" size={20} color={theme.colors.primary} />
-                        <View style={styles.rescanOptionText}>
-                          <Text style={[styles.rescanOptionTitle, { color: theme.colors.text }]}>
+                        <View className="ml-3 flex-1">
+                          <Text className="text-base font-medium" style={{ color: theme.colors.text }}>
                             Rescan from Creation Height
                           </Text>
-                          <Text style={[styles.rescanOptionSubtitle, { color: theme.colors.textSecondary }]}>
+                          <Text className="text-sm mt-0.5" style={{ color: theme.colors.textSecondary }}>
                             {wallet ? `Block ${wallet.creationHeight}` : 'Block 0'}
                           </Text>
                         </View>
                       </TouchableOpacity>
                       
                       <TouchableOpacity
-                        style={[styles.rescanOption, { backgroundColor: theme.colors.surface }]}
+                        className="flex-row items-center p-4 rounded-lg border"
+                        style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border }}
                         onPress={handleRescanFromZero}
                       >
                         <Ionicons name="refresh-outline" size={20} color={theme.colors.warning} />
-                        <View style={styles.rescanOptionText}>
-                          <Text style={[styles.rescanOptionTitle, { color: theme.colors.text }]}>
+                        <View className="ml-3 flex-1">
+                          <Text className="text-base font-medium" style={{ color: theme.colors.text }}>
                             Rescan from Block 0
                           </Text>
-                          <Text style={[styles.rescanOptionSubtitle, { color: theme.colors.textSecondary }]}>
+                          <Text className="text-sm mt-0.5" style={{ color: theme.colors.textSecondary }}>
                             Complete blockchain rescan (very slow)
                           </Text>
                         </View>
@@ -736,16 +734,17 @@ export default function SettingsScreen() {
               
               {/* Recovery Seed Expandable Section */}
               {showRecoverySeed && (
-                <View style={[styles.expandableSection, { backgroundColor: theme.colors.background }]}>
-                  <Text style={[styles.seedText, { color: theme.colors.text, backgroundColor: theme.colors.surface }]}>
+                <View className="p-4 mt-2 rounded-xl border" style={{ backgroundColor: theme.colors.background, borderColor: theme.colors.border }}>
+                  <Text className="text-sm font-mono p-3 rounded-lg mb-3 leading-5" style={{ color: theme.colors.text, backgroundColor: theme.colors.surface }}>
                     {recoverySeed}
                   </Text>
                   <TouchableOpacity
-                    style={[styles.copyButton, { backgroundColor: theme.colors.primaryLight }]}
+                    className="flex-row items-center justify-center rounded-lg p-3"
+                    style={{ backgroundColor: theme.colors.primaryLight }}
                     onPress={handleCopySeed}
                   >
                     <Ionicons name="copy-outline" size={16} color={theme.colors.primary} />
-                    <Text style={[styles.copyButtonText, { color: theme.colors.primary }]}>Copy Seed</Text>
+                    <Text className="text-sm font-semibold ml-2" style={{ color: theme.colors.primary }}>Copy Seed</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -766,8 +765,8 @@ export default function SettingsScreen() {
               
               {/* Export QR Expandable Section */}
               {showExportQR && (
-                <View style={[styles.expandableSection, { backgroundColor: theme.colors.background }]}>
-                  <View style={[styles.qrContainer, { backgroundColor: 'white' }]}>
+                <View className="p-4 mt-2 rounded-xl border" style={{ backgroundColor: theme.colors.background, borderColor: theme.colors.border }}>
+                  <View className="items-center p-5 rounded-xl mb-3 shadow-md" style={{ backgroundColor: 'white' }}>
                     <QRCode
                       value={exportQRData}
                       size={qrSize}
@@ -775,15 +774,16 @@ export default function SettingsScreen() {
                       color="black"
                     />
                   </View>
-                  <Text style={[styles.qrDataText, { color: theme.colors.textSecondary }]}>
+                  <Text className="text-sm text-center mb-3 italic" style={{ color: theme.colors.textSecondary }}>
                     Scan this QR code to import the wallet
                   </Text>
                   <TouchableOpacity
-                    style={[styles.copyButton, { backgroundColor: theme.colors.primaryLight }]}
+                    className="flex-row items-center justify-center rounded-lg p-3"
+                    style={{ backgroundColor: theme.colors.primaryLight }}
                     onPress={handleCopyQRData}
                   >
                     <Ionicons name="copy-outline" size={16} color={theme.colors.primary} />
-                    <Text style={[styles.copyButtonText, { color: theme.colors.primary }]}>Copy QR Data</Text>
+                    <Text className="text-sm font-semibold ml-2" style={{ color: theme.colors.primary }}>Copy QR Data</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -791,9 +791,9 @@ export default function SettingsScreen() {
           </View>
 
           {/* Blockchain Settings */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Blockchain</Text>
-            <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
+          <View className="mb-6">
+            <Text className="text-base font-semibold mb-2 ml-1" style={{ color: theme.colors.text }}>Blockchain</Text>
+            <View className="rounded-2xl shadow-lg" style={{ backgroundColor: theme.colors.card }}>
               {showBlockchainSyncToggle && (
                 <SettingItem
                   icon="cloud-outline"
@@ -850,9 +850,9 @@ export default function SettingsScreen() {
           </View>
 
           {/* Security Settings */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Security</Text>
-            <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
+          <View className="mb-6">
+            <Text className="text-base font-semibold mb-2 ml-1" style={{ color: theme.colors.text }}>Security</Text>
+            <View className="rounded-2xl shadow-lg" style={{ backgroundColor: theme.colors.card }}>
               <SettingItem
                 icon="finger-print-outline"
                 title="Biometric Authentication"
@@ -934,9 +934,9 @@ export default function SettingsScreen() {
           </View>
 
           {/* Storage Management */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Storage</Text>
-            <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
+          <View className="mb-6">
+            <Text className="text-base font-semibold mb-2 ml-1" style={{ color: theme.colors.text }}>Storage</Text>
+            <View className="rounded-2xl shadow-lg" style={{ backgroundColor: theme.colors.card }}>
               <SettingItem
                 icon="trash-outline"
                 title="Clear Data"
@@ -984,9 +984,9 @@ export default function SettingsScreen() {
           </View>
 
           {/* About */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>About</Text>
-            <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
+          <View className="mb-6">
+            <Text className="text-base font-semibold mb-2 ml-1" style={{ color: theme.colors.text }}>About</Text>
+            <View className="rounded-2xl shadow-lg" style={{ backgroundColor: theme.colors.card }}>
               <SettingItem
                 icon="information-circle-outline"
                 title="Version"
@@ -1038,125 +1038,3 @@ export default function SettingsScreen() {
     </GestureNavigator>
   );
 }
-
-const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  scrollView: {
-    flex: 1,
-    padding: 16,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-    marginLeft: 4,
-  },
-  card: {
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  settingItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-  },
-  settingLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  settingText: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  settingTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  settingSubtitle: {
-    fontSize: 14,
-    marginTop: 2,
-  },
-  expandableSection: {
-    padding: 16,
-    marginTop: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  expandableTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 12,
-  },
-  seedText: {
-    fontSize: 14,
-    fontFamily: 'monospace',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 12,
-    lineHeight: 20,
-  },
-  qrContainer: {
-    alignItems: 'center',
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  qrDataText: {
-    fontSize: 14,
-    textAlign: 'center',
-    marginBottom: 12,
-    fontStyle: 'italic',
-  },
-  copyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8,
-    padding: 12,
-  },
-  copyButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  rescanOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  rescanOptionText: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  rescanOptionTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  rescanOptionSubtitle: {
-    fontSize: 14,
-    marginTop: 2,
-  },
-}
-)
