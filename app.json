@@ -1,17 +1,24 @@
 {
   "expo": {
     "sdkVersion": "54.0.0",
+    "name": "Conceal 2FA",
+    "slug": "conceal-2fa-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
       "supportsTablet": true,
+      "icon": "./assets/icon.png",
       "infoPlist": {
         "NSCameraUsageDescription": "This app needs access to camera to scan QR codes for adding 2FA services."
       }
     },
     "android": {
+      "icon": "./assets/icon.png",
       "permissions": [
         "CAMERA",
         "android.permission.CAMERA",

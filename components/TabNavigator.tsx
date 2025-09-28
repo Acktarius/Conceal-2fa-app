@@ -1,7 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, View, Platform } from 'react-native';
+import { View, Platform } from 'react-native';
 
 import HomeScreen from '../screens/HomeScreen';
 import WalletScreen from '../screens/WalletScreen';
@@ -53,7 +53,7 @@ export default function TabNavigator() {
   const { theme } = useTheme();
 
   return (
-    <View style={styles.container}>
+    <View className="flex-1">
       <Tab.Navigator
         screenOptions={({ route }) => ({
           tabBarIcon: ({ focused, color, size }) => {
@@ -88,25 +88,37 @@ export default function TabNavigator() {
         <Tab.Screen 
           name="Home" 
           component={HomeScreen} 
-          options={{ title: 'Authenticator' }}
+          options={{ 
+            title: 'Authenticator',
+            tabBarLabelStyle: {
+              fontFamily: 'Poppins-Light',
+              fontSize: 11,
+            }
+          }}
         />
         <Tab.Screen 
           name="Wallet" 
           component={WalletScreen} 
-          options={{ title: 'Wallet' }}
+          options={{ 
+            title: 'Wallet',
+            tabBarLabelStyle: {
+              fontFamily: 'Poppins-Light',
+              fontSize: 11,
+            }
+          }}
         />
         <Tab.Screen 
           name="Settings" 
           component={SettingsScreen} 
-          options={{ title: 'Settings' }}
+          options={{ 
+            title: 'Settings',
+            tabBarLabelStyle: {
+              fontFamily: 'Poppins-Light',
+              fontSize: 11
+            }
+          }}
         />
       </Tab.Navigator>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-});

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   Modal,
   TextInput,
   TouchableOpacity,
@@ -25,8 +24,6 @@ export default function AddServiceModal({ visible, onClose, onAdd }: AddServiceM
   const [secret, setSecret] = useState('');
   const [showScanner, setShowScanner] = useState(false);
   const { theme } = useTheme();
-
-  const styles = createStyles(theme);
 
   const handleAdd = () => {
     if (!name.trim() || !secret.trim()) {
@@ -81,36 +78,73 @@ export default function AddServiceModal({ visible, onClose, onAdd }: AddServiceM
         presentationStyle="pageSheet"
         onRequestClose={onClose}
       >
-        <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-          <View style={styles.header}>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color={theme.colors.text} />
-            </TouchableOpacity>
-            <Text style={[styles.title, { color: theme.colors.text }]}>Add Service</Text>
-            <View style={styles.placeholder} />
+        <View 
+          className="flex-1" 
+          style={{ backgroundColor: theme.colors.background }}
+        >
+          <View 
+            className="flex-row items-center justify-center px-5 pt-5 pb-4 border-b"
+            style={{
+              backgroundColor: theme.colors.surface,
+              borderBottomColor: theme.colors.border,
+            }}
+          >
+            <Text 
+              className="text-lg font-semibold font-poppins-medium"
+              style={{ color: theme.colors.text }}
+            >
+              Add Service
+            </Text>
           </View>
 
-          <View style={styles.content}>
+          <View className="flex-1 p-5">
             <TouchableOpacity
-              style={[styles.scanButton, { backgroundColor: theme.colors.primaryLight }]}
+              className="flex-row items-center justify-center rounded-2xl p-5 mb-6"
+              style={{ backgroundColor: theme.colors.primaryLight }}
               onPress={() => setShowScanner(true)}
               activeOpacity={0.8}
             >
               <Ionicons name="qr-code-outline" size={24} color={theme.colors.primary} />
-              <Text style={[styles.scanButtonText, { color: theme.colors.primary }]}>Scan QR Code</Text>
+              <Text 
+                className="text-base font-semibold ml-2 font-poppins-medium"
+                style={{ color: theme.colors.primary }}
+              >
+                Scan QR Code
+              </Text>
             </TouchableOpacity>
 
-            <View style={styles.divider}>
-              <View style={[styles.dividerLine, { backgroundColor: theme.colors.border }]} />
-              <Text style={[styles.dividerText, { color: theme.colors.textSecondary }]}>or enter manually</Text>
-              <View style={[styles.dividerLine, { backgroundColor: theme.colors.border }]} />
+            <View className="flex-row items-center mb-6">
+              <View 
+                className="flex-1 h-px" 
+                style={{ backgroundColor: theme.colors.border }} 
+              />
+              <Text 
+                className="text-sm mx-4 font-poppins"
+                style={{ color: theme.colors.textSecondary }}
+              >
+                or enter manually
+              </Text>
+              <View 
+                className="flex-1 h-px" 
+                style={{ backgroundColor: theme.colors.border }} 
+              />
             </View>
 
-            <View style={styles.form}>
-              <View style={styles.inputGroup}>
-                <Text style={[styles.label, { color: theme.colors.text }]}>Service Name *</Text>
+            <View className="mb-8">
+              <View className="mb-5">
+                <Text 
+                  className="text-base font-medium mb-2 font-poppins-medium"
+                  style={{ color: theme.colors.text }}
+                >
+                  Service Name *
+                </Text>
                 <TextInput
-                  style={[styles.input, { backgroundColor: theme.colors.surface, color: theme.colors.text, borderColor: theme.colors.border }]}
+                  className="rounded-xl p-4 text-base border"
+                  style={{ 
+                    backgroundColor: theme.colors.surface, 
+                    color: theme.colors.text, 
+                    borderColor: theme.colors.border 
+                  }}
                   value={name}
                   onChangeText={setName}
                   placeholder="e.g., Google, GitHub, etc."
@@ -118,10 +152,20 @@ export default function AddServiceModal({ visible, onClose, onAdd }: AddServiceM
                 />
               </View>
 
-              <View style={styles.inputGroup}>
-                <Text style={[styles.label, { color: theme.colors.text }]}>Issuer (Optional)</Text>
+              <View className="mb-5">
+                <Text 
+                  className="text-base font-medium mb-2 font-poppins-medium"
+                  style={{ color: theme.colors.text }}
+                >
+                  Issuer (Optional)
+                </Text>
                 <TextInput
-                  style={[styles.input, { backgroundColor: theme.colors.surface, color: theme.colors.text, borderColor: theme.colors.border }]}
+                  className="rounded-xl p-4 text-base border"
+                  style={{ 
+                    backgroundColor: theme.colors.surface, 
+                    color: theme.colors.text, 
+                    borderColor: theme.colors.border 
+                  }}
                   value={issuer}
                   onChangeText={setIssuer}
                   placeholder="e.g., Google Inc."
@@ -129,10 +173,20 @@ export default function AddServiceModal({ visible, onClose, onAdd }: AddServiceM
                 />
               </View>
 
-              <View style={styles.inputGroup}>
-                <Text style={[styles.label, { color: theme.colors.text }]}>Secret Key *</Text>
+              <View className="mb-5">
+                <Text 
+                  className="text-base font-medium mb-2 font-poppins-medium"
+                  style={{ color: theme.colors.text }}
+                >
+                  Secret Key *
+                </Text>
                 <TextInput
-                  style={[styles.input, { backgroundColor: theme.colors.surface, color: theme.colors.text, borderColor: theme.colors.border }]}
+                  className="rounded-xl p-4 text-base border"
+                  style={{ 
+                    backgroundColor: theme.colors.surface, 
+                    color: theme.colors.text, 
+                    borderColor: theme.colors.border 
+                  }}
                   value={secret}
                   onChangeText={setSecret}
                   placeholder="Enter the secret key"
@@ -144,8 +198,8 @@ export default function AddServiceModal({ visible, onClose, onAdd }: AddServiceM
             </View>
 
             <TouchableOpacity
+              className="rounded-2xl p-4 items-center"
               style={[
-                styles.addButton, 
                 { backgroundColor: theme.colors.primary },
                 (!name.trim() || !secret.trim()) && { backgroundColor: theme.colors.textSecondary, opacity: 0.5 }
               ]}
@@ -153,9 +207,24 @@ export default function AddServiceModal({ visible, onClose, onAdd }: AddServiceM
               disabled={!name.trim() || !secret.trim()}
               activeOpacity={0.8}
             >
-              <Text style={[styles.addButtonText, { color: theme.isDark ? '#000000' : '#FFFFFF' }]}>Add Service</Text>
+              <Text 
+                className="text-base font-semibold font-poppins-medium"
+                style={{ color: theme.isDark ? '#000000' : '#FFFFFF' }}
+              >
+                Add Service
+              </Text>
             </TouchableOpacity>
           </View>
+
+          {/* Floating Close Button */}
+          <TouchableOpacity
+            className="absolute bottom-12 right-6 w-12 h-12 rounded-full items-center justify-center shadow-lg"
+            style={{ backgroundColor: theme.colors.surface }}
+            onPress={onClose}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="close" size={24} color={theme.colors.text} />
+          </TouchableOpacity>
         </View>
       </Modal>
 
@@ -167,87 +236,3 @@ export default function AddServiceModal({ visible, onClose, onAdd }: AddServiceM
     </>
   );
 }
-
-const createStyles = (theme: any) => StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 16,
-    backgroundColor: theme.colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  closeButton: {
-    padding: 4,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  placeholder: {
-    width: 32,
-  },
-  content: {
-    flex: 1,
-    padding: 20,
-  },
-  scanButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 24,
-  },
-  scanButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-  },
-  dividerText: {
-    fontSize: 14,
-    marginHorizontal: 16,
-  },
-  form: {
-    marginBottom: 32,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 8,
-  },
-  input: {
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    borderWidth: 1,
-  },
-  addButton: {
-    borderRadius: 16,
-    padding: 18,
-    alignItems: 'center',
-  },
-  addButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-}
-)

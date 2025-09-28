@@ -15,6 +15,7 @@ import Header from '../components/Header';
 import { useWallet } from '../contexts/WalletContext';
 import { useTheme } from '../contexts/ThemeContext';
 import GestureNavigator from '../components/GestureNavigator';
+import { ExpandableSection } from '../components/ExpandableSection';
 import { WalletService } from '../services/WalletService';
 import { Wallet} from '../model/Wallet';
 import { config } from '../config';
@@ -25,6 +26,7 @@ export default function WalletScreen() {
   const KEY_STORAGE_COST = config.messageTxAmount.add(config.coinFee).add(config.remoteNodeFee);
   const [syncStatus, setSyncStatus] = useState<any>(null);
   const [lastTap, setLastTap] = useState<number>(0);
+  const [isReceiveExpanded, setIsReceiveExpanded] = useState<boolean>(false);
 
 
   // Update sync status periodically for blockchain wallets
@@ -268,12 +270,13 @@ export default function WalletScreen() {
               )}
 
               {/* Wallet Address Card */}
-              <View className="rounded-2xl p-5 m-4 shadow-lg" style={{ backgroundColor: theme.colors.card }}>
-                <View className="flex-row items-center mb-4">
-                  <Ionicons name="qr-code-outline" size={24} color={theme.colors.text} />
-                  <Text className="text-lg font-semibold ml-2" style={{ color: theme.colors.text }}>Receive CCX</Text>
-                </View>
-                
+              <ExpandableSection
+                title="Receive CCX"
+                subtitle="Generate QR code and copy wallet address"
+                icon="qr-code-outline"
+                isExpanded={isReceiveExpanded}
+                onToggle={() => setIsReceiveExpanded(!isReceiveExpanded)}
+              >
                 <View className="items-center mb-5 p-5 rounded-xl shadow-md" style={{ backgroundColor: 'white' }}>
                   {wallet?.getPublicAddress() && (
                     <QRCode
@@ -286,8 +289,17 @@ export default function WalletScreen() {
                 </View>
                 
                 <View className="mb-4">
-                  <Text className="text-sm mb-2" style={{ color: theme.colors.textSecondary }}>Your Wallet Address:</Text>
-                  <Text className="text-xs font-mono p-3 rounded-lg" style={{ color: theme.colors.text, backgroundColor: theme.colors.background }} numberOfLines={2}>
+                  <Text 
+                    className="text-sm mb-2 font-poppins" 
+                    style={{ color: theme.colors.textSecondary }}
+                  >
+                    Your Wallet Address:
+                  </Text>
+                  <Text 
+                    className="text-xs font-mono p-3 rounded-lg font-poppins" 
+                    style={{ color: theme.colors.text, backgroundColor: theme.colors.background }} 
+                    numberOfLines={2}
+                  >
                     {wallet?.getPublicAddress() || 'Loading...'}
                   </Text>
                 </View>
@@ -299,9 +311,14 @@ export default function WalletScreen() {
                   activeOpacity={0.8}
                 >
                   <Ionicons name="copy-outline" size={20} color={theme.colors.primary} />
-                  <Text className="text-base font-semibold ml-2" style={{ color: theme.colors.primary }}>Copy Address</Text>
+                  <Text 
+                    className="text-base font-semibold ml-2 font-poppins-medium" 
+                    style={{ color: theme.colors.primary }}
+                  >
+                    Copy Address
+                  </Text>
                 </TouchableOpacity>
-              </View>
+              </ExpandableSection>
 
               {/* Funding Info Card */}
               {balance.compare(new JSBigInt(0)) === 0 && (

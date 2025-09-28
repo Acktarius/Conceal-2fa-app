@@ -37,6 +37,12 @@ module.exports = {
           900: '#0f172a',
         },
       },
+      fontFamily: {
+        poppins: ['Poppins-Regular', 'sans-serif'],
+        'poppins-medium': ['Poppins-Medium', 'sans-serif'],
+        'poppins-light': ['Poppins-Light', 'sans-serif'],
+        'poppins-italic': ['Poppins-Italic', 'sans-serif'],
+      },
     },
   },
   plugins: [],

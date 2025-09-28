@@ -4,9 +4,10 @@ import "./global.css";
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useFonts } from 'expo-font';
 
 // Polyfills are handled by metro.config.js aliases and polyfill files
 
@@ -82,7 +83,17 @@ import { WalletService } from './services/WalletService'; // MAINTENANCE MODE: O
 export default function App() {
   // Register services in dependency container to break circular dependencies
   WalletService.registerInContainer();
-  
+  const [fontsLoaded] = useFonts({
+    'Poppins-Regular': require('./assets/fonts/Poppins-Regular.ttf'),
+    'Poppins-Medium': require('./assets/fonts/Poppins-Medium.ttf'),
+    'Poppins-Light': require('./assets/fonts/Poppins-Light.ttf'),
+    'Poppins-Italic': require('./assets/fonts/Poppins-Italic.ttf')
+  });
+
+  if (!fontsLoaded) {
+    return <Text>Loading fonts...</Text>;
+  }
+
   return (
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>

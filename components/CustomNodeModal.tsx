@@ -4,7 +4,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   Modal,
   Dimensions,
   KeyboardAvoidingView,
@@ -12,6 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { config } from '../config';
+import { useTheme } from '../contexts/ThemeContext';
 
 const { width, height } = Dimensions.get('window');
 
@@ -28,6 +28,7 @@ export const CustomNodeModal: React.FC<CustomNodeModalProps> = ({
   onCancel,
   onSave,
 }) => {
+  const { theme } = useTheme();
   const [nodeUrl, setNodeUrl] = useState(currentNode);
   const [isTesting, setIsTesting] = useState(false);
 
@@ -115,71 +116,146 @@ export const CustomNodeModal: React.FC<CustomNodeModalProps> = ({
       onRequestClose={handleCancel}
     >
       <KeyboardAvoidingView
-        style={styles.container}
+        className="flex-1 justify-center items-center"
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View style={styles.blurContainer}>
-          <View style={styles.modalContainer}>
-            <Text style={styles.title}>Custom Remote Node</Text>
-            <Text style={styles.subtitle}>
+        <View 
+          className="flex-1 w-full justify-center items-center"
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+        >
+          <View 
+            className="rounded-2xl p-6 mx-5 shadow-lg"
+            style={{ 
+              backgroundColor: '#FFFFFF', // Constant white background for better contrast
+              width: width * 0.9,
+              maxWidth: 500,
+            }}
+          >
+            <Text 
+              className="text-2xl font-bold text-center mb-2 font-poppins-medium"
+              style={{ color: '#1A1A1A' }}
+            >
+              Custom Remote Node
+            </Text>
+            <Text 
+              className="text-base text-center mb-6 leading-6 font-poppins"
+              style={{ color: '#666666' }}
+            >
               Configure your preferred blockchain node for enhanced privacy and control
             </Text>
             
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Node URL</Text>
+            <View className="mb-5">
+              <Text 
+                className="text-base font-semibold mb-2 font-poppins-medium"
+                style={{ color: '#333333' }}
+              >
+                Node URL
+              </Text>
               <TextInput
-                style={styles.textInput}
+                className="border rounded-lg p-3 text-base min-h-20"
+                style={{ 
+                  backgroundColor: '#F8F9FA',
+                  color: '#1A1A1A',
+                  borderColor: '#DEE2E6',
+                }}
                 value={nodeUrl}
                 onChangeText={setNodeUrl}
                 placeholder="Enter your node URL (e.g., https://your-node.com/)"
+                placeholderTextColor="#999999"
                 autoCapitalize="none"
                 autoCorrect={false}
                 multiline
                 numberOfLines={2}
                 textAlignVertical="top"
               />
-              <Text style={styles.inputHint}>
+              <Text 
+                className="text-xs mt-1 italic font-poppins"
+                style={{ color: '#999999' }}
+              >
                 Make sure your node supports the required API endpoints
               </Text>
             </View>
 
-            {/* Test Connection - Full width, grey background */}
-            <View style={styles.buttonContainer}>
+            {/* Test Connection - Full width */}
+            <View className="mb-6">
               <TouchableOpacity
-                style={[styles.button, styles.testButton, styles.fullWidthButton]}
+                className="flex-1 rounded-lg p-3 border items-center justify-center"
+                style={{ 
+                  backgroundColor: '#F8F9FA',
+                  borderColor: '#DEE2E6',
+                  opacity: (isTesting || !nodeUrl.trim()) ? 0.5 : 1,
+                  minHeight: 48
+                }}
                 onPress={handleTestConnection}
                 disabled={isTesting || !nodeUrl.trim()}
+                activeOpacity={0.8}
               >
-                <Text style={styles.testButtonText}>
+                <Text 
+                  className="text-base font-semibold text-center font-poppins-medium"
+                  style={{ color: '#333333' }}
+                >
                   {isTesting ? 'Testing...' : 'Test Connection'}
                 </Text>
               </TouchableOpacity>
             </View>
             
             {/* Bottom row: Cancel | Reset to Default | Save */}
-            <View style={styles.buttonContainer}>
+            <View className="flex-row mt-10 justify-between items-center">
               <TouchableOpacity
-                style={[styles.button, styles.cancelButton]}
+                className="flex-1 rounded-lg p-3 border mx-1 items-center justify-center"
+                style={{ 
+                  backgroundColor: '#F8F9FA',
+                  borderColor: '#DEE2E6',
+                  opacity: isTesting ? 0.5 : 1,
+                  minHeight: 48
+                }}
                 onPress={handleCancel}
                 disabled={isTesting}
+                activeOpacity={0.8}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text 
+                  className="text-base font-semibold text-center font-poppins-medium"
+                  style={{ color: '#333333' }}
+                >
+                  Cancel
+                </Text>
               </TouchableOpacity>
               
               <TouchableOpacity
-                style={[styles.button, styles.resetButton]}
+                className="flex-1 rounded-lg p-3 mx-1 items-center justify-center"
+                style={{ 
+                  backgroundColor: '#FFA500',
+                  opacity: isTesting ? 0.5 : 1,
+                  minHeight: 48,
+                  maxHeight: 54
+                }}
                 onPress={handleResetToDefault}
                 disabled={isTesting}
+                activeOpacity={0.8}
               >
-                <Text style={styles.resetButtonText}>Reset to Default</Text>
+                <Text 
+                  className="text-sm font-semibold text-center text-white font-poppins-medium"
+                >
+                  Reset to Default
+                </Text>
               </TouchableOpacity>
               
               <TouchableOpacity
-                style={[styles.button, styles.saveButton]}
+                className="flex-1 rounded-lg p-3 mx-1 items-center justify-center"
+                style={{ 
+                  backgroundColor: '#007AFF',
+                  opacity: (isTesting || !nodeUrl.trim()) ? 0.5 : 1,
+                  minHeight: 48
+                }}
                 onPress={handleSave}
                 disabled={isTesting || !nodeUrl.trim()}
+                activeOpacity={0.8}
               >
-                <Text style={styles.saveButtonText}>Save</Text>
+                <Text 
+                  className="text-base font-semibold text-center text-white font-poppins-medium"
+                >
+                  Save
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -188,128 +264,3 @@ export const CustomNodeModal: React.FC<CustomNodeModalProps> = ({
     </Modal>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  blurContainer: {
-    flex: 1,
-    width: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  modalContainer: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 24,
-    margin: 20,
-    width: width * 0.9,
-    maxWidth: 500,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 10,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 22,
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  inputLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: '#fafafa',
-    minHeight: 80,
-  },
-  inputHint: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
-    fontStyle: 'italic',
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  },
-  button: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginHorizontal: 4,
-  },
-  fullWidthButton: {
-    flex: 1,
-    marginHorizontal: 0,
-  },
-  resetButton: {
-    backgroundColor: '#FFA500',
-  },
-  cancelButton: {
-    backgroundColor: '#f5f5f5',
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  testButton: {
-    backgroundColor: '#f5f5f5',
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  saveButton: {
-    backgroundColor: '#007AFF',
-  },
-  resetButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  cancelButtonText: {
-    color: '#666',
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  testButtonText: {
-    color: '#666',
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  saveButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-});

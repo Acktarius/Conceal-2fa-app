@@ -17,6 +17,7 @@ import Header from '../components/Header';
 import { useTheme } from '../contexts/ThemeContext';
 import { useWallet } from '../contexts/WalletContext';
 import GestureNavigator from '../components/GestureNavigator';
+import { ExpandableSection } from '../components/ExpandableSection';
 import { StorageService } from '../services/StorageService';
 import { WalletService } from '../services/WalletService';
 import { useNavigation } from '@react-navigation/native';
@@ -794,6 +795,21 @@ export default function SettingsScreen() {
           <View className="mb-6">
             <Text className="text-base font-semibold mb-2 ml-1" style={{ color: theme.colors.text }}>Blockchain</Text>
             <View className="rounded-2xl shadow-lg" style={{ backgroundColor: theme.colors.card }}>
+              {/* Remote Node Configuration */}
+              <SettingItem
+                icon="server-outline"
+                title="Remote Node"
+                subtitle={nodeDisplayName}
+                onPress={() => setShowCustomNodeModal(true)}
+                rightElement={
+                  <Ionicons 
+                    name="chevron-forward" 
+                    size={20} 
+                    color={theme.colors.textSecondary} 
+                  />
+                }
+              />
+              
               {showBlockchainSyncToggle && (
                 <SettingItem
                   icon="cloud-outline"
@@ -814,21 +830,7 @@ export default function SettingsScreen() {
                 />
               )}
               
-              {/* Remote Node Configuration */}
-              <SettingItem
-                icon="server-outline"
-                title="Remote Node"
-                subtitle={nodeDisplayName}
-                onPress={() => setShowCustomNodeModal(true)}
-                rightElement={
-                  <Ionicons 
-                    name="chevron-forward" 
-                    size={20} 
-                    color={theme.colors.textSecondary} 
-                  />
-                }
-              />
-              
+              {showBlockchainSyncToggle && (
               <SettingItem
                 icon="share-outline"
                 title="Auto-Share Codes"
@@ -844,8 +846,9 @@ export default function SettingsScreen() {
                     thumbColor={theme.colors.background}
                     ios_backgroundColor={theme.colors.border}
                   />
-                }
-              />
+                  }
+                />
+              )}
             </View>
           </View>
 
@@ -934,54 +937,40 @@ export default function SettingsScreen() {
           </View>
 
           {/* Storage Management */}
-          <View className="mb-6">
-            <Text className="text-base font-semibold mb-2 ml-1" style={{ color: theme.colors.text }}>Storage</Text>
-            <View className="rounded-2xl shadow-lg" style={{ backgroundColor: theme.colors.card }}>
-              <SettingItem
-                icon="trash-outline"
-                title="Clear Data"
-                subtitle="Clear wallet data or all app data"
-                onPress={handleToggleClearDataOptions}
-                rightElement={
-                  <Ionicons 
-                    name={showClearDataOptions ? "chevron-up" : "chevron-down"} 
-                    size={20} 
-                    color={theme.colors.textSecondary} 
-                  />
-                }
-              />
-              {showClearDataOptions && (
-                <>
-                  <SettingItem
-                    icon="wallet-outline"
-                    title="Clear Wallet Data"
-                    subtitle="Clear wallet data and recreate empty local-only wallet"
-                    onPress={handleClearWalletData}
-                    rightElement={
-                      <Ionicons 
-                        name="chevron-forward" 
-                        size={20} 
-                        color={theme.colors.textSecondary} 
-                      />
-                    }
-                  />
-                  <SettingItem
-                    icon="trash-outline"
-                    title="Clear All Data"
-                    subtitle="Remove all services, wallet data, and settings"
-                    onPress={handleClearData}
-                    rightElement={
-                      <Ionicons 
-                        name="chevron-forward" 
-                        size={20} 
-                        color={theme.colors.textSecondary} 
-                      />
-                    }
-                  />
-                </>
-              )}
-            </View>
-          </View>
+          <ExpandableSection
+            title="Storage"
+            subtitle="Clear wallet data or all app data"
+            icon="trash-outline"
+            isExpanded={showClearDataOptions}
+            onToggle={handleToggleClearDataOptions}
+          >
+            <SettingItem
+              icon="wallet-outline"
+              title="Clear Wallet Data"
+              subtitle="Clear wallet data and recreate empty local-only wallet"
+              onPress={handleClearWalletData}
+              rightElement={
+                <Ionicons 
+                  name="chevron-forward" 
+                  size={20} 
+                  color={theme.colors.textSecondary} 
+                />
+              }
+            />
+            <SettingItem
+              icon="trash-outline"
+              title="Clear All Data"
+              subtitle="Remove all services, wallet data, and settings"
+              onPress={handleClearData}
+              rightElement={
+                <Ionicons 
+                  name="chevron-forward" 
+                  size={20} 
+                  color={theme.colors.textSecondary} 
+                />
+              }
+            />
+          </ExpandableSection>
 
           {/* About */}
           <View className="mb-6">
