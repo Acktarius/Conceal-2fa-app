@@ -272,7 +272,7 @@ export default function WalletScreen() {
               {/* Wallet Address Card */}
               <ExpandableSection
                 title="Receive CCX"
-                subtitle="Generate QR code and copy wallet address"
+                subtitle="Reveal QR code or copy wallet address"
                 icon="qr-code-outline"
                 isExpanded={isReceiveExpanded}
                 onToggle={() => setIsReceiveExpanded(!isReceiveExpanded)}
