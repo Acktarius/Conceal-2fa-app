@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,10 @@ import {
   TouchableOpacity,
   Alert,
   ScrollView,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
@@ -16,9 +20,12 @@ import { useWallet } from '../contexts/WalletContext';
 import { useTheme } from '../contexts/ThemeContext';
 import GestureNavigator from '../components/GestureNavigator';
 import { ExpandableSection } from '../components/ExpandableSection';
+import QRScannerModal from '../components/QRScannerModal';
 import { WalletService } from '../services/WalletService';
 import { Wallet} from '../model/Wallet';
 import { config } from '../config';
+import { CoinUri } from '../model/CoinUri';
+import { JSBigInt } from '../lib/biginteger';
 
 export default function WalletScreen() {
   const { wallet, balance, maxKeys, isLoading, refreshBalance, refreshWallet, refreshCounter } = useWallet();
@@ -27,7 +34,34 @@ export default function WalletScreen() {
   const [syncStatus, setSyncStatus] = useState<any>(null);
   const [lastTap, setLastTap] = useState<number>(0);
   const [isReceiveExpanded, setIsReceiveExpanded] = useState<boolean>(false);
+  const [isSendExpanded, setIsSendExpanded] = useState<boolean>(false);
+  const [sendAddress, setSendAddress] = useState<string>('');
+  const [sendAmount, setSendAmount] = useState<string>('');
+  const [showQRScanner, setShowQRScanner] = useState<boolean>(false);
+  const [keyboardHeight, setKeyboardHeight] = useState<number>(0);
+  const scrollViewRef = useRef<ScrollView>(null);
 
+
+  // Handle keyboard events
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+      // Auto-scroll to the amount input when keyboard shows
+      if (isSendExpanded && scrollViewRef.current) {
+        setTimeout(() => {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }
+    });
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      keyboardDidShowListener?.remove();
+      keyboardDidHideListener?.remove();
+    };
+  }, [isSendExpanded]);
 
   // Update sync status periodically for blockchain wallets
   useEffect(() => {
@@ -115,6 +149,123 @@ export default function WalletScreen() {
     }
   };
 
+  const handleQRScan = (data: string) => {
+    let parsed = false;
+    try {
+      const txDetails = CoinUri.decodeTx(data);
+      if (txDetails !== null) {
+        setSendAddress(txDetails.address);
+        if (typeof txDetails.amount !== 'undefined') {
+          setSendAmount(txDetails.amount);
+        }
+        parsed = true;
+      }
+    } catch (e) {
+      // If CoinUri parsing fails, try basic validation
+      if (data.startsWith('ccx') && data.length > 97) {
+        setSendAddress(data);
+        parsed = true;
+      } else {
+        setSendAddress(''); // Invalid address
+      }
+    }
+    setShowQRScanner(false);
+    setIsSendExpanded(true);
+  };
+
+  const handleQRScannerClose = () => {
+    setShowQRScanner(false);
+    // Expand send section for manual input when QR scanner is cancelled
+    setIsSendExpanded(true);
+  };
+
+  const handleSendCCX = async () => {
+    if (!sendAddress.trim() || !sendAmount.trim()) {
+      Alert.alert('Error', 'Please enter both address and amount.');
+      return;
+    }
+
+    // Validate recipient address
+    if (!sendAddress.startsWith('ccx7') || sendAddress.length !== 98) {
+      Alert.alert('Error', 'Invalid recipient address. Address must start with "ccx7" and be 98 characters long.');
+      return;
+    }
+
+    const amount = parseFloat(sendAmount);
+    const SEND_COST = config.coinFee.add(config.remoteNodeFee);
+    const maxAmount = balance.subtract(SEND_COST);
+
+    if (amount <= 0) {
+      Alert.alert('Error', 'Amount must be greater than 0.');
+      return;
+    }
+
+    if (amount > parseFloat(maxAmount.toHuman())) {
+      Alert.alert('Error', 'Insufficient balance. Amount exceeds available balance minus fees.');
+      return;
+    }
+
+    try {
+      // Show processing alert but collapse Send CCX section immediately
+      Alert.alert('Processing', 'Sending transaction...', [], {
+        onDismiss: () => {
+          // Collapse Send CCX section when alert is dismissed
+          setSendAddress('');
+          setSendAmount('');
+          setIsSendExpanded(false);
+        }
+      });
+
+      // Convert user input (CCX) to atomic units (smallest blockchain unit)
+      // CCX has 6 decimal places, so 1 CCX = 1,000,000 atomic units
+      const amountInAtoms = Math.floor(amount * Math.pow(10, config.coinUnitPlaces));
+      
+      console.log('WalletScreen: Converting user input to atomic units', {
+        userInputHuman: amount.toFixed(6) + ' CCX',
+        amountInAtoms: amountInAtoms,
+        coinUnitPlaces: config.coinUnitPlaces
+      });
+      
+      // Send transaction using WalletService (amount parameter expects atomic units)
+      const txHash = await WalletService.sendTransaction(
+        sendAddress.trim(),
+        amountInAtoms,
+        '', // paymentId
+        '' // message
+      );
+
+      // Success
+      Alert.alert(
+        'Transaction Sent', 
+        `Successfully sent ${amount} CCX to ${sendAddress.substring(0, 10)}...\n\nTransaction Hash: ${txHash.substring(0, 16)}...`
+      );
+      
+      // Reset form
+      setSendAddress('');
+      setSendAmount('');
+      setIsSendExpanded(false);
+
+      // Refresh wallet balance (don't resync entire wallet)
+      await refreshBalance();
+
+    } catch (error) {
+      console.error('Send transaction error:', error);
+      Alert.alert('Error', `Failed to send transaction: ${error.message}`);
+    }
+  };
+
+  const handleCancelSend = () => {
+    setSendAddress('');
+    setSendAmount('');
+    setIsSendExpanded(false);
+  };
+
+  const handleMaxAmount = () => {
+    const SEND_COST = config.coinFee.add(config.remoteNodeFee);
+    const maxAmount = balance.subtract(SEND_COST);
+    setSendAmount(maxAmount.toHuman().toFixed(6));
+  };
+
   const handleSyncCardDoubleTap = async () => {
     const now = Date.now();
     const DOUBLE_TAP_DELAY = 300; // 300ms between taps
@@ -154,7 +305,14 @@ export default function WalletScreen() {
     <GestureNavigator>
       <View className="flex-1" style={{ backgroundColor: theme.colors.background }}>
         <Header title="Wallet" />
-        <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          ref={scrollViewRef}
+          className="flex-1 px-4" 
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentInsetAdjustmentBehavior="automatic"
+          contentContainerStyle={{ paddingBottom: keyboardHeight + 20 }}
+        >
           {isLocalWallet ? (
             // Local Wallet Mode
             <View className="rounded-2xl p-6 items-center m-4 shadow-lg border" style={{ backgroundColor: theme.colors.card, borderColor: theme.colors.border }}>
@@ -320,6 +478,139 @@ export default function WalletScreen() {
                 </TouchableOpacity>
               </ExpandableSection>
 
+              {/* Send CCX Section - Only show if wallet is synced */}
+              {syncStatus?.isWalletSynced && (
+                <ExpandableSection
+                  title="Send CCX"
+                  subtitle="Scan QR code or enter address to send CCX"
+                  icon="send-outline"
+                  isExpanded={isSendExpanded}
+                  onToggle={() => {
+                    if (!isSendExpanded) {
+                      setShowQRScanner(true);
+                    } else {
+                      setIsSendExpanded(false);
+                    }
+                  }}
+                >
+                  <View className="mb-4">
+                    <Text 
+                      className="text-sm mb-2 font-poppins-medium" 
+                      style={{ color: theme.colors.text }}
+                    >
+                      Recipient Address:
+                    </Text>
+                    <TextInput
+                      className="rounded-xl p-3 text-sm border font-mono"
+                      style={{ 
+                        backgroundColor: theme.colors.background,
+                        color: theme.colors.text,
+                        borderColor: theme.colors.border,
+                      }}
+                      value={sendAddress}
+                      onChangeText={setSendAddress}
+                      placeholder="CCX address to send to"
+                      placeholderTextColor={theme.colors.textSecondary}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                  </View>
+
+                  <View className="mb-4">
+                    <Text 
+                      className="text-sm mb-2 font-poppins-medium" 
+                      style={{ color: theme.colors.text }}
+                    >
+                      Amount (CCX):
+                    </Text>
+                    <View className="flex-row items-center">
+                      <TouchableOpacity
+                        className="w-10 h-10 rounded-lg items-center justify-center mr-2"
+                        style={{ backgroundColor: theme.colors.primaryLight }}
+                        onPress={() => {
+                          const current = parseFloat(sendAmount || '0');
+                          const newAmount = Math.max(0, current - 0.1);
+                          setSendAmount(newAmount.toFixed(6));
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name="remove" size={20} color={theme.colors.primary} />
+                      </TouchableOpacity>
+                      
+                      <TextInput
+                        className="flex-1 rounded-xl p-3 text-base border text-center font-mono"
+                        style={{ 
+                          backgroundColor: theme.colors.background,
+                          color: theme.colors.text,
+                          borderColor: theme.colors.border,
+                        }}
+                        value={sendAmount}
+                        onChangeText={setSendAmount}
+                        placeholder="0.000000"
+                        placeholderTextColor={theme.colors.textSecondary}
+                        keyboardType="numeric"
+                        maxLength={10}
+                      />
+                      
+                      <TouchableOpacity
+                        className="w-10 h-10 rounded-lg items-center justify-center ml-2"
+                        style={{ backgroundColor: theme.colors.primaryLight }}
+                        onPress={() => {
+                          const SEND_COST = config.coinFee.add(config.remoteNodeFee);
+                          const maxAmount = balance.subtract(SEND_COST);
+                          const current = parseFloat(sendAmount || '0');
+                          const newAmount = Math.min(parseFloat(maxAmount.toHuman()), current + 0.1);
+                          setSendAmount(newAmount.toFixed(6));
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name="add" size={20} color={theme.colors.primary} />
+                      </TouchableOpacity>
+                    </View>
+                    
+                    <TouchableOpacity
+                      className="mt-1"
+                      onPress={handleMaxAmount}
+                      activeOpacity={0.7}
+                    >
+                      <Text 
+                        className="text-xs italic text-center font-poppins underline" 
+                        style={{ color: theme.colors.primary }}
+                      >
+                        Max: {(balance.subtract(config.coinFee.add(config.remoteNodeFee))).toHuman().toFixed(6)} CCX
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View className="flex-row gap-3">
+                    <TouchableOpacity
+                      className="flex-1 rounded-xl p-3 items-center justify-center"
+                      style={{ backgroundColor: theme.colors.border }}
+                      onPress={handleCancelSend}
+                      activeOpacity={0.8}
+                    >
+                      <Text 
+                        className="text-base font-semibold font-poppins-medium" 
+                        style={{ color: theme.colors.text }}
+                      >
+                        Cancel
+                      </Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity
+                      className="flex-1 rounded-xl p-3 items-center justify-center"
+                      style={{ backgroundColor: theme.colors.primary }}
+                      onPress={handleSendCCX}
+                      activeOpacity={0.8}
+                    >
+                      <Text className="text-base font-semibold text-white font-poppins-medium">
+                        Send
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </ExpandableSection>
+              )}
+
               {/* Funding Info Card */}
               {balance.compare(new JSBigInt(0)) === 0 && (
                 <View className="rounded-2xl p-4 flex-row items-start m-4" style={{ backgroundColor: theme.colors.primaryLight }}>
@@ -337,6 +628,13 @@ export default function WalletScreen() {
           )}
         </ScrollView>
       </View>
+      
+      {/* QR Scanner Modal */}
+      <QRScannerModal
+        visible={showQRScanner}
+        onClose={handleQRScannerClose}
+        onScan={handleQRScan}
+      />
     </GestureNavigator>
   );
 }

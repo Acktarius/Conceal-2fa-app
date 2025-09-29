@@ -15,6 +15,8 @@ import { WalletRepository } from '../model/WalletRepository';
 import { WalletWatchdogRN } from '../model/WalletWatchdogRN';
 import { IWalletOperations } from './interfaces/IWalletOperations';
 import { dependencyContainer } from './DependencyContainer';
+import { TransactionsExplorer } from '../model/TransactionsExplorer';
+import { config, logDebugMsg } from '../config';
 
 export class WalletService implements IWalletOperations {
   private static readonly ENCRYPTION_KEY = 'wallet_encryption_key';
@@ -851,6 +853,156 @@ export class WalletService implements IWalletOperations {
       }
     } catch (error) {
       console.error('WalletService: Error signaling wallet update:', error);
+    }
+  }
+
+  /**
+   * Send CCX transaction to recipient address
+   * @param recipientAddress - CCX address to send to
+   * @param amount - Amount to send in CCX
+   * @param paymentId - Optional payment ID
+   * @param message - Optional message
+   * @returns Promise resolving to transaction hash
+   */
+  static async sendTransaction(
+    recipientAddress: string, 
+    amount: number, 
+    paymentId: string = '', 
+    message: string = ''
+  ): Promise<string> {
+    try {
+      // Validate inputs
+      if (!recipientAddress || !recipientAddress.trim()) {
+        throw new Error('Recipient address is required');
+      }
+      
+      if (!recipientAddress.startsWith('ccx7') || recipientAddress.length !== 98) {
+        throw new Error('Invalid recipient address. Address must start with "ccx7" and be 98 characters long.');
+      }
+      
+      if (amount <= 0) {
+        throw new Error('Amount must be greater than 0');
+      }
+
+      // Ensure wallet and blockchain explorer are available
+      if (!this.wallet) {
+        throw new Error('Wallet not initialized');
+      }
+      
+      if (!this.blockchainExplorer) {
+        this.blockchainExplorer = new BlockchainExplorerRpcDaemon();
+        await this.blockchainExplorer.initialize();
+      }
+
+      console.log('WalletService: Starting send transaction', {
+        recipientAddress: recipientAddress.substring(0, 10) + '...',
+        amountAtoms: amount,
+        amountHuman: (amount / Math.pow(10, config.coinUnitPlaces)).toFixed(6),
+        paymentId: paymentId ? '***' : 'none',
+        message: message ? '***' : 'none'
+      });
+
+      // Get current blockchain height for mixin selection
+      const blockchainHeight = await this.blockchainExplorer.getHeight();
+      console.log('WalletService: Blockchain height:', blockchainHeight);
+
+      // Prepare destination
+      const destinations = [{
+        address: recipientAddress,
+        amount: amount
+      }];
+
+      // Get mixouts callback - this gets the random outputs needed for privacy
+      const obtainMixOutsCallback = async (amounts: number[], nbOutsNeeded: number) => {
+        try {
+          console.log('WalletService: Requesting mixouts for amounts:', amounts, 'needed:', nbOutsNeeded);
+          const mixouts = await this.blockchainExplorer.getRandomOuts(amounts, nbOutsNeeded);
+          console.log('WalletService: Received mixouts:', mixouts.length);
+          return mixouts;
+        } catch (error) {
+          console.error('WalletService: Error getting mixouts:', error);
+          throw error;
+        }
+      };
+
+      // Confirmation callback - returns promise to confirm transaction
+      const confirmCallback = async (sendAmountAtoms: number, feeAmountAtoms: number): Promise<void> => {
+        console.log('WalletService: Transaction confirmation required', {
+          sendAmountAtoms: sendAmountAtoms,
+          sendAmountHuman: (sendAmountAtoms / Math.pow(10, config.coinUnitPlaces)).toFixed(6) + ' CCX',
+          feeAmountAtoms: feeAmountAtoms,
+          feeAmountHuman: (feeAmountAtoms / Math.pow(10, config.coinUnitPlaces)).toFixed(6) + ' CCX'
+        });
+        // For now, always confirm (later we can add user prompt if needed)
+        return Promise.resolve();
+      };
+
+      // Make logDebugMsg globally available for TransactionsExplorer
+      (global as any).logDebugMsg = logDebugMsg;
+      
+      // Create transaction using TransactionsExplorer
+      console.log('WalletService: Creating transaction...');
+      const transactionResult = await TransactionsExplorer.createTx(
+        destinations,
+        paymentId,
+        this.wallet,
+        blockchainHeight,
+        obtainMixOutsCallback,
+        confirmCallback,
+        config.defaultMixin || 5, // Default mixin level
+        message,
+        0, // TTL
+        "regular", // Transaction type
+        0 // Term (for deposits)
+      );
+
+      console.log('WalletService: Transaction created successfully');
+
+      // Get raw transaction data
+      const rawTx = transactionResult.raw.raw;
+      const txHash = transactionResult.raw.hash;
+
+      if (!rawTx) {
+        throw new Error('Failed to generate raw transaction data');
+      }
+
+      console.log('WalletService: Broadcasting transaction...');
+
+      // Broadcast transaction
+      const broadcastResult = await this.blockchainExplorer.sendRawTx(rawTx);
+      
+      console.log('WalletService: Transaction broadcast result:', broadcastResult);
+      
+      if (broadcastResult.status !== 'OK') {
+        throw new Error(`Transaction broadcast failed: ${broadcastResult.status}`);
+      }
+
+      console.log('WalletService: Transaction sent successfully, hash:', txHash);
+
+      // DON'T call signalWalletUpdate() - it triggers lastBlockLoading = -1 causing full resync!
+      // Continuous sync will naturally pick up the new transaction
+      
+      return txHash;
+
+    } catch (error) {
+      console.error('WalletService: Error sending transaction:', error);
+      
+      // Provide user-friendly error messages
+      let errorMessage = 'Failed to send transaction';
+      
+      if (error.message.includes('balance_too_low')) {
+        errorMessage = 'Insufficient balance for transaction';
+      } else if (error.message.includes('invalid')) {
+        errorMessage = error.message;
+      } else if (error.message.includes('Address')) {
+        errorMessage = error.message;
+      } else if (error.message.includes('Amount')) {
+        errorMessage = error.message;
+      } else {
+        errorMessage = `Transaction failed: ${error.message}`;
+      }
+      
+      throw new Error(errorMessage);
     }
   }
 
