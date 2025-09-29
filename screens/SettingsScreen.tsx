@@ -775,6 +775,7 @@ export default function SettingsScreen() {
             onToggle={() => setIs2FADisplayExpanded(!is2FADisplayExpanded)}
             onToggleSwitch={async (value) => {
               // Toggle between OFF and ON for the switch
+              // If value is true, set to 'on', if false, set to 'off'
               const targetSetting = value ? 'on' : 'off';
               await handle2FADisplaySelect(targetSetting);
             }}

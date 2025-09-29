@@ -49,7 +49,7 @@ export const ExpSectionToggle: React.FC<ExpSectionToggleProps> = ({
   const getToggleValue = (): boolean => {
     if (selectedOptionId === leftOptionId) return false;
     if (selectedOptionId === rightOptionId) return true;
-    // For Orange/Velvet, show as ON to display the colored track
+    // For any other option (like 5s, 10s in 2FA Display), show as ON to display the colored track
     return true;
   };
 
@@ -78,6 +78,13 @@ export const ExpSectionToggle: React.FC<ExpSectionToggleProps> = ({
     if (selectedOptionId === 'velvet') return '#8852d2';
     if (selectedOptionId === 'dark') return theme.colors.primary;
     if (selectedOptionId === 'light') return theme.colors.border;
+    
+    // For 2FA Display options, use blue when not "off"
+    if (selectedOptionId === 'off') return theme.colors.border;
+    if (selectedOptionId === '5s' || selectedOptionId === '10s' || selectedOptionId === 'on') {
+      return theme.colors.primary;
+    }
+    
     return theme.colors.border; // Default
   };
 
