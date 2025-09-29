@@ -34,6 +34,8 @@ import * as SecureStore from 'expo-secure-store';
 import { CustomNodeModal } from '../components/CustomNodeModal';
 import { BiometricService } from '../services/BiometricService';
 import { config } from '../config';
+import { CoinUri } from '../model/CoinUri';
+import QRScannerModal from '../components/QRScannerModal';
 // verifyOldPassword function moved here to avoid circular dependencies
 
 type RootStackParamList = {
@@ -60,6 +62,9 @@ export default function SettingsScreen() {
   const [isThemeExpanded, setIsThemeExpanded] = useState(false);
   const [is2FADisplayExpanded, setIs2FADisplayExpanded] = useState(false);
   const [current2FADisplaySetting, setCurrent2FADisplaySetting] = useState('off');
+  const [isBroadcastExpanded, setIsBroadcastExpanded] = useState(false);
+  const [broadcastAddress, setBroadcastAddress] = useState('');
+  const [showBroadcastQRScanner, setShowBroadcastQRScanner] = useState(false);
   const [biometricAction, setBiometricAction] = useState<'enable' | 'disable'>('enable');
   
   // Theme options
@@ -103,6 +108,61 @@ export default function SettingsScreen() {
       setIs2FADisplayExpanded(false);
     } catch (error) {
       console.error('Error saving 2FA display setting:', error);
+    }
+  };
+
+  // Handle broadcast QR scan
+  const handleBroadcastQRScan = (data: string) => {
+    try {
+      const decoded = CoinUri.decodeTx(data);
+      if (decoded && decoded.address) {
+        setBroadcastAddress(decoded.address);
+        saveBroadcastAddress(decoded.address);
+        setShowBroadcastQRScanner(false);
+        setIsBroadcastExpanded(false);
+      }
+    } catch (error) {
+      console.error('Error decoding QR data:', error);
+      Alert.alert('Error', 'Invalid QR code. Please try again.');
+    }
+  };
+
+  // Handle broadcast QR scanner close
+  const handleBroadcastQRClose = () => {
+    setShowBroadcastQRScanner(false);
+    // Don't collapse the section, let user input manually
+  };
+
+  // Save broadcast address to settings
+  const saveBroadcastAddress = async (address: string) => {
+    try {
+      const settings = await StorageService.getSettings();
+      await StorageService.saveSettings({
+        ...settings,
+        broadcastAddress: address
+      });
+    } catch (error) {
+      console.error('Error saving broadcast address:', error);
+    }
+  };
+
+  // Handle manual broadcast address input
+  const handleManualBroadcastAddress = async (address: string) => {
+    if (address.startsWith('ccx7') && address.length === 98) {
+      setBroadcastAddress(address);
+      await saveBroadcastAddress(address);
+      setIsBroadcastExpanded(false);
+    } else {
+      Alert.alert('Invalid Address', 'Address must start with "ccx7" and be 98 characters long.');
+    }
+  };
+
+  // Reset broadcast address to wallet address
+  const resetBroadcastAddress = async () => {
+    if (wallet) {
+      const walletAddress = wallet.getPublicAddress();
+      setBroadcastAddress(walletAddress);
+      await saveBroadcastAddress(walletAddress);
     }
   };
   
@@ -181,6 +241,7 @@ export default function SettingsScreen() {
       setBlockchainSync(settings.blockchainSync || false);
       setAutoShare(settings.autoShare || false);
       setCurrent2FADisplaySetting(settings.futureCodeDisplay || 'off');
+      setBroadcastAddress(settings.broadcastAddress || '');
       // Enable biometric auth by default since we're using it
       setBiometricAuth(settings.biometricAuth !== false); // Default to true unless explicitly set to false
     } catch (error) {
@@ -896,23 +957,119 @@ export default function SettingsScreen() {
               )}
               
               {showBlockchainSyncToggle && (
-              <SettingItem
-                icon="share-outline"
-                title="Auto-Share Codes"
-                subtitle="Automatically share codes via blockchain"
-                rightElement={
-                  <Switch
-                    value={autoShare}
-                    onValueChange={setAutoShare}
-                    trackColor={{ 
-                      false: theme.colors.border,
-                      true: theme.colors.primary
-                    }}
-                    thumbColor={theme.colors.background}
-                    ios_backgroundColor={theme.colors.border}
+                <>
+                  <SettingItem
+                    icon="radio-outline"
+                    title="Broadcast Code"
+                    subtitle={broadcastAddress ? `Send to: ${broadcastAddress.substring(0, 10)}...` : "Send 2FA codes via auto-destruct message"}
+                    onPress={() => setIsBroadcastExpanded(!isBroadcastExpanded)}
+                    rightElement={
+                      <Ionicons 
+                        name={isBroadcastExpanded ? "chevron-up" : "chevron-down"} 
+                        size={20} 
+                        color={theme.colors.textSecondary} 
+                      />
+                    }
                   />
-                  }
-                />
+                  
+                  {/* Broadcast Options Expandable Section */}
+                  {isBroadcastExpanded && (
+                    <View className="p-4 mt-2 rounded-xl border" style={{ backgroundColor: theme.colors.background, borderColor: theme.colors.border }}>
+                      <Text 
+                        className="text-sm font-medium mb-3 font-poppins-medium" 
+                        style={{ color: theme.colors.textSecondary }}
+                      >
+                        Choose broadcast destination:
+                      </Text>
+                      
+                      {/* Current Address Display */}
+                      <View className="mb-3 p-3 rounded-lg" style={{ backgroundColor: theme.colors.surface }}>
+                        <Text 
+                          className="text-sm font-medium mb-1 font-poppins-medium" 
+                          style={{ color: theme.colors.text }}
+                        >
+                          Current Destination:
+                        </Text>
+                        <Text 
+                          className="text-xs font-mono" 
+                          style={{ color: theme.colors.textSecondary }}
+                        >
+                          {broadcastAddress || wallet?.getPublicAddress() || 'Wallet Address'}
+                        </Text>
+                      </View>
+                      
+                      {/* QR Scanner Option */}
+                      <TouchableOpacity
+                        className="flex-row items-center p-3 rounded-lg mb-2 border"
+                        style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border }}
+                        onPress={() => setShowBroadcastQRScanner(true)}
+                      >
+                        <Ionicons name="qr-code-outline" size={20} color={theme.colors.primary} />
+                        <View className="ml-3 flex-1">
+                          <Text className="text-base font-medium" style={{ color: theme.colors.text }}>
+                            Scan QR Code
+                          </Text>
+                          <Text className="text-sm mt-0.5" style={{ color: theme.colors.textSecondary }}>
+                            Scan a CCX address QR code
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                      
+                      {/* Manual Input Option */}
+                      <TouchableOpacity
+                        className="flex-row items-center p-3 rounded-lg mb-2 border"
+                        style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border }}
+                        onPress={() => {
+                          Alert.prompt(
+                            'Enter CCX Address',
+                            'Enter the CCX address to broadcast to:',
+                            [
+                              { text: 'Cancel', style: 'cancel' },
+                              { 
+                                text: 'Save', 
+                                onPress: (text) => {
+                                  if (text) {
+                                    handleManualBroadcastAddress(text.trim());
+                                  }
+                                }
+                              }
+                            ],
+                            'plain-text',
+                            broadcastAddress || wallet?.getPublicAddress() || '',
+                            'default'
+                          );
+                        }}
+                      >
+                        <Ionicons name="create-outline" size={20} color={theme.colors.primary} />
+                        <View className="ml-3 flex-1">
+                          <Text className="text-base font-medium" style={{ color: theme.colors.text }}>
+                            Enter Manually
+                          </Text>
+                          <Text className="text-sm mt-0.5" style={{ color: theme.colors.textSecondary }}>
+                            Type CCX address manually
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                      
+                      {/* Reset to Wallet Address */}
+                      <TouchableOpacity
+                        className="flex-row items-center p-3 rounded-lg border"
+                        style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border }}
+                        onPress={resetBroadcastAddress}
+                      >
+                        <Ionicons name="refresh-outline" size={20} color={theme.colors.warning} />
+                        <View className="ml-3 flex-1">
+                          <Text className="text-base font-medium" style={{ color: theme.colors.text }}>
+                            Reset to Wallet Address
+                          </Text>
+                          <Text className="text-sm mt-0.5" style={{ color: theme.colors.textSecondary }}>
+                            Send to your own wallet address
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </>
               )}
             </View>
           </View>
@@ -1087,6 +1244,13 @@ export default function SettingsScreen() {
         currentNode={currentNodeUrl}
         onCancel={handleCustomNodeCancel}
         onSave={handleCustomNodeSave}
+      />
+      
+      {/* Broadcast QR Scanner Modal */}
+      <QRScannerModal
+        visible={showBroadcastQRScanner}
+        onClose={handleBroadcastQRClose}
+        onScan={handleBroadcastQRScan}
       />
       
     </GestureNavigator>

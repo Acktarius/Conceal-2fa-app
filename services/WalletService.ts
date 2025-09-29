@@ -857,6 +857,42 @@ export class WalletService implements IWalletOperations {
   }
 
   /**
+   * Broadcast 2FA code via auto-destruct message
+   * @param recipientAddress - CCX address to send to
+   * @param code - 2FA code to broadcast
+   * @param serviceName - Name of the service
+   * @param ttl - Time to live in seconds (default 30)
+   * @returns Promise resolving to transaction hash
+   */
+  static async broadcast(
+    recipientAddress: string,
+    code: string,
+    serviceName: string,
+    ttl: number = 30
+  ): Promise<string> {
+    try {
+      console.log('WalletService: Broadcasting 2FA code', {
+        recipientAddress: recipientAddress.substring(0, 10) + '...',
+        serviceName,
+        code: code.substring(0, 3) + '***',
+        ttl
+      });
+
+      // TODO: Implement actual broadcast functionality
+      // This should create a transaction with:
+      // 1. Message containing the 2FA code
+      // 2. TTL for auto-destruct
+      // 3. Send to recipient address
+      
+      // For now, return a placeholder
+      return Promise.resolve('broadcast_' + Date.now());
+    } catch (error) {
+      console.error('WalletService: Error broadcasting code:', error);
+      throw new Error(`Failed to broadcast code: ${error.message}`);
+    }
+  }
+
+  /**
    * Send CCX transaction to recipient address
    * @param recipientAddress - CCX address to send to
    * @param amount - Amount to send in CCX

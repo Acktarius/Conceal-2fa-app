@@ -325,7 +325,7 @@ export default function ServiceCard({
                   className="text-xs font-semibold ml-1 text-center font-poppins-medium" 
                   style={{ color: canUseBlockchainFeatures ? theme.colors.primary : theme.colors.textSecondary }}
                 >
-                  Broadcast to myself
+                  Broadcast
                 </Text>
               </TouchableOpacity>
               

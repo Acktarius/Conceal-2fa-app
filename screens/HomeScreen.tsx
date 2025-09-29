@@ -17,6 +17,7 @@ import Header from '../components/Header';
 import FundingBanner from '../components/FundingBanner';
 import { TOTPService } from '../services/TOTPService';
 import { StorageService } from '../services/StorageService';
+import { WalletService } from '../services/WalletService';
 import { SharedKey } from '../model/Transaction';
 import { useWallet } from '../contexts/WalletContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -27,7 +28,7 @@ export default function HomeScreen() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [currentTime, setCurrentTime] = useState(Date.now());
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
-  const { balance, maxKeys, isAuthenticated, authenticate } = useWallet();
+  const { balance, maxKeys, isAuthenticated, authenticate, wallet } = useWallet();
   const { theme } = useTheme();
 
   useEffect(() => {
@@ -128,15 +129,31 @@ export default function HomeScreen() {
     }
   };
 
-  const handleBroadcastToMyself = async (sharedKeyHash: string) => {
+  const handleBroadcastCode = async (sharedKeyHash: string) => {
     const sharedKey = sharedKeys.find(sk => sk.hash === sharedKeyHash || sk.name + '_' + sk.timeStampSharedKeyCreate === sharedKeyHash);
     if (!sharedKey) return;
 
     try {
-      // Simulate broadcasting to blockchain mempool with 30s TTL
+      // Get broadcast address from settings
+      const settings = await StorageService.getSettings();
+      const broadcastAddress = settings.broadcastAddress || wallet?.getPublicAddress();
+      
+      if (!broadcastAddress) {
+        Alert.alert('Error', 'No broadcast address configured. Please set one in Settings.');
+        return;
+      }
+
+      // Call WalletService.broadcast()
+      const txHash = await WalletService.broadcast(
+        broadcastAddress,
+        sharedKey.code,
+        sharedKey.name,
+        30 // 30 seconds TTL
+      );
+
       Alert.alert(
         'Code Broadcasted',
-        `${sharedKey.name} code (${sharedKey.code}) broadcasted to blockchain mempool for 30 seconds. Your other devices can now access it.`,
+        `${sharedKey.name} code (${sharedKey.code}) has been broadcasted to ${broadcastAddress.substring(0, 10)}... via auto-destruct message.`,
         [{ text: 'OK' }]
       );
     } catch (error) {
@@ -309,7 +326,7 @@ export default function HomeScreen() {
                           onCopy={() => handleCopyCode(sharedKey.code, sharedKey.name)}
                           onDelete={() => handleDeleteSharedKey(sharedKeyId)}
                           onSelect={() => handleSelectSharedKey(sharedKeyId)}
-                          onBroadcast={() => handleBroadcastToMyself(sharedKeyId)}
+                          onBroadcast={() => handleBroadcastCode(sharedKeyId)}
                           onSaveToBlockchain={() => handleSaveToBlockchain(sharedKeyId)}
                         />
                       );
