@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import QRScannerModal from './QRScannerModal';
 import { useTheme } from '../contexts/ThemeContext';
+import { StorageService } from '../services/StorageService';
 
 interface AddServiceModalProps {
   visible: boolean;
@@ -25,22 +26,78 @@ export default function AddServiceModal({ visible, onClose, onAdd }: AddServiceM
   const [showScanner, setShowScanner] = useState(false);
   const { theme } = useTheme();
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!name.trim() || !secret.trim()) {
       Alert.alert('Error', 'Please fill in the service name and secret key.');
       return;
     }
 
-    onAdd({
-      name: name.trim(),
-      issuer: issuer.trim() || 'Unknown',
-      secret: secret.trim(),
-    });
+    try {
+      // Check for existing services with the same secret
+      const existingSharedKeys = await StorageService.getSharedKeys();
+      const duplicateService = existingSharedKeys.find(sk => sk.secret === secret.trim());
+      
+      if (duplicateService) {
+        // Show replace/cancel alert
+        Alert.alert(
+          'Service Already Installed',
+          'Do you want to replace or Cancel?',
+          [
+            {
+              text: 'Cancel',
+              style: 'cancel',
+              onPress: handleClose
+            },
+            {
+              text: 'Replace',
+              style: 'destructive',
+              onPress: async () => {
+                // Remove the existing service and add the new one
+                const updatedSharedKeys = existingSharedKeys.filter(sk => sk.secret !== secret.trim());
+                await StorageService.saveSharedKeys(updatedSharedKeys);
+                
+                // Add the new service
+                onAdd({
+                  name: name.trim(),
+                  issuer: issuer.trim() || 'Unknown',
+                  secret: secret.trim(),
+                });
 
-    // Reset form
+                // Reset form
+                setName('');
+                setIssuer('');
+                setSecret('');
+              }
+            }
+          ]
+        );
+        return;
+      }
+
+      // No duplicate found, proceed with normal add
+      onAdd({
+        name: name.trim(),
+        issuer: issuer.trim() || 'Unknown',
+        secret: secret.trim(),
+      });
+
+      // Reset form
+      setName('');
+      setIssuer('');
+      setSecret('');
+    } catch (error) {
+      console.error('Error checking for duplicate services:', error);
+      Alert.alert('Error', 'Failed to check for existing services. Please try again.');
+    }
+  };
+
+  const handleClose = () => {
+    // Reset all fields when closing
     setName('');
     setIssuer('');
     setSecret('');
+    setShowScanner(false);
+    onClose();
   };
 
   const handleQRScan = (data: string) => {
@@ -55,8 +112,12 @@ export default function AddServiceModal({ visible, onClose, onAdd }: AddServiceM
         const secretKey = url.searchParams.get('secret');
 
         if (secretKey) {
-          setName(serviceName);
-          setIssuer(issuerName);
+          // Decode URI-encoded strings for both service name and issuer
+          const decodedServiceName = decodeURIComponent(serviceName);
+          const decodedIssuerName = decodeURIComponent(issuerName);
+          
+          setName(decodedServiceName);
+          setIssuer(decodedIssuerName);
           setSecret(secretKey);
           setShowScanner(false);
         } else {
@@ -76,7 +137,7 @@ export default function AddServiceModal({ visible, onClose, onAdd }: AddServiceM
         visible={visible}
         animationType="slide"
         presentationStyle="pageSheet"
-        onRequestClose={onClose}
+        onRequestClose={handleClose}
       >
         <View 
           className="flex-1" 
@@ -220,7 +281,7 @@ export default function AddServiceModal({ visible, onClose, onAdd }: AddServiceM
           <TouchableOpacity
             className="absolute bottom-12 right-6 w-12 h-12 rounded-full items-center justify-center shadow-lg"
             style={{ backgroundColor: theme.colors.surface }}
-            onPress={onClose}
+            onPress={handleClose}
             activeOpacity={0.8}
           >
             <Ionicons name="close" size={24} color={theme.colors.text} />
@@ -228,11 +289,11 @@ export default function AddServiceModal({ visible, onClose, onAdd }: AddServiceM
         </View>
       </Modal>
 
-      <QRScannerModal
-        visible={showScanner}
-        onClose={() => setShowScanner(false)}
-        onScan={handleQRScan}
-      />
+        <QRScannerModal
+          visible={showScanner}
+          onClose={() => setShowScanner(false)}
+          onScan={handleQRScan}
+        />
     </>
   );
 }

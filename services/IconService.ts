@@ -318,62 +318,118 @@ export class IconService {
   /**
    * Get the appropriate icon for a service name with fallback logic
    * @param serviceName - The name of the service
+   * @param issuerName - Optional issuer name for additional matching
    * @returns IconInfo with name and family
    */
-  static getServiceIcon(serviceName: string): IconInfo {
+  static getServiceIcon(serviceName: string, issuerName?: string): IconInfo {
     const name = serviceName.toLowerCase();
+    const issuer = issuerName?.toLowerCase() || '';
     
-    // Try Ionicons first (most comprehensive)
-    if (this.ioniconsMap[name]) {
-      return {
-        name: this.ioniconsMap[name],
-        family: 'Ionicons'
-      };
-    }
+    // Helper function to extract the main service name (remove email addresses, etc.)
+    const extractMainServiceName = (fullName: string): string => {
+      const withoutEmail = fullName.replace(/@.*$/, '');
+      // Remove special characters and extra spaces
+      const cleaned = withoutEmail.replace(/[^a-zA-Z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+      // Return only the first word (the service name)
+      return cleaned.split(' ')[0];
+    };
     
-    // Try partial matches in Ionicons
-    for (const [key, icon] of Object.entries(this.ioniconsMap)) {
-      if (name.includes(key) || key.includes(name)) {
+    // Helper function to try matching against icon maps
+    const tryMatch = (searchName: string): IconInfo | null => {
+      // Try exact match first
+      if (this.ioniconsMap[searchName]) {
         return {
-          name: icon,
+          name: this.ioniconsMap[searchName],
           family: 'Ionicons'
         };
       }
-    }
-    
-    // Try MaterialIcons as fallback
-    if (this.materialIconsMap[name]) {
-      return {
-        name: this.materialIconsMap[name],
-        family: 'MaterialIcons'
-      };
-    }
-    
-    // Try partial matches in MaterialIcons
-    for (const [key, icon] of Object.entries(this.materialIconsMap)) {
-      if (name.includes(key) || key.includes(name)) {
+      
+      // Try partial matches in Ionicons
+      for (const [key, icon] of Object.entries(this.ioniconsMap)) {
+        if (searchName.includes(key) || key.includes(searchName)) {
+          return {
+            name: icon,
+            family: 'Ionicons'
+          };
+        }
+      }
+      
+      // Try MaterialIcons as fallback
+      if (this.materialIconsMap[searchName]) {
         return {
-          name: icon,
+          name: this.materialIconsMap[searchName],
           family: 'MaterialIcons'
         };
       }
-    }
-    
-    // Try FontAwesome as final fallback
-    if (this.fontAwesomeMap[name]) {
-      return {
-        name: this.fontAwesomeMap[name],
-        family: 'FontAwesome'
-      };
-    }
-    
-    // Try partial matches in FontAwesome
-    for (const [key, icon] of Object.entries(this.fontAwesomeMap)) {
-      if (name.includes(key) || key.includes(name)) {
+      
+      // Try partial matches in MaterialIcons
+      for (const [key, icon] of Object.entries(this.materialIconsMap)) {
+        if (searchName.includes(key) || key.includes(searchName)) {
+          return {
+            name: icon,
+            family: 'MaterialIcons'
+          };
+        }
+      }
+      
+      // Try FontAwesome as final fallback
+      if (this.fontAwesomeMap[searchName]) {
         return {
-          name: icon,
+          name: this.fontAwesomeMap[searchName],
           family: 'FontAwesome'
         };
+      }
+      
+      // Try partial matches in FontAwesome
+      for (const [key, icon] of Object.entries(this.fontAwesomeMap)) {
+        if (searchName.includes(key) || key.includes(searchName)) {
+          return {
+            name: icon,
+            family: 'FontAwesome'
+          };
+        }
+      }
+      
+      return null;
+    };
+    
+    // Step 1: Try exact service name match
+    let result = tryMatch(name);
+    if (result) return result;
+    
+    // Step 2: Try cleaned service name (remove email addresses, etc.)
+    const cleanedServiceName = extractMainServiceName(name);
+    if (cleanedServiceName !== name) {
+      result = tryMatch(cleanedServiceName);
+      if (result) return result;
+    }
+    
+    // Step 3: Try issuer name if provided
+    if (issuer && issuer !== name) {
+      result = tryMatch(issuer);
+      if (result) return result;
+      
+      // Try cleaned issuer name
+      const cleanedIssuerName = extractMainServiceName(issuer);
+      if (cleanedIssuerName !== issuer) {
+        result = tryMatch(cleanedIssuerName);
+        if (result) return result;
+      }
+    }
+    
+    // Step 4: Try individual words from service name
+    const words = cleanedServiceName.split(' ').filter(word => word.length > 2);
+    for (const word of words) {
+      result = tryMatch(word);
+      if (result) return result;
+    }
+    
+    // Step 5: Try individual words from issuer name
+    if (issuer) {
+      const issuerWords = extractMainServiceName(issuer).split(' ').filter(word => word.length > 2);
+      for (const word of issuerWords) {
+        result = tryMatch(word);
+        if (result) return result;
       }
     }
     

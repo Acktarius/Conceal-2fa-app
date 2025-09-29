@@ -346,7 +346,13 @@ export default function HomeScreen() {
         <TouchableOpacity
           className="absolute bottom-5 right-5 w-14 h-14 rounded-full justify-center items-center shadow-lg z-50"
           style={{ backgroundColor: theme.colors.primary }}
-          onPress={() => setShowAddModal(true)}
+          onPress={() => {
+            if (Platform.OS === 'ios') {
+              setTimeout(() => setShowAddModal(true), 200);
+            } else {
+              setShowAddModal(true);
+            }
+          }}
         >
           <Ionicons name="add" size={24} color={theme.colors.background} />
         </TouchableOpacity>

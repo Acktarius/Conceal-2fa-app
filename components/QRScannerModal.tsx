@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   Modal,
   TouchableOpacity,
   Alert,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Camera, CameraView } from 'expo-camera';
@@ -19,6 +20,7 @@ interface QRScannerModalProps {
 export default function QRScannerModal({ visible, onClose, onScan }: QRScannerModalProps) {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanned, setScanned] = useState(false);
+  const [cameraActive, setCameraActive] = useState(false);
 
   useEffect(() => {
     const getCameraPermissions = async () => {
@@ -30,20 +32,32 @@ export default function QRScannerModal({ visible, onClose, onScan }: QRScannerMo
   }, []);
 
   const handleBarCodeScanned = ({ data }: { data: string }) => {
-    if (!scanned) {
+    if (!scanned && cameraActive) {
       setScanned(true);
+      setCameraActive(false); // Deactivate camera immediately after scan
       onScan(data);
     }
   };
 
   const handleClose = () => {
     setScanned(false);
+    setCameraActive(false); // Ensure camera is deactivated
     onClose();
   };
 
+  // Control camera activation based on modal visibility
+  useEffect(() => {
+    if (visible && hasPermission === true) {
+      setCameraActive(true);
+      setScanned(false);
+    } else {
+      setCameraActive(false);
+    }
+  }, [visible, hasPermission]);
+
   if (hasPermission === null) {
     return (
-      <Modal visible={visible} animationType="slide">
+      <Modal visible={visible} animationType="slide" transparent={true} statusBarTranslucent={true}>
         <View style={[styles.container, styles.centered]}>
           <Text>Requesting camera permission...</Text>
         </View>
@@ -53,7 +67,7 @@ export default function QRScannerModal({ visible, onClose, onScan }: QRScannerMo
 
   if (hasPermission === false) {
     return (
-      <Modal visible={visible} animationType="slide">
+      <Modal visible={visible} animationType="slide" transparent={true} statusBarTranslucent={true}>
         <View style={[styles.container, styles.centered]}>
           <Ionicons name="camera-outline" size={64} color="#9CA3AF" />
           <Text style={styles.permissionTitle}>Camera Permission Required</Text>
@@ -69,7 +83,12 @@ export default function QRScannerModal({ visible, onClose, onScan }: QRScannerMo
   }
 
   return (
-    <Modal visible={visible} animationType="slide">
+    <Modal 
+      visible={visible} 
+      animationType="slide"
+      presentationStyle="fullScreen"
+      onRequestClose={handleClose}
+    >
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={handleClose} style={styles.headerButton}>
@@ -80,11 +99,13 @@ export default function QRScannerModal({ visible, onClose, onScan }: QRScannerMo
         </View>
 
         <View style={styles.cameraContainer}>
-          <CameraView
-            style={styles.camera}
-            facing="back"
-            onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
-          />
+          {visible && (
+            <CameraView
+              style={styles.camera}
+              facing="back"
+              onBarcodeScanned={cameraActive ? handleBarCodeScanned : undefined}
+            />
+          )}
           
           <View style={styles.overlay}>
             {/* Top overlay */}
@@ -129,6 +150,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000000',
+    zIndex: 9999,
+    ...(Platform.OS === 'ios' && {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      width: '100%',
+      height: '100%',
+    }),
   },
   centered: {
     alignItems: 'center',
