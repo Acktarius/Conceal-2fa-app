@@ -4,6 +4,7 @@ import { StorageService } from '../services/StorageService';
 
 export interface Theme {
   isDark: boolean;
+  themeId: string; // Add theme identifier
   colors: {
     background: string;
     surface: string;
@@ -30,6 +31,7 @@ export interface Theme {
 
 const lightTheme: Theme = {
   isDark: false,
+  themeId: 'light',
   colors: {
     background: '#F1F5F9',
     surface: '#FFFFFF',
@@ -56,6 +58,7 @@ const lightTheme: Theme = {
 
 const darkTheme: Theme = {
   isDark: true,
+  themeId: 'dark',
   colors: {
     background: '#0F172A',
     surface: '#1E293B',
@@ -80,17 +83,73 @@ const darkTheme: Theme = {
   },
 };
 
+const orangeTheme: Theme = {
+  isDark: true,
+  themeId: 'orange',
+  colors: {
+    background: '#0D0D0D',
+    surface: '#1A1A1A',
+    card: '#262626',
+    text: '#FF8C00',
+    textSecondary: '#FFA500',
+    primary: '#FF8C00',
+    primaryLight: '#262626',
+    accent: '#FF6B35',
+    success: '#00FF7F',
+    warning: '#FFD700',
+    error: '#FF4444',
+    border: '#333333',
+    tabBar: '#1A1A1A',
+    tabBarActive: '#FF8C00',
+    tabBarInactive: '#FFA500',
+    switchTrack: '#333333',
+    switchThumb: '#0D0D0D',
+    switchTrackTrue: '#FF8C00',
+    switchTrackFalse: '#333333',
+    switchThumbColor: '#0D0D0D',
+  },
+};
+
+const velvetTheme: Theme = {
+  isDark: true,
+  themeId: 'velvet',
+  colors: {
+    background: '#4A5875',
+    surface: '#1A0F1A',
+    card: '#162D46',
+    text: '#E6D7FF',
+    textSecondary: '#C4A8E8',
+    primary: '#8852d2',
+    primaryLight: '#2A1F2A',
+    accent: '#B380E6',
+    success: '#98FB98',
+    warning: '#FFB6C1',
+    error: '#FF69B4',
+    border: '#3A3A3A',
+    tabBar: '#1A0F1A',
+    tabBarActive: '#3B82F6',
+    tabBarInactive: '#C4A8E8',
+    switchTrack: '#3A3A3A',
+    switchThumb: '#0F0A0F',
+    switchTrackTrue: '#8852d2',
+    switchTrackFalse: '#3A3A3A',
+    switchThumbColor: '#0F0A0F',
+  },
+};
+
 interface ThemeContextType {
   theme: Theme;
   toggleTheme: () => void;
+  setTheme: (themeId: string) => void;
   isDark: boolean;
+  currentThemeId: string;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemColorScheme = useColorScheme();
-  const [isDark, setIsDark] = useState(true); // Default to dark mode
+  const [currentThemeId, setCurrentThemeId] = useState('dark'); // Default to dark mode
 
   useEffect(() => {
     loadThemePreference();
@@ -99,8 +158,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const loadThemePreference = async () => {
     try {
       const settings = await StorageService.getSettings();
-      if (settings.darkMode !== undefined) {
-        setIsDark(settings.darkMode);
+      if (settings.themeId) {
+        setCurrentThemeId(settings.themeId);
+      } else if (settings.darkMode !== undefined) {
+        // Migrate from old darkMode setting
+        setCurrentThemeId(settings.darkMode ? 'dark' : 'light');
       }
     } catch (error) {
       console.error('Error loading theme preference:', error);
@@ -108,21 +170,43 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   };
 
   const toggleTheme = async () => {
-    const newIsDark = !isDark;
-    setIsDark(newIsDark);
+    const newThemeId = currentThemeId === 'light' ? 'dark' : 'light';
+    setCurrentThemeId(newThemeId);
     
     try {
       const settings = await StorageService.getSettings();
-      await StorageService.saveSettings({ ...settings, darkMode: newIsDark });
+      await StorageService.saveSettings({ ...settings, themeId: newThemeId });
     } catch (error) {
       console.error('Error saving theme preference:', error);
     }
   };
 
-  const theme = isDark ? darkTheme : lightTheme;
+  const setTheme = async (themeId: string) => {
+    setCurrentThemeId(themeId);
+    
+    try {
+      const settings = await StorageService.getSettings();
+      await StorageService.saveSettings({ ...settings, themeId });
+    } catch (error) {
+      console.error('Error saving theme preference:', error);
+    }
+  };
+
+  const getTheme = (themeId: string): Theme => {
+    switch (themeId) {
+      case 'light': return lightTheme;
+      case 'dark': return darkTheme;
+      case 'orange': return orangeTheme;
+      case 'velvet': return velvetTheme;
+      default: return darkTheme;
+    }
+  };
+
+  const theme = getTheme(currentThemeId);
+  const isDark = theme.isDark;
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, isDark }}>
+    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme, isDark, currentThemeId }}>
       {children}
     </ThemeContext.Provider>
   );

@@ -7,10 +7,12 @@ import {
   Platform,
   Animated,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons, FontAwesome } from '@expo/vector-icons';
 
 import { useTheme } from '../contexts/ThemeContext';
 import { SharedKey } from '../model/Transaction';
+import { StorageService } from '../services/StorageService';
+import { IconService, IconInfo } from '../services/IconService';
 
 interface ServiceCardProps {
   sharedKey: SharedKey;
@@ -23,6 +25,20 @@ interface ServiceCardProps {
   onBroadcast: () => void;
   onSaveToBlockchain: () => void;
 }
+
+// Helper component to render the appropriate icon based on family
+const ServiceIcon: React.FC<{ iconInfo: IconInfo; size: number; color: string }> = ({ iconInfo, size, color }) => {
+  switch (iconInfo.family) {
+    case 'Ionicons':
+      return <Ionicons name={iconInfo.name as any} size={size} color={color} />;
+    case 'MaterialIcons':
+      return <MaterialIcons name={iconInfo.name as any} size={size} color={color} />;
+    case 'FontAwesome':
+      return <FontAwesome name={iconInfo.name as any} size={size} color={color} />;
+    default:
+      return <Ionicons name="shield" size={size} color={color} />;
+  }
+};
 
 export default function ServiceCard({ 
   sharedKey, 
@@ -37,6 +53,8 @@ export default function ServiceCard({
 }: ServiceCardProps) {
   const { theme } = useTheme();
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+  const [futureCode, setFutureCode] = React.useState<string>('');
+  const [showFutureCode, setShowFutureCode] = React.useState(false);
   const flipAnim = React.useRef(new Animated.Value(0)).current;
   const actionsAnim = React.useRef(new Animated.Value(0)).current;
   
@@ -47,6 +65,65 @@ export default function ServiceCard({
       useNativeDriver: true,
     }).start();
   }, [isSelected]);
+
+  // Future code display logic
+  React.useEffect(() => {
+    const checkFutureCodeDisplay = async () => {
+      try {
+        const settings = await StorageService.getSettings();
+        const futureDisplaySetting = settings.futureCodeDisplay || 'off';
+        
+        if (futureDisplaySetting === 'off') {
+          setShowFutureCode(false);
+          return;
+        }
+        
+        // Generate future code (next 30-second period)
+        const futureTime = Math.floor(Date.now() / 30000) + 1;
+        const futureCodeGenerated = await generateFutureCode(sharedKey.secret, futureTime);
+        setFutureCode(futureCodeGenerated);
+        
+        // Determine when to show future code
+        const timeRemaining = sharedKey.timeRemaining;
+        let shouldShow = false;
+        
+        switch (futureDisplaySetting) {
+          case 'on':
+            shouldShow = true;
+            break;
+          case '5s':
+            shouldShow = timeRemaining <= 5;
+            break;
+          case '10s':
+            shouldShow = timeRemaining <= 10;
+            break;
+          default:
+            shouldShow = false;
+        }
+        
+        setShowFutureCode(shouldShow);
+      } catch (error) {
+        console.error('Error checking future code display:', error);
+        setShowFutureCode(false);
+      }
+    };
+    
+    checkFutureCodeDisplay();
+  }, [sharedKey.timeRemaining, sharedKey.secret]);
+
+  // Generate future TOTP code
+  const generateFutureCode = async (secret: string, timeStep: number): Promise<string> => {
+    // This is a simplified version - in reality you'd use the same TOTP algorithm
+    // with the future time step. For now, we'll generate a placeholder.
+    try {
+      // Import TOTPService dynamically to avoid circular dependencies
+      const { TOTPService } = await import('../services/TOTPService');
+      return await TOTPService.generateTOTPForTimeStep(secret, timeStep);
+    } catch (error) {
+      console.error('Error generating future code:', error);
+      return '000000'; // Fallback
+    }
+  };
 
   const handleDelete = () => {
     setShowDeleteConfirm(true);
@@ -97,7 +174,7 @@ export default function ServiceCard({
   });
   return (
     <View 
-      className={`w-full rounded-xl mb-3 shadow-lg ${isSelected ? 'min-h-[170px]' : 'min-h-[140px]'}`}
+      className={`w-full rounded-xl mb-3 shadow-lg ${isSelected ? 'min-h-[160px]' : 'min-h-[130px]'}`}
       style={[
         { backgroundColor: theme.colors.card },
         isSelected && { borderWidth: 2, borderColor: theme.colors.primary }
@@ -157,21 +234,37 @@ export default function ServiceCard({
           </View>
 
           <View className="flex-row items-center mb-3">
+            {/* Service Icon */}
+            <View className="w-8 h-8 items-center justify-center mr-3">
+              <ServiceIcon 
+                iconInfo={IconService.getServiceIcon(sharedKey.name)}
+                size={20} 
+                color={theme.colors.textSecondary} 
+              />
+            </View>
+            
+            {/* 2FA Code - No box, tap to copy */}
             <TouchableOpacity
-              className="flex-row items-center justify-between rounded-xl p-3 flex-1 mr-3"
-              style={{ backgroundColor: theme.colors.background }}
+              className="flex-row items-center flex-1 mr-3"
               onPress={onCopy}
               activeOpacity={0.8}
             >
               <Text 
-                className="text-2xl font-bold font-mono tracking-wider" 
+                className="text-4xl font-bold font-mono tracking-wider" 
                 style={{ color: '#3B82F6', opacity: codeOpacity }}
               >
                 {sharedKey.code.slice(0, 3)} {sharedKey.code.slice(3)}
               </Text>
-              <View className="opacity-60">
-                <Ionicons name="copy-outline" size={18} color={theme.colors.textSecondary} />
-              </View>
+              
+              {/* Future Code Display */}
+              {showFutureCode && (
+                <Text 
+                  className="text-lg font-mono italic ml-4" 
+                  style={{ color: theme.colors.textSecondary, opacity: 0.7 }}
+                >
+                  {futureCode.slice(0, 3)} {futureCode.slice(3)}
+                </Text>
+              )}
             </TouchableOpacity>
             
             {/* Circular Countdown Timer */}
@@ -200,7 +293,7 @@ export default function ServiceCard({
 
           {isSelected && (
             <Animated.View 
-              className="flex-row mt-1 px-1"
+              className="flex-row mt-0.5 px-1"
               style={{
                 opacity: actionsAnim,
                 transform: [

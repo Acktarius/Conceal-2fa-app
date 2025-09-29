@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 
 export interface ExpandableSectionProps {
+  sectionTitle?: string; // Optional section title (e.g., "Transfer")
   title: string;
   subtitle?: string;
   icon: string;
@@ -14,6 +15,7 @@ export interface ExpandableSectionProps {
 }
 
 export const ExpandableSection: React.FC<ExpandableSectionProps> = ({
+  sectionTitle,
   title,
   subtitle,
   icon,
@@ -26,12 +28,14 @@ export const ExpandableSection: React.FC<ExpandableSectionProps> = ({
 
   return (
     <View className={className}>
-      <Text 
-        className="text-base font-semibold mb-2 ml-1 font-poppins-medium" 
-        style={{ color: theme.colors.text }}
-      >
-        {title}
-      </Text>
+      {sectionTitle && (
+        <Text 
+          className="text-base font-semibold mb-2 ml-1 font-poppins-medium" 
+          style={{ color: theme.colors.text }}
+        >
+          {sectionTitle}
+        </Text>
+      )}
       <View 
         className="rounded-2xl shadow-lg" 
         style={{ backgroundColor: theme.colors.card }}

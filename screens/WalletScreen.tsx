@@ -429,6 +429,7 @@ export default function WalletScreen() {
 
               {/* Wallet Address Card */}
               <ExpandableSection
+                sectionTitle="Transfer"
                 title="Receive CCX"
                 subtitle="Reveal QR code or copy wallet address"
                 icon="qr-code-outline"
@@ -481,6 +482,7 @@ export default function WalletScreen() {
               {/* Send CCX Section - Only show if wallet is synced */}
               {syncStatus?.isWalletSynced && (
                 <ExpandableSection
+                  sectionTitle=""
                   title="Send CCX"
                   subtitle="Scan QR code or enter address to send CCX"
                   icon="send-outline"

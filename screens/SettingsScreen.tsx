@@ -18,6 +18,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useWallet } from '../contexts/WalletContext';
 import GestureNavigator from '../components/GestureNavigator';
 import { ExpandableSection } from '../components/ExpandableSection';
+import { ExpSectionToggle } from '../components/ExpSectionToggle';
 import { StorageService } from '../services/StorageService';
 import { WalletService } from '../services/WalletService';
 import { useNavigation } from '@react-navigation/native';
@@ -56,7 +57,54 @@ export default function SettingsScreen() {
   const [showUnlockWalletAlert, setShowUnlockWalletAlert] = useState(false);
   const [showPasswordCreationAlert, setShowPasswordCreationAlert] = useState(false);
   const [showClearDataOptions, setShowClearDataOptions] = useState(false);
+  const [isThemeExpanded, setIsThemeExpanded] = useState(false);
+  const [is2FADisplayExpanded, setIs2FADisplayExpanded] = useState(false);
+  const [current2FADisplaySetting, setCurrent2FADisplaySetting] = useState('off');
   const [biometricAction, setBiometricAction] = useState<'enable' | 'disable'>('enable');
+  
+  // Theme options
+  const themeOptions = [
+    { id: 'light', label: 'Light', icon: 'sunny', color: '#FFD700' },
+    { id: 'orange', label: 'Orange', icon: 'flame', color: '#FF8C00' },
+    { id: 'velvet', label: 'Velvet', icon: 'flower', color: '#8852d2' },
+    { id: 'dark', label: 'Dark', icon: 'moon', color: '#2C2C2C' }
+  ];
+  
+  // 2FA Display options
+  const futureDisplayOptions = [
+    { id: 'off', label: 'OFF', icon: 'eye-off', color: '#6B7280' },
+    { id: '5s', label: '5s', icon: 'time', color: '#F59E0B' },
+    { id: '10s', label: '10s', icon: 'time', color: '#F59E0B' },
+    { id: 'on', label: 'ON', icon: 'eye', color: '#10B981' }
+  ];
+  
+  // Get current theme ID based on currentThemeId
+  const getCurrentThemeId = () => {
+    return currentThemeId;
+  };
+  
+  // Handle theme selection
+  const handleThemeSelect = (themeId: string) => {
+    setTheme(themeId);
+    // Collapse section after selection
+    setIsThemeExpanded(false);
+  };
+  
+  // Handle 2FA display selection
+  const handle2FADisplaySelect = async (settingId: string) => {
+    try {
+      const settings = await StorageService.getSettings();
+      await StorageService.saveSettings({
+        ...settings,
+        futureCodeDisplay: settingId
+      });
+      setCurrent2FADisplaySetting(settingId);
+      // Collapse section after selection
+      setIs2FADisplayExpanded(false);
+    } catch (error) {
+      console.error('Error saving 2FA display setting:', error);
+    }
+  };
   
   // Expandable sections state
   const [showRecoverySeed, setShowRecoverySeed] = useState(false);
@@ -72,7 +120,7 @@ export default function SettingsScreen() {
   const maxQRWidth = (screenWidth - cardPadding - expandablePadding) * 0.95;
   const qrSize = Math.min(maxQRWidth, 250); // Cap at 250px for readability
   
-  const { theme, toggleTheme, isDark } = useTheme();
+  const { theme, toggleTheme, setTheme, currentThemeId } = useTheme();
   const { wallet, refreshWallet } = useWallet();
   const navigation = useNavigation<NavigationProp>();
 
@@ -132,6 +180,7 @@ export default function SettingsScreen() {
       const settings = await StorageService.getSettings();
       setBlockchainSync(settings.blockchainSync || false);
       setAutoShare(settings.autoShare || false);
+      setCurrent2FADisplaySetting(settings.futureCodeDisplay || 'off');
       // Enable biometric auth by default since we're using it
       setBiometricAuth(settings.biometricAuth !== false); // Default to true unless explicitly set to false
     } catch (error) {
@@ -636,28 +685,44 @@ export default function SettingsScreen() {
         <Header title="Settings" />
         <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false}>
           {/* Appearance Settings */}
-          <View className="mb-6">
-            <Text className="text-base font-semibold mb-2 ml-1" style={{ color: theme.colors.text }}>Appearance</Text>
-            <View className="rounded-2xl shadow-lg" style={{ backgroundColor: theme.colors.card }}>
-              <SettingItem
-                icon="moon-outline"
-                title="Dark Mode"
-                subtitle="Toggle dark/light theme"
-                rightElement={
-                  <Switch
-                    value={isDark}
-                    onValueChange={toggleTheme}
-                    trackColor={{ 
-                      false: theme.colors.border,
-                      true: theme.colors.primary
-                    }}
-                    thumbColor={theme.colors.background}
-                    ios_backgroundColor={theme.colors.border}
-                  />
-                }
-              />
-            </View>
-          </View>
+          <ExpSectionToggle
+            sectionTitle="Appearance"
+            title="Theme"
+            subtitle="Toggle dark/light theme"
+            icon="color-palette-outline"
+            isExpanded={isThemeExpanded}
+            onToggle={() => setIsThemeExpanded(!isThemeExpanded)}
+            onToggleSwitch={(value) => {
+              // Only toggle between light and dark for the switch
+              const targetTheme = value ? 'dark' : 'light';
+              setTheme(targetTheme);
+            }}
+            onOptionSelect={handleThemeSelect}
+            options={themeOptions}
+            selectedOptionId={getCurrentThemeId()}
+            leftOptionId="light"
+            rightOptionId="dark"
+          />
+
+          {/* 2FA Display Settings */}
+          <ExpSectionToggle
+            sectionTitle="2FA Display"
+            title="Future Display"
+            subtitle="Show next 2FA code alongside current"
+            icon="eye-outline"
+            isExpanded={is2FADisplayExpanded}
+            onToggle={() => setIs2FADisplayExpanded(!is2FADisplayExpanded)}
+            onToggleSwitch={async (value) => {
+              // Toggle between OFF and ON for the switch
+              const targetSetting = value ? 'on' : 'off';
+              await handle2FADisplaySelect(targetSetting);
+            }}
+            onOptionSelect={handle2FADisplaySelect}
+            options={futureDisplayOptions}
+            selectedOptionId={current2FADisplaySetting}
+            leftOptionId="off"
+            rightOptionId="on"
+          />
 
           {/* Wallet Management */}
           <View className="mb-6">
