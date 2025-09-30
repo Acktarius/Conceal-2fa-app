@@ -30,6 +30,7 @@ export default function HomeScreen() {
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const { balance, maxKeys, isAuthenticated, authenticate, wallet } = useWallet();
   const { theme } = useTheme();
+  const serviceCardRefs = React.useRef<{ [key: string]: any }>({});
 
   useEffect(() => {
     loadSharedKeys();
@@ -129,7 +130,7 @@ export default function HomeScreen() {
     }
   };
 
-  const handleBroadcastCode = async (sharedKeyHash: string) => {
+  const handleBroadcastCode = async (sharedKeyHash: string, futureCode?: string) => {
     const sharedKey = sharedKeys.find(sk => sk.hash === sharedKeyHash || sk.name + '_' + sk.timeStampSharedKeyCreate === sharedKeyHash);
     if (!sharedKey) return;
 
@@ -144,18 +145,22 @@ export default function HomeScreen() {
       }
 
       // Call WalletService.broadcast()
-      const txHash = await WalletService.broadcast(
+      const success = await WalletService.broadcast(
         broadcastAddress,
         sharedKey.code,
         sharedKey.name,
-        30 // 30 seconds TTL
+        sharedKey.timeRemaining,
+        futureCode // Pass future code if available
       );
 
-      Alert.alert(
-        'Code Broadcasted',
-        `${sharedKey.name} code (${sharedKey.code}) has been broadcasted to ${broadcastAddress.substring(0, 10)}... via auto-destruct message.`,
-        [{ text: 'OK' }]
-      );
+      if (success) {
+        // Trigger pulsing animation on the service card
+        const serviceCardRef = serviceCardRefs.current[sharedKeyHash];
+        if (serviceCardRef && serviceCardRef.triggerPulse) {
+          serviceCardRef.triggerPulse();
+        }
+        
+      }
     } catch (error) {
       Alert.alert('Error', 'Failed to broadcast code.');
     }
@@ -320,13 +325,18 @@ export default function HomeScreen() {
                       return (
                         <ServiceCard
                           key={sharedKeyId}
+                          ref={(ref) => {
+                            if (ref) {
+                              serviceCardRefs.current[sharedKeyId] = ref;
+                            }
+                          }}
                           sharedKey={sharedKey}
                           isSelected={selectedServiceId === sharedKeyId}
                           walletBalance={balance}
                           onCopy={() => handleCopyCode(sharedKey.code, sharedKey.name)}
                           onDelete={() => handleDeleteSharedKey(sharedKeyId)}
                           onSelect={() => handleSelectSharedKey(sharedKeyId)}
-                          onBroadcast={() => handleBroadcastCode(sharedKeyId)}
+                          onBroadcast={(futureCode) => handleBroadcastCode(sharedKeyId, futureCode)}
                           onSaveToBlockchain={() => handleSaveToBlockchain(sharedKeyId)}
                         />
                       );

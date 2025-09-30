@@ -26,6 +26,7 @@ export interface Theme {
     switchTrackTrue: string;
     switchTrackFalse: string;
     switchThumbColor: string;
+    pulseColor: string;
   };
 }
 
@@ -53,6 +54,7 @@ const lightTheme: Theme = {
     switchTrackTrue: '#3B82F6', // Blue when ON
     switchTrackFalse: '#CBD5E1', // Light grey when OFF
     switchThumbColor: '#F8FAFC', // Light color
+    pulseColor: '#10B981', // Green pulse
   },
 };
 
@@ -80,6 +82,7 @@ const darkTheme: Theme = {
     switchTrackTrue: '#FFA500', // Orange when ON
     switchTrackFalse: '#475569', // Grey when OFF
     switchThumbColor: '#0F172A', // Same as background
+    pulseColor: '#10B981', // Green pulse
   },
 };
 
@@ -107,6 +110,7 @@ const orangeTheme: Theme = {
     switchTrackTrue: '#FF8C00',
     switchTrackFalse: '#333333',
     switchThumbColor: '#0D0D0D',
+    pulseColor: '#FF8C00', // Orange pulse
   },
 };
 
@@ -134,6 +138,7 @@ const velvetTheme: Theme = {
     switchTrackTrue: '#8852d2',
     switchTrackFalse: '#3A3A3A',
     switchThumbColor: '#0F0A0F',
+    pulseColor: '#8852d2', // Velvet pulse
   },
 };
 

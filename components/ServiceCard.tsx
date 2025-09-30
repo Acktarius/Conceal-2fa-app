@@ -13,6 +13,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { SharedKey } from '../model/Transaction';
 import { StorageService } from '../services/StorageService';
 import { IconService, IconInfo } from '../services/IconService';
+import { TOTPService } from '../services/TOTPService';
 
 interface ServiceCardProps {
   sharedKey: SharedKey;
@@ -22,7 +23,7 @@ interface ServiceCardProps {
   onCopy: () => void;
   onDelete: () => void;
   onSelect: () => void;
-  onBroadcast: () => void;
+  onBroadcast: (futureCode?: string) => void;
   onSaveToBlockchain: () => void;
 }
 
@@ -40,7 +41,7 @@ const ServiceIcon: React.FC<{ iconInfo: IconInfo; size: number; color: string }>
   }
 };
 
-export default function ServiceCard({ 
+const ServiceCard = React.forwardRef<any, ServiceCardProps>(({ 
   sharedKey, 
   isSelected, 
   walletBalance, 
@@ -50,13 +51,15 @@ export default function ServiceCard({
   onSelect, 
   onBroadcast, 
   onSaveToBlockchain 
-}: ServiceCardProps) {
+}, ref) => {
   const { theme } = useTheme();
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const [futureCode, setFutureCode] = React.useState<string>('');
   const [showFutureCode, setShowFutureCode] = React.useState(false);
+  const [isPulsing, setIsPulsing] = React.useState(false);
   const flipAnim = React.useRef(new Animated.Value(0)).current;
   const actionsAnim = React.useRef(new Animated.Value(0)).current;
+  const pulseAnim = React.useRef(new Animated.Value(1)).current;
   
   React.useEffect(() => {
     Animated.timing(actionsAnim, {
@@ -113,17 +116,57 @@ export default function ServiceCard({
 
   // Generate future TOTP code
   const generateFutureCode = async (secret: string, timeStep: number): Promise<string> => {
-    // This is a simplified version - in reality you'd use the same TOTP algorithm
-    // with the future time step. For now, we'll generate a placeholder.
     try {
-      // Import TOTPService dynamically to avoid circular dependencies
-      const { TOTPService } = await import('../services/TOTPService');
       return await TOTPService.generateTOTPForTimeStep(secret, timeStep);
     } catch (error) {
       console.error('Error generating future code:', error);
       return '000000'; // Fallback
     }
   };
+
+  // Trigger pulsing animation
+  const triggerPulse = () => {
+    setIsPulsing(true);
+    Animated.sequence([
+      Animated.timing(pulseAnim, {
+        toValue: 1.1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(pulseAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(pulseAnim, {
+        toValue: 1.1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(pulseAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(pulseAnim, {
+        toValue: 1.1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(pulseAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setIsPulsing(false);
+    });
+  };
+
+  // Expose triggerPulse function to parent component
+  React.useImperativeHandle(ref, () => ({
+    triggerPulse,
+  }));
 
   const handleDelete = () => {
     setShowDeleteConfirm(true);
@@ -173,11 +216,16 @@ export default function ServiceCard({
     outputRange: ['180deg', '360deg'],
   });
   return (
-    <View 
+    <Animated.View 
       className={`w-full rounded-xl mb-3 shadow-lg ${isSelected ? 'min-h-[160px]' : 'min-h-[130px]'}`}
       style={[
         { backgroundColor: theme.colors.card },
-        isSelected && { borderWidth: 2, borderColor: theme.colors.primary }
+        isSelected && { borderWidth: 2, borderColor: theme.colors.primary },
+        isPulsing && { 
+          borderWidth: 3, 
+          borderColor: theme.colors.pulseColor,
+          transform: [{ scale: pulseAnim }]
+        }
       ]}
     >
       {/* Front of card */}
@@ -237,7 +285,7 @@ export default function ServiceCard({
             {/* Service Icon */}
             <View className="w-8 h-8 items-center justify-center mr-3">
               <ServiceIcon 
-                iconInfo={IconService.getServiceIcon(sharedKey.name)}
+                iconInfo={IconService.getServiceIcon(sharedKey.name, sharedKey.issuer)}
                 size={20} 
                 color={theme.colors.textSecondary} 
               />
@@ -312,7 +360,7 @@ export default function ServiceCard({
                   backgroundColor: canUseBlockchainFeatures ? theme.colors.primaryLight : theme.colors.border,
                   opacity: canUseBlockchainFeatures ? 1 : 0.5 
                 }}
-                onPress={canUseBlockchainFeatures ? onBroadcast : undefined}
+                onPress={canUseBlockchainFeatures ? () => onBroadcast(futureCode) : undefined}
                 disabled={!canUseBlockchainFeatures}
                 activeOpacity={canUseBlockchainFeatures ? 0.7 : 1}
               >
@@ -365,15 +413,17 @@ export default function ServiceCard({
         ]}
       >
         <View className="flex-1 items-center justify-center p-5">
-          <Ionicons name="warning-outline" size={48} color={theme.colors.warning} />
+          <View className="flex-row items-center mb-2">
+            <Ionicons name="warning-outline" size={24} color={theme.colors.warning} />
+            <Text 
+              className="text-lg font-semibold ml-2 text-center font-poppins-medium" 
+              style={{ color: theme.colors.text }}
+            >
+              Are you sure you want to delete?
+            </Text>
+          </View>
           <Text 
-            className="text-lg font-semibold mt-4 mb-2 text-center font-poppins-medium" 
-            style={{ color: theme.colors.text }}
-          >
-            Are you sure you want to delete?
-          </Text>
-          <Text 
-            className="text-sm text-center leading-5 mb-6 font-poppins" 
+            className="text-sm text-center leading-5 mb-3 font-poppins" 
             style={{ color: theme.colors.textSecondary }}
           >
             {sharedKey.isLocalOnly() 
@@ -408,6 +458,8 @@ export default function ServiceCard({
           </View>
         </View>
       </Animated.View>
-    </View>
+    </Animated.View>
   );
-}
+});
+
+export default ServiceCard;

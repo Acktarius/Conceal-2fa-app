@@ -24,13 +24,47 @@ export class WalletService implements IWalletOperations {
   private static blockchainExplorer: BlockchainExplorerRpcDaemon | null = null;
   private static walletWatchdog: WalletWatchdogRN | null = null;
   
-  // Session flags (reset to false on app launch)
+  // Session flags (loaded from storage)
   private static flag_prompt_main_tab = false;
   private static flag_prompt_wallet_tab = false;
 
   // Register this service in the dependency container
   static registerInContainer(): void {
     dependencyContainer.registerWalletOperations(new WalletService());
+  }
+
+  // Load upgrade prompt flags from storage
+  private static async loadUpgradeFlags(): Promise<void> {
+    try {
+      const settings = await StorageService.getSettings();
+      this.flag_prompt_main_tab = settings.flag_prompt_main_tab || false;
+      this.flag_prompt_wallet_tab = settings.flag_prompt_wallet_tab || false;
+      console.log('WALLET SERVICE: Loaded upgrade flags:', {
+        flag_prompt_main_tab: this.flag_prompt_main_tab,
+        flag_prompt_wallet_tab: this.flag_prompt_wallet_tab
+      });
+    } catch (error) {
+      console.error('Error loading upgrade flags:', error);
+      // Keep defaults (false) if loading fails
+    }
+  }
+
+  // Save upgrade prompt flags to storage
+  private static async saveUpgradeFlags(): Promise<void> {
+    try {
+      const settings = await StorageService.getSettings();
+      await StorageService.saveSettings({
+        ...settings,
+        flag_prompt_main_tab: this.flag_prompt_main_tab,
+        flag_prompt_wallet_tab: this.flag_prompt_wallet_tab
+      });
+      console.log('WALLET SERVICE: Saved upgrade flags:', {
+        flag_prompt_main_tab: this.flag_prompt_main_tab,
+        flag_prompt_wallet_tab: this.flag_prompt_wallet_tab
+      });
+    } catch (error) {
+      console.error('Error saving upgrade flags:', error);
+    }
   }
 
   // Instance methods that delegate to static methods (for interface compliance)
@@ -130,6 +164,8 @@ export class WalletService implements IWalletOperations {
 
   static async getOrCreateWallet(callerScreen?: 'home' | 'wallet'): Promise<Wallet> {
     try {
+      // Load upgrade prompt flags from storage
+      await this.loadUpgradeFlags();
 
       // Initialize blockchain explorer if not already done
       if (!this.blockchainExplorer) {
@@ -214,7 +250,7 @@ export class WalletService implements IWalletOperations {
             );
           });
 
-          // Set flag based on calling screen
+          // Set flag based on calling screen and save to storage
           if (callerScreen === 'home') {
             this.flag_prompt_main_tab = true;
             console.log('WALLET SERVICE: Set flag_prompt_main_tab = true');
@@ -222,6 +258,9 @@ export class WalletService implements IWalletOperations {
             this.flag_prompt_wallet_tab = true;
             console.log('WALLET SERVICE: Set flag_prompt_wallet_tab = true');
           }
+          
+          // Save flags to storage
+          await this.saveUpgradeFlags();
           
           console.log('WALLET SERVICE: User choice:', result);
 
@@ -634,6 +673,9 @@ export class WalletService implements IWalletOperations {
     this.flag_prompt_wallet_tab = false;
     this.wallet = null; // Clear cached wallet instance
     
+    // Save cleared flags to storage
+    await this.saveUpgradeFlags();
+    
     console.log('WALLET SERVICE: After reset - flag_prompt_main_tab:', this.flag_prompt_main_tab);
     console.log('WALLET SERVICE: After reset - flag_prompt_wallet_tab:', this.flag_prompt_wallet_tab);
     console.log('WALLET SERVICE: After reset - cached wallet exists:', !!this.wallet);
@@ -735,7 +777,8 @@ export class WalletService implements IWalletOperations {
         lastBlockLoading: lastBlockLoading,
         lastMaximumHeight: blockchainHeight,
         transactionsInQueue: blockList ? blockList.getTxQueue().getSize() : 0,
-        isWalletSynced: lastBlockLoading >= blockchainHeight - 1 // Allow 1 block tolerance
+        //isWalletSynced: lastBlockLoading >= blockchainHeight - 1 // Allow 1 block tolerance
+        isWalletSynced: lastBlockLoading >= blockchainHeight && this.wallet.lastHeight >= blockchainHeight
       };
     }
     return {
@@ -861,31 +904,125 @@ export class WalletService implements IWalletOperations {
    * @param recipientAddress - CCX address to send to
    * @param code - 2FA code to broadcast
    * @param serviceName - Name of the service
-   * @param ttl - Time to live in seconds (default 30)
-   * @returns Promise resolving to transaction hash
+   * @param timeRemaining - Time remaining for current code
+   * @param futureCode - Next 2FA code (optional)
+   * @returns Promise resolving to boolean - true for success, false for error
    */
   static async broadcast(
     recipientAddress: string,
     code: string,
     serviceName: string,
-    ttl: number = 30
-  ): Promise<string> {
+    timeRemaining: number,
+    futureCode?: string
+  ): Promise<boolean> {
     try {
+      // Validate wallet state
+      if (!this.wallet || this.wallet.isLocal()) {
+        throw new Error('Wallet must be blockchain-enabled to broadcast');
+      }
+
+      if (!this.blockchainExplorer) {
+        throw new Error('Blockchain explorer not initialized');
+      }
+
+      // Check if wallet is synced
+      const syncStatus = this.getWalletSyncStatus();
+      if (!syncStatus.isWalletSynced) {
+        throw new Error('Wallet must be synced to broadcast');
+      }
+
+      // Calculate minimum balance needed: messageTxAmount + nodeFee + coinFee
+      const minBalance = config.messageTxAmount + config.remoteNodeFee + config.coinFee;
+      if (this.wallet.amount < minBalance) {
+        throw new Error('Insufficient balance for broadcast');
+      }
+
       console.log('WalletService: Broadcasting 2FA code', {
         recipientAddress: recipientAddress.substring(0, 10) + '...',
         serviceName,
         code: code.substring(0, 3) + '***',
-        ttl
+        timeRemaining
       });
 
-      // TODO: Implement actual broadcast functionality
-      // This should create a transaction with:
-      // 1. Message containing the 2FA code
-      // 2. TTL for auto-destruct
-      // 3. Send to recipient address
+      // Get blockchain height
+      const blockchainHeight = await this.blockchainExplorer.getHeight();
       
-      // For now, return a placeholder
-      return Promise.resolve('broadcast_' + Date.now());
+      // Create message based on time remaining
+      let message: string;
+      const now = Math.floor(Date.now() / 1000);
+      
+      // Helper function to format timestamp to human-readable format
+      const formatTimestamp = (timestamp: number): string => {
+        const date = new Date(timestamp * 1000);
+        return date.toLocaleString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+      };
+      
+      if (timeRemaining <= 5) {
+        // Code expires soon
+        const expiryTime = now + 5;
+        message = `**${serviceName}**, at ${formatTimestamp(expiryTime)}  \`${code}\``;
+      } else {
+        // Code has time remaining
+        const expiryTime = now + timeRemaining;
+        if (futureCode) {
+          message = `**${serviceName}**, until ${formatTimestamp(expiryTime)}  \`${code}\`  next \`${futureCode}\``;
+        } else {
+          message = `**${serviceName}**, until ${formatTimestamp(expiryTime)}  \`${code}\``;
+        }
+      }
+
+      const ttl = 1; // Minimum 1 minute
+      
+      // Create destination with message amount
+      const amountToSend = config.messageTxAmount;
+      const destination = [{ address: recipientAddress, amount: amountToSend }];
+      
+      // Get fee address from session node for remote node fee
+      const remoteFeeAddress = await this.blockchainExplorer.getSessionNodeFeeAddress();
+      
+      // Set up global logDebugMsg for TransactionsExplorer
+      (global as any).logDebugMsg = logDebugMsg;
+      
+      // Create transaction
+      const rawTxData = await TransactionsExplorer.createTx(
+        destination,
+        '',
+        this.wallet,
+        blockchainHeight,
+        (amounts: number[], numberOuts: number): Promise<any> => {
+          return this.blockchainExplorer!.getRandomOuts(amounts, numberOuts);
+        },
+        (amount: number, feesAmount: number): Promise<void> => {
+          // Check if wallet has enough balance
+          if (amount + feesAmount > this.wallet!.availableAmount(blockchainHeight)) {
+            throw new Error('Insufficient balance for transaction');
+          }
+          return Promise.resolve();
+        },
+        config.defaultMixin,
+        message,
+        ttl
+      );
+
+      // Send transaction
+      await this.blockchainExplorer.sendRawTx(rawTxData.raw.raw);
+      
+      // Save transaction private key
+      this.wallet.addTxPrivateKeyWithTxHash(rawTxData.raw.hash, rawTxData.raw.prvkey);
+
+      // Force mempool check
+      if (this.walletWatchdog) {
+        this.walletWatchdog.checkMempool();
+      }
+
+      // Broadcast successful - return true
+      return true;
     } catch (error) {
       console.error('WalletService: Error broadcasting code:', error);
       throw new Error(`Failed to broadcast code: ${error.message}`);
