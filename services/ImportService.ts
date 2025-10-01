@@ -1,3 +1,6 @@
+/**
+*     Copyright (c) 2025, Acktarius 
+*/
 import { Alert } from 'react-native';
 import { Wallet } from '../model/Wallet';
 import { KeysRepository } from '../model/KeysRepository';

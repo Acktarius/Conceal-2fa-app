@@ -79,10 +79,12 @@ import { QRInputProvider, useQRInput } from './contexts/QRInputContext';
 import { PasswordInputAlert } from './components/PasswordInputAlert';
 import { PasswordCreationAlert } from './components/PasswordCreationAlert';
 import { WalletService } from './services/WalletService'; // MAINTENANCE MODE: One-time wallet clearing for development/testing
+import { StorageService } from './services/StorageService';
 
 export default function App() {
   // Register services in dependency container to break circular dependencies
   WalletService.registerInContainer();
+  StorageService.registerInContainer();
   const [fontsLoaded] = useFonts({
     'Poppins-Regular': require('./assets/fonts/Poppins-Regular.ttf'),
     'Poppins-Medium': require('./assets/fonts/Poppins-Medium.ttf'),

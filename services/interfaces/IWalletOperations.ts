@@ -10,6 +10,11 @@ export interface IWalletOperations {
   triggerManualSave(): Promise<void>;
   reinitializeBlockchainExplorer(): Promise<void>;
   getCurrentSessionNodeUrl(): string | null;
+  janitor(): void;
+  triggerBalanceRefresh(): void;
+  sendSmartMessage(action: 'create' | 'delete', sharedKey: any, paymentId?: string): Promise<{success: boolean, txHash?: string}>;
+  getWalletBalance(): number;
+  isWalletLocal(): boolean;
 }
 
 export interface IWalletOperationsProvider {

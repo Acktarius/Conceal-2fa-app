@@ -431,6 +431,9 @@ export class SharedKey extends Transaction {
   code: string = '';
   timeRemaining: number = 0;
   revokeInQueue: boolean = false;
+  toBePush: boolean = false; // Flag to indicate if shared key needs to be pushed to blockchain
+  unknownSource: boolean = false; // Flag to indicate if shared key comes from unknown source
+  isLocal: boolean = true; // Flag to indicate if shared key is local-only (not on blockchain)
   
   static fromRaw(serviceData: { name: string; issuer: string; secret: string }): SharedKey {
     const sharedKey = new SharedKey();
@@ -440,6 +443,9 @@ export class SharedKey extends Transaction {
     sharedKey.timeStampSharedKeyCreate = Date.now();
     sharedKey.hash = ''; // Ensure it starts as local
     sharedKey.revokeInQueue = false; // Ensure it's not in revoke queue
+    sharedKey.toBePush = true; // New shared keys need to be pushed to blockchain
+    sharedKey.unknownSource = false; // User-created services are trusted by default
+    sharedKey.isLocal = true; // User-created services start as local
     return sharedKey;
   }
   
@@ -449,6 +455,7 @@ export class SharedKey extends Transaction {
     sharedKey.blockHeight = txData.blockHeight;
     sharedKey.timestamp = txData.timestamp;
     sharedKey.sharedKeySaved = true;
+    sharedKey.isLocal = false; // Blockchain-imported services are not local
     
     // Parse extra data (second byte indicates creation, rest contains name, issuer, secret)
     if (txData.extraType && txData.extraType.length > 1) {
@@ -470,7 +477,7 @@ export class SharedKey extends Transaction {
   }
   
   isLocalOnly(): boolean {
-    return this.hash === '';
+    return this.isLocal;
   }
   
   getExtraData(): string {

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { WalletService } from '../services/WalletService';
 import { StorageService } from '../services/StorageService';
 import { WalletStorageManager } from '../services/WalletStorageManager';
+import { CronBuddy } from '../services/CronBuddy';
 import { Wallet } from '../model/Wallet';
 import { config } from '../config';
 
@@ -35,6 +36,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     initializeWallet();
   }, []);
 
+
+
   const initializeWallet = async () => {
     try {
       setIsLoading(true);
@@ -56,32 +59,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         
         setWallet(wallet);
         
-        // Debug: Log all transactions in the wallet
         if (wallet) {
-          const transactions = wallet.getAll();
-          console.log('WALLET DEBUG: Wallet loaded with transactions:', {
-            totalTransactions: transactions.length,
-            transactions
-            });
-          
           // Calculate balance immediately using the loaded wallet object
-          console.log('BALANCE DEBUG: wallet.amount raw value:', wallet.amount);
-          console.log('BALANCE DEBUG: wallet.availableAmount(-1):', wallet.availableAmount(-1));
           const currentBalance = new JSBigInt(wallet.amount);
           setBalance(currentBalance);
-          console.log('BALANCE DEBUG: Set balance immediately after wallet load:', currentBalance);
-          
-          // Debug individual transactions to see why balance is 0
-          console.log('BALANCE DEBUG: Transaction details:', transactions.map(tx => ({
-            txHash: tx.hash?.substring(0, 16) + '...',
-            isFullyChecked: tx.isFullyChecked(),
-            outsCount: tx.outs?.length || 0,
-            insCount: tx.ins?.length || 0,
-            outs: tx.outs?.map(out => ({ amount: out.amount, type: out.type })) || [],
-            ins: tx.ins?.map(inp => ({ amount: inp.amount, type: inp.type })) || []
-          })));
-        } else {
-          console.log('WALLET DEBUG: No wallet available');
         }
         
         // Note: refreshBalance() removed - balance is already calculated and set above
@@ -96,6 +77,9 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
             // Continue without synchronization
           }
         }
+        
+        // Call refreshWallet to start CronBuddy and complete initialization
+        await refreshWallet(wallet);
       } catch (walletError) {
         console.error('Error with wallet operations:', walletError);
         console.error('Wallet error details:', {
@@ -183,15 +167,41 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         setWallet(walletToUse);
         await refreshBalance();
         
+        // Simple wallet observer - observe the CACHED wallet that WalletWatchdogRN modifies
+        const cachedWallet = WalletService.getCachedWallet();
+        if (cachedWallet) {
+          cachedWallet.addObserver('modified', (eventType: string, data: any) => {
+            refreshBalance();
+          });
+        }
+        
+        // PRAGMATIC APPROACH: Register direct callback for balance refresh
+        WalletService.registerBalanceRefreshCallback(refreshBalance);
+        
         // Start wallet synchronization if it's a blockchain wallet
         if (!walletToUse.isLocal()) {
           try {
             await WalletService.startWalletSynchronization();
             console.log('Wallet synchronization started for blockchain wallet');
+            
+            // Start CronBuddy when wallet is blockchain and synced
+            const syncStatus = await WalletService.getWalletSyncStatus();
+            console.log('WALLET CONTEXT: Sync status:', syncStatus);
+            if (syncStatus.isWalletSynced) {
+              console.log('WALLET CONTEXT: Starting CronBuddy...');
+              CronBuddy.start();
+              console.log('WALLET CONTEXT: CronBuddy started for synced blockchain wallet');
+              console.log('WALLET CONTEXT: CronBuddy is active:', CronBuddy.isActive());
+            } else {
+              console.log('WALLET CONTEXT: Wallet not synced, not starting CronBuddy');
+            }
           } catch (error) {
             console.error('Error starting wallet synchronization:', error);
             // Continue without synchronization
           }
+        } else {
+          // Stop CronBuddy if wallet becomes local
+          CronBuddy.stop();
         }
         
         // Increment refresh counter to force component re-renders
@@ -205,29 +215,23 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   };
 
   const refreshBalance = async () => {
-    if (wallet) {
+    // Use the cached wallet from WalletService, not the state variable
+    // This ensures we're always using the most up-to-date wallet instance
+    const cachedWallet = WalletService.getCachedWallet();
+    
+    if (cachedWallet) {
       try {
-        // Debug: Log wallet state before balance calculation
-        const transactions = wallet.getAll();
-        console.log('BALANCE DEBUG: Before balance calculation:', {
-          transactionsCount: transactions.length,
-          rawAmount: wallet.amount
-        });
-        
-        // Use wallet's own balance calculation with current blockchain height
-        // -1 means use current blockchain height (default behavior)
-          const currentBalance = new JSBigInt(wallet.amount);
-        
+        const currentBalance = new JSBigInt(cachedWallet.amount);
         setBalance(currentBalance);
       } catch (error) {
         console.error('Error calculating wallet balance:', error);
         setBalance(new JSBigInt(0));
       }
     } else {
-      console.log('BALANCE DEBUG: No wallet available, setting balance to 0');
       setBalance(new JSBigInt(0));
     }
   };
+
 
   return (
     <WalletContext.Provider

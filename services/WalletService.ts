@@ -1,3 +1,6 @@
+/**
+*     Copyright (c) 2025, Acktarius 
+*/
 import * as Crypto from 'expo-crypto';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
@@ -16,7 +19,10 @@ import { WalletWatchdogRN } from '../model/WalletWatchdogRN';
 import { IWalletOperations } from './interfaces/IWalletOperations';
 import { dependencyContainer } from './DependencyContainer';
 import { TransactionsExplorer } from '../model/TransactionsExplorer';
+import { SmartMessageParser } from '../model/SmartMessage';
 import { config, logDebugMsg } from '../config';
+import { JSBigInt } from '../lib/biginteger';
+import { Platform, BackHandler } from 'react-native';
 
 export class WalletService implements IWalletOperations {
   private static readonly ENCRYPTION_KEY = 'wallet_encryption_key';
@@ -27,6 +33,12 @@ export class WalletService implements IWalletOperations {
   // Session flags (loaded from storage)
   private static flag_prompt_main_tab = false;
   private static flag_prompt_wallet_tab = false;
+  
+  // Global callback for balance refresh (pragmatic approach)
+  private static balanceRefreshCallback: (() => void) | null = null;
+  
+  // Global callback for shared keys refresh (pragmatic approach)
+  private static sharedKeysRefreshCallback: (() => void) | null = null;
 
   // Register this service in the dependency container
   static registerInContainer(): void {
@@ -98,6 +110,93 @@ export class WalletService implements IWalletOperations {
 
   static getCachedWallet(): Wallet | null {
     return this.wallet;
+  }
+
+  // Pragmatic approach: Register a callback for balance refresh
+  static registerBalanceRefreshCallback(callback: () => void): void {
+    this.balanceRefreshCallback = callback;
+    console.log('WalletService: Balance refresh callback registered');
+  }
+
+  // Pragmatic approach: Trigger balance refresh directly
+  static triggerBalanceRefresh(): void {
+    if (this.balanceRefreshCallback) {
+      console.log('WalletService: Triggering balance refresh via callback');
+      this.balanceRefreshCallback();
+    } else {
+      console.log('WalletService: No balance refresh callback registered');
+    }
+  }
+
+  // Pragmatic approach: Register a callback for shared keys refresh
+  static registerSharedKeysRefreshCallback(callback: () => void): void {
+    this.sharedKeysRefreshCallback = callback;
+    console.log('WalletService: Shared keys refresh callback registered');
+  }
+
+  // Pragmatic approach: Trigger shared keys refresh directly
+  static triggerSharedKeysRefresh(): void {
+    if (this.sharedKeysRefreshCallback) {
+      console.log('WalletService: Triggering shared keys refresh via callback');
+      this.sharedKeysRefreshCallback();
+    } else {
+      console.log('WalletService: No shared keys refresh callback registered');
+    }
+  }
+
+  // Global janitor function - call this after processing transactions
+  static async janitor(): Promise<void> {
+    try {
+      console.log('WalletService: janitor() called - performing maintenance');
+      
+      // 1. Save wallet to storage (persist any changes)
+      await this.saveWallet('janitor maintenance');
+      
+      // 2. Trigger balance refresh directly
+      this.triggerBalanceRefresh();
+      
+      // 3. Trigger shared keys refresh (for smart message updates)
+      this.triggerSharedKeysRefresh();
+      
+      console.log('WalletService: janitor() completed');
+    } catch (error) {
+      console.error('WalletService: Error in janitor():', error);
+    }
+  }
+
+  // Instance method for IWalletOperations interface
+  async janitor(): Promise<void> {
+    return WalletService.janitor();
+  }
+
+  // Instance method for IWalletOperations interface
+  triggerBalanceRefresh(): void {
+    return WalletService.triggerBalanceRefresh();
+  }
+
+  // Instance method for IWalletOperations interface
+  async sendSmartMessage(action: 'create' | 'delete', sharedKey: any, paymentId?: string): Promise<{success: boolean, txHash?: string}> {
+    return WalletService.sendSmartMessage(action, sharedKey, paymentId);
+  }
+
+  // Instance method for IWalletOperations interface
+  getWalletBalance(): number {
+    return WalletService.wallet?.amount || 0;
+  }
+
+  // Instance method for IWalletOperations interface
+  isWalletLocal(): boolean {
+    return WalletService.wallet?.isLocal() || true;
+  }
+
+  private static async hasAnyWalletData(): Promise<boolean> {
+    try {
+      // Use WalletStorageManager to check if wallet data exists
+      return await WalletStorageManager.hasAnyWalletData();
+    } catch (error) {
+      console.error('Error checking for wallet data:', error);
+      return false;
+    }
   }
 
   static async authenticateUser(): Promise<boolean> {
@@ -194,23 +293,32 @@ export class WalletService implements IWalletOperations {
         loadedFromStorage: wallet !== this.wallet
       });
       
-      // Debug wallet keys after load
-      if (wallet && wallet.keys) {
-        console.log('WALLET SERVICE: Wallet keys after load:', {
-          hasSpendKey: !!wallet.keys.priv?.spend,
-          hasViewKey: !!wallet.keys.priv?.view,
-          spendKey: wallet.keys.priv?.spend,
-          viewKey: wallet.keys.priv?.view
-        });
-      }
-      
       // If no wallet exists at all, create a local-only wallet first
       // BUT: If this is due to authentication failure, we should NOT create a new wallet
       // as this would overwrite the existing blockchain wallet
       if (!wallet) {
-        console.log('WALLET SERVICE: No wallet loaded - this might be due to authentication failure');
-        console.log('WALLET SERVICE: Creating new local wallet (this will overwrite existing wallet if authentication failed)');
-        wallet = await this.createLocalWallet();
+        console.log('WALLET SERVICE: No wallet loaded - checking if this is a new user or auth failure...');
+        
+        // Check if this is a new user (no data) vs auth failure (data exists but can't decrypt)
+        const hasAnyWalletData = await this.hasAnyWalletData();
+        if (hasAnyWalletData) {
+          console.log('WALLET SERVICE: Wallet data exists but authentication failed - EXITING APP for security');
+          // Exit app immediately - authentication failure
+          if (Platform.OS === 'android') {
+            BackHandler.exitApp();
+          } else {
+            // iOS doesn't allow programmatic exit
+            Alert.alert(
+              'Authentication Failed',
+              'Unable to access wallet. Please restart the app.',
+              [{ text: 'OK', onPress: () => {} }]
+            );
+          }
+          throw new Error('Authentication failed - app exiting');
+        } else {
+          console.log('WALLET SERVICE: No wallet data exists - creating new local wallet for new user');
+          wallet = await this.createLocalWallet();
+        }
       }
       
       // Set the wallet instance for future calls
@@ -778,7 +886,7 @@ export class WalletService implements IWalletOperations {
         lastMaximumHeight: blockchainHeight,
         transactionsInQueue: blockList ? blockList.getTxQueue().getSize() : 0,
         //isWalletSynced: lastBlockLoading >= blockchainHeight - 1 // Allow 1 block tolerance
-        isWalletSynced: lastBlockLoading >= blockchainHeight && this.wallet.lastHeight >= blockchainHeight
+        isWalletSynced: blockchainHeight > 0 && lastBlockLoading >= blockchainHeight && this.wallet.lastHeight >= blockchainHeight
       };
     }
     return {
@@ -931,12 +1039,6 @@ export class WalletService implements IWalletOperations {
         throw new Error('Wallet must be synced to broadcast');
       }
 
-      // Calculate minimum balance needed: messageTxAmount + nodeFee + coinFee
-      const minBalance = config.messageTxAmount + config.remoteNodeFee + config.coinFee;
-      if (this.wallet.amount < minBalance) {
-        throw new Error('Insufficient balance for broadcast');
-      }
-
       console.log('WalletService: Broadcasting 2FA code', {
         recipientAddress: recipientAddress.substring(0, 10) + '...',
         serviceName,
@@ -979,12 +1081,22 @@ export class WalletService implements IWalletOperations {
 
       const ttl = 1; // Minimum 1 minute
       
-      // Create destination with message amount
-      const amountToSend = config.messageTxAmount;
-      const destination = [{ address: recipientAddress, amount: amountToSend }];
+      // Create destination with message amount (following webWallet pattern)
+      const amountToSend = config.messageTxAmount.toJSValue(); // Convert JSBigInt to number
+      const mixinToSendWith = config.defaultMixin;
       
-      // Get fee address from session node for remote node fee
+      let destination: any[] = [{ address: recipientAddress, amount: amountToSend }];
+      
+      // Get fee address from session node for remote node fee (following webWallet pattern)
       const remoteFeeAddress = await this.blockchainExplorer.getSessionNodeFeeAddress();
+      
+      if (remoteFeeAddress !== this.wallet.getPublicAddress()) {
+        if (remoteFeeAddress !== '') {
+          destination.push({ address: remoteFeeAddress, amount: config.remoteNodeFee.toJSValue() });
+        } else {
+          destination.push({ address: config.donationAddress, amount: config.remoteNodeFee.toJSValue() });
+        }
+      }
       
       // Set up global logDebugMsg for TransactionsExplorer
       (global as any).logDebugMsg = logDebugMsg;
@@ -999,19 +1111,26 @@ export class WalletService implements IWalletOperations {
           return this.blockchainExplorer!.getRandomOuts(amounts, numberOuts);
         },
         (amount: number, feesAmount: number): Promise<void> => {
-          // Check if wallet has enough balance
           if (amount + feesAmount > this.wallet!.availableAmount(blockchainHeight)) {
             throw new Error('Insufficient balance for transaction');
           }
           return Promise.resolve();
         },
-        config.defaultMixin,
+        mixinToSendWith || 5,
         message,
-        ttl
+        ttl,
+        "regular",
+        0
       );
 
-      // Send transaction
+      // Send transaction (following webWallet pattern)
       await this.blockchainExplorer.sendRawTx(rawTxData.raw.raw);
+      
+      // Check if sendRawTx actually succeeded
+      /*if (!sendResult || sendResult.status !== 'OK') {
+        throw new Error(`Failed to send raw transaction: ${sendResult?.status || 'Unknown error'}`);
+      }
+      */
       
       // Save transaction private key
       this.wallet.addTxPrivateKeyWithTxHash(rawTxData.raw.hash, rawTxData.raw.prvkey);
@@ -1026,6 +1145,175 @@ export class WalletService implements IWalletOperations {
     } catch (error) {
       console.error('WalletService: Error broadcasting code:', error);
       throw new Error(`Failed to broadcast code: ${error.message}`);
+    }
+  }
+
+  /**
+   * Send smart message to blockchain
+   * @param action - Action to perform ('create' or 'delete')
+   * @param paymentId - Payment ID to use for the transaction
+   * @param sharedKey - SharedKey object to process
+   * @returns Promise resolving to {success: boolean, txHash?: string}
+   */
+  static async sendSmartMessage(
+    action: 'create' | 'delete',
+    sharedKey: SharedKey,
+    paymentId: string = ''
+  ): Promise<{success: boolean, txHash?: string}> {
+    try {
+      // Validate wallet state
+      if (!this.wallet || this.wallet.isLocal()) {
+        throw new Error('Wallet must be blockchain-enabled to send smart messages');
+      }
+
+      if (!this.blockchainExplorer) {
+        this.blockchainExplorer = new BlockchainExplorerRpcDaemon();
+        await this.blockchainExplorer.initialize();
+      }
+
+      // Check if wallet is synced
+      const syncStatus = this.getWalletSyncStatus();
+      if (!syncStatus.isWalletSynced) {
+        throw new Error('Wallet must be synced to send smart messages');
+      }
+
+      // Calculate minimum balance needed: messageTxAmount + nodeFee + coinFee
+      const minBalance = config.messageTxAmount.add(config.remoteNodeFee).add(config.coinFee);
+      const walletAmountBigInt = new JSBigInt(this.wallet.amount.toString());
+      if (walletAmountBigInt.compare(minBalance) < 0) {
+        throw new Error('Insufficient balance for smart message');
+      }
+
+      console.log('WalletService: Sending smart message', {
+        action,
+        sharedKeyName: sharedKey.name,
+        sharedKeyHash: sharedKey.hash || 'new'
+      });
+
+      // Get blockchain height
+      const blockchainHeight = await this.blockchainExplorer.getHeight();
+      
+      // Create smart message command using SmartMessageParser methods
+      let smartMessageResult: any;
+      
+      if (action === 'create') {
+        // Use SmartMessageParser.encode2FA() for encoding create command
+        smartMessageResult = await SmartMessageParser.encode2FA('c', sharedKey.name, sharedKey.issuer, sharedKey.secret);
+      } else if (action === 'delete') {
+        // Use SmartMessageParser.encode2FA() for encoding delete command
+        if (!sharedKey.hash) {
+          throw new Error('Cannot delete shared key without hash');
+        }
+        smartMessageResult = await SmartMessageParser.encode2FA('d', sharedKey.hash);
+      } else {
+        throw new Error(`Invalid smart message action: ${action}`);
+      }
+
+      // Check if smart message creation was successful
+      if (!smartMessageResult.success) {
+        throw new Error(`Smart message creation failed: ${smartMessageResult.message}`);
+      }
+
+      // Use the encoded message from the result
+      const smartMessage = smartMessageResult.data;
+
+      console.log('WalletService: Smart message content:', smartMessage);
+      console.log('WalletService: Smart message length:', smartMessage.length);
+      console.log('WalletService: Smart message type:', typeof smartMessage);
+
+      // Smart message specific parameters (following webWallet pattern)
+      const amountToSend = config.messageTxAmount.toJSValue(); // Convert JSBigInt to number
+      const destinationAddress = this.wallet.getPublicAddress();
+      const mixinToSendWith = config.defaultMixin;
+      
+      let destination: any[] = [{ address: destinationAddress, amount: amountToSend }];
+      
+      // Get fee address from session node for remote node fee (following webWallet pattern)
+      const remoteFeeAddress = await this.blockchainExplorer.getSessionNodeFeeAddress();
+      
+      if (remoteFeeAddress !== this.wallet.getPublicAddress()) {
+        if (remoteFeeAddress !== '') {
+          destination.push({ address: remoteFeeAddress, amount: config.remoteNodeFee.toJSValue() });
+        } else {
+          destination.push({ address: config.donationAddress, amount: config.remoteNodeFee.toJSValue() });
+        }
+      }
+
+      // Set up global logDebugMsg for TransactionsExplorer
+      (global as any).logDebugMsg = logDebugMsg;
+
+      // Create transaction (following webWallet pattern exactly)
+      const rawTxData = await TransactionsExplorer.createTx(
+        destination,
+        paymentId,
+        this.wallet,
+        blockchainHeight,
+        (amounts: number[], numberOuts: number): Promise<any> => {
+          return this.blockchainExplorer!.getRandomOuts(amounts, numberOuts);
+        },
+        (amount: number, feesAmount: number): Promise<void> => {
+          if (amount + feesAmount > this.wallet!.availableAmount(blockchainHeight)) {
+            throw new Error('Insufficient balance for transaction');
+          }
+          return Promise.resolve();
+        },
+        mixinToSendWith || 5,
+        smartMessage,
+        0, // TTL
+        "regular",
+        0
+      );
+
+      // Send transaction (following webWallet pattern)
+      await this.blockchainExplorer.sendRawTx(rawTxData.raw.raw);
+      
+      // Save transaction private key (following webWallet pattern)
+      this.wallet.addTxPrivateKeyWithTxHash(rawTxData.raw.hash, rawTxData.raw.prvkey);
+
+      // Update shared key with transaction hash ONLY after successful send
+      if (action === 'create') {
+        sharedKey.hash = rawTxData.raw.hash;
+        console.log('WalletService: Set sharedKey.hash to:', rawTxData.raw.hash, '(after successful send)');
+      }
+
+      // Force mempool check (following webWallet pattern)
+      if (this.walletWatchdog) {
+        this.walletWatchdog.checkMempool();
+      }
+
+      console.log('WalletService: Smart message sent successfully', {
+        action,
+        txHash: rawTxData.raw.hash,
+        sharedKeyName: sharedKey.name
+      });
+
+      return {
+        success: true,
+        txHash: rawTxData.raw.hash
+      };
+
+    } catch (error) {
+      console.error('WalletService: Error sending smart message:', error);
+      
+      // Provide user-friendly error messages
+      let errorMessage = 'Failed to send smart message';
+      
+      if (error.message.includes('balance_too_low')) {
+        errorMessage = 'Insufficient balance for smart message';
+      } else if (error.message.includes('invalid')) {
+        errorMessage = error.message;
+      } else if (error.message.includes('Address')) {
+        errorMessage = error.message;
+      } else if (error.message.includes('Amount')) {
+        errorMessage = error.message;
+      } else {
+        errorMessage = `Smart message failed: ${error.message}`;
+      }
+      
+      return {
+        success: false,
+        txHash: undefined // No hash since transaction wasn't sent successfully
+      };
     }
   }
 
@@ -1084,6 +1372,19 @@ export class WalletService implements IWalletOperations {
         address: recipientAddress,
         amount: amount
       }];
+
+      // Get fee address from session node for remote node fee
+      const remoteFeeAddress = await this.blockchainExplorer.getSessionNodeFeeAddress();
+      
+      // Add remote node fee as second destination (dsts[1])
+      // Only add if we have a remote fee address AND it's not our own wallet
+      if (remoteFeeAddress && remoteFeeAddress !== this.wallet.getPublicAddress()) {
+        destinations.push({ address: remoteFeeAddress, amount: config.remoteNodeFee });
+      } else if (!remoteFeeAddress) {
+        // Default to donation address if no remote node fee address provided
+        destinations.push({ address: config.donationAddress, amount: config.remoteNodeFee });
+      }
+      // If remoteFeeAddress === our wallet address, skip adding fee (we're operating the node)
 
       // Get mixouts callback - this gets the random outputs needed for privacy
       const obtainMixOutsCallback = async (amounts: number[], nbOutsNeeded: number) => {
@@ -1149,6 +1450,13 @@ export class WalletService implements IWalletOperations {
       if (broadcastResult.status !== 'OK') {
         throw new Error(`Transaction broadcast failed: ${broadcastResult.status}`);
       }
+
+      this.wallet.addTxPrivateKeyWithTxHash(txHash, transactionResult.raw.prvkey);
+
+      // Force mempool check
+      if (this.walletWatchdog) {
+        this.walletWatchdog.checkMempool();
+      } 
 
       console.log('WalletService: Transaction sent successfully, hash:', txHash);
 

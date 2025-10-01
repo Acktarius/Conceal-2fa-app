@@ -1,3 +1,6 @@
+/**
+*     Copyright (c) 2025, Acktarius 
+*/
 // JSBigInt Polyfill for React Native
 // This extends the original BigInteger library from biginteger.js with additional convenience methods
 

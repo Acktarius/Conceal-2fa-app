@@ -1,15 +1,46 @@
+/**
+*     Copyright (c) 2025, Acktarius 
+*/
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import { Platform } from 'react-native';
 import { SharedKey } from '../model/Transaction';
 import { WalletStorageManager } from './WalletStorageManager';
+import { IStorageService } from './interfaces/IStorageService';
+import { dependencyContainer } from './DependencyContainer';
 
-export class StorageService {
+export class StorageService implements IStorageService {
   private static readonly SHARED_KEYS_KEY = 'shared_keys';
   private static readonly WALLET_KEY = 'wallet_data';
   private static readonly SETTINGS_KEY = 'app_settings';
   private static readonly ENCRYPTION_SALT = 'conceal_shared_keys_salt';
+
+  // Register this service in the dependency container
+  static registerInContainer(): void {
+    dependencyContainer.registerStorageService(new StorageService());
+  }
+
+  // Instance methods for IStorageService interface
+  async getSharedKeys(): Promise<SharedKey[]> {
+    return StorageService.getSharedKeys();
+  }
+
+  async saveSharedKeys(sharedKeys: SharedKey[]): Promise<void> {
+    return StorageService.saveSharedKeys(sharedKeys);
+  }
+
+  async getSettings(): Promise<any> {
+    return StorageService.getSettings();
+  }
+
+  async saveSettings(settings: any): Promise<void> {
+    return StorageService.saveSettings(settings);
+  }
+
+  async clearAll(): Promise<void> {
+    return StorageService.clearAll();
+  }
 
   // TEMPORARY: Simple encryption for shared keys
   // TODO: Remove these functions when shared keys are integrated into transactions
@@ -74,12 +105,15 @@ export class StorageService {
           fee: item.fee || 0,
           extraType: item.extraType || '',
           revokeInQueue: item.revokeInQueue || false,
+          toBePush: item.toBePush || false, // Include toBePush property
           name: item.name || '',
           issuer: item.issuer || '',
           secret: item.secret || '',
           code: item.code || '',
           timeRemaining: item.timeRemaining || 0,
-          timeStampSharedKeyCreate: item.timeStampSharedKeyCreate || Date.now()
+          timeStampSharedKeyCreate: item.timeStampSharedKeyCreate || Date.now(),
+          isLocal: item.isLocal !== undefined ? item.isLocal : true, // Default to true for backward compatibility
+          unknownSource: item.unknownSource || false // Default to false for backward compatibility
         });
         return sharedKey;
       });
@@ -172,7 +206,8 @@ export class StorageService {
           name: key.name,
           issuer: key.issuer,
           hash: key.hash,
-          isLocal: key.isLocalOnly()
+          isLocal: key.isLocal,
+          unknownSource: key.unknownSource
         });
       });
       

@@ -1,4 +1,6 @@
 /**
+ *     Copyright (c) 2025, Acktarius 
+ * 
  * Comprehensive icon service for matching service names to appropriate icons
  * Uses multiple icon families from @expo/vector-icons with fallback logic
  */
@@ -393,18 +395,8 @@ export class IconService {
       return null;
     };
     
-    // Step 1: Try exact service name match
-    let result = tryMatch(name);
-    if (result) return result;
-    
-    // Step 2: Try cleaned service name (remove email addresses, etc.)
-    const cleanedServiceName = extractMainServiceName(name);
-    if (cleanedServiceName !== name) {
-      result = tryMatch(cleanedServiceName);
-      if (result) return result;
-    }
-    
-    // Step 3: Try issuer name if provided
+    // Step 1: Try issuer name first (most reliable for service identification)
+    let result: IconInfo | null = null;
     if (issuer && issuer !== name) {
       result = tryMatch(issuer);
       if (result) return result;
@@ -415,6 +407,17 @@ export class IconService {
         result = tryMatch(cleanedIssuerName);
         if (result) return result;
       }
+    }
+    
+    // Step 2: Try exact service name match
+    result = tryMatch(name);
+    if (result) return result;
+    
+    // Step 3: Try cleaned service name (remove email addresses, etc.)
+    const cleanedServiceName = extractMainServiceName(name);
+    if (cleanedServiceName !== name) {
+      result = tryMatch(cleanedServiceName);
+      if (result) return result;
     }
     
     // Step 4: Try individual words from service name

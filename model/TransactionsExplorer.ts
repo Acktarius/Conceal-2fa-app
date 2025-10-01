@@ -73,6 +73,8 @@ declare var config: {
    import { Currency } from "./Currency";
    import { decode as varintDecode } from "./Varint";
    import { logDebugMsg } from "../config";
+   import { SmartMessageParser } from "./SmartMessage";
+   import { SmartMessageService } from "../services/SmartMessageService";
   
    export const TX_EXTRA_PADDING_MAX_COUNT = 255;
    export const TX_EXTRA_NONCE_MAX_COUNT = 255;
@@ -168,22 +170,22 @@ declare var config: {
        return extras;
      }
   
-     static isMinerTx(rawTransaction: RawDaemon_Transaction) {
-       if (!Array.isArray(rawTransaction.vout) || rawTransaction.vin.length > 0) {
-         return false;
-       }
-  
-       if (!Array.isArray(rawTransaction.vout) || rawTransaction.vout.length === 0) {
-         console.error('Weird tx !', rawTransaction);
-         return false;
-       }
-  
-       try {
-         return rawTransaction.vout[0].amount !== 0;
-       } catch (err) {
-         return false;
-       }
-     }
+    static isMinerTx(rawTransaction: RawDaemon_Transaction) {
+      if (!Array.isArray(rawTransaction.vout) || rawTransaction.vin.length > 0) {
+        return false;
+      }
+
+      if (!Array.isArray(rawTransaction.vout) || rawTransaction.vout.length === 0) {
+        console.error('Weird tx !', rawTransaction);
+        return false;
+      }
+
+      try {
+        return rawTransaction.vout[0].amount !== 0;
+      } catch (err) {
+        return false;
+      }
+    }
   
      static ownsTx(rawTransaction: RawDaemon_Transaction, wallet: Wallet): Boolean {
        let tx_pub_key = '';
@@ -203,6 +205,15 @@ declare var config: {
          return false;
        }
   
+       // Check if transaction has a message sent to us
+       let hasMessageToUs = false;
+       for (let extra of txExtras) {
+         if (extra.type === TX_EXTRA_MESSAGE_TAG) {
+           hasMessageToUs = true;
+           break;
+         }
+       }
+  
        for (let extra of txExtras) {
          if (extra.type === TX_EXTRA_TAG_PUBKEY) {
            for (let i = 0; i < 32; ++i) {
@@ -213,7 +224,7 @@ declare var config: {
        }
   
        if (tx_pub_key === '') {
-         console.error(`tx_pub_key === null`, rawTransaction.height, rawTransaction.hash);
+        console.error(`tx_pub_key === null`, rawTransaction.height, rawTransaction.hash);
          return false;
        }
   
@@ -222,19 +233,9 @@ declare var config: {
        let derivation = null;
        try {
          derivation = CnNativeBride.generate_key_derivation(tx_pub_key, wallet.keys.priv.view);
-         if (rawTransaction.height >= 1901870 && rawTransaction.height <= 1901875) {
-           console.log(`TransactionsExplorer: Generated derivation for height ${rawTransaction.height}:`, derivation ? 'SUCCESS' : 'FAILED');
-          console.log(`TransactionsExplorer: Wallet keys - View: ${wallet.keys.priv.view ? 'EXISTS' : 'MISSING'}, Spend: ${wallet.keys.priv.spend ? 'EXISTS' : 'MISSING'}`);
-          console.log(`TransactionsExplorer: Transaction pub key: ${tx_pub_key}`);
-          console.log(`TransactionsExplorer: Wallet view key: ${wallet.keys.priv.view}`);
-          console.log(`TransactionsExplorer: Wallet private spend key: ${wallet.keys.priv.spend}`);
-          console.log(`TransactionsExplorer: Wallet public spend key: ${wallet.keys.pub.spend}`);
-         }
+         
        } catch (e) {
          console.error('UNABLE TO CREATE DERIVATION', e);
-         if (rawTransaction.height >= 1901870 && rawTransaction.height <= 1901875) {
-           console.error(`TransactionsExplorer: Derivation failed for height ${rawTransaction.height}:`, e);
-         }
          return false;
        }
   
@@ -251,13 +252,8 @@ declare var config: {
           let publicEphemeral = CnNativeBride.derive_public_key(derivation, keyIndex, wallet.keys.pub.spend);
            if (txout_k.key == publicEphemeral) {
              logDebugMsg("Found our tx...");
-             if (rawTransaction.height >= 1901870 && rawTransaction.height <= 1901875) {
-               console.log(`TransactionsExplorer: MATCH FOUND at height ${rawTransaction.height}! Key match: ${txout_k.key} == ${publicEphemeral}`);
-             }
+             console.log('TransactionsExplorer: MATCH FOUND! We own this transaction:');
              return true;
-           }
-           if (rawTransaction.height >= 1901870 && rawTransaction.height <= 1901875) {
-             console.log(`TransactionsExplorer: Key mismatch at height ${rawTransaction.height}: ${txout_k.key} != ${publicEphemeral}`);
            }
            ++keyIndex;
          } else if (out.target.type == "03" && (typeof txout_k.keys !== 'undefined')) {
@@ -318,14 +314,30 @@ declare var config: {
         }
       }     
   
-       return false;
+       // If transaction has a message sent to us, we own it (even if no ins/outs)
+       console.log('TransactionsExplorer: Final ownsTx result:', {
+         hash: rawTransaction.hash,
+         height: rawTransaction.height,
+         hasMessageToUs,
+         result: hasMessageToUs
+       });
+       return hasMessageToUs;
      }
   
      static decryptMessage(index: number, txPubKey: string, recepientSecretSpendKey: string, rawMessage: string): string | any {
+       console.log('decryptMessage: Starting decryption with params:', {
+         index,
+         txPubKey: txPubKey.substring(0, 10) + '...',
+         recepientSecretSpendKey: recepientSecretSpendKey.substring(0, 10) + '...',
+         rawMessageLength: rawMessage.length
+       });
+       
        let decryptedMessage: string = '';
        let mlen: number = rawMessage.length / 2;
   
+       console.log('decryptMessage: Message length check:', { mlen, required: TX_EXTRA_MESSAGE_CHECKSUM_SIZE });
        if (mlen < TX_EXTRA_MESSAGE_CHECKSUM_SIZE) {    
+          console.log('decryptMessage: Message too short, returning null');
           return null;
        }    
   
@@ -333,7 +345,7 @@ declare var config: {
        try {
           derivation = CnNativeBride.generate_key_derivation(txPubKey, recepientSecretSpendKey);
         } catch (e) {
-          console.error('UNABLE TO CREATE DERIVATION', e);
+          console.error('decryptMessage: UNABLE TO CREATE DERIVATION', e);
           return null;
        }
   
@@ -366,7 +378,8 @@ declare var config: {
          }
        }
   
-       return decryptedMessage.slice(0, -TX_EXTRA_MESSAGE_CHECKSUM_SIZE);
+       const result = decryptedMessage.slice(0, -TX_EXTRA_MESSAGE_CHECKSUM_SIZE);
+       return result;
      }
   
      static parse(rawTransaction: RawDaemon_Transaction, wallet: Wallet): TransactionData | null {
@@ -433,10 +446,13 @@ declare var config: {
          }
          else if (extra.type === TX_EXTRA_MESSAGE_TAG) {
             // TODO: Only extract message if not a remote node fee transaction
+           console.log('TransactionsExplorer: Found message in extra at index:', extraIndex);
            for (let i = 0; i < extra.data.length; ++i) {
              rawMessage += String.fromCharCode(extra.data[i]);
            }
            rawMessage = CnUtils.bintohex(rawMessage);
+           console.log('TransactionsExplorer: Extracted raw message:', rawMessage);
+           console.log('TransactionsExplorer: Using extraIndex for decryption:', extraIndex);
          }
          else if (extra.type === TX_EXTRA_TTL) {
                     let rawTTL: string = '';
@@ -650,22 +666,23 @@ declare var config: {
          }
        }
   
-       if (outs.length > 0 || ins.length) {
+       // Process transaction if it has outputs, inputs, OR a message
+       if (outs.length > 0 || ins.length || rawMessage !== '') {
          transactionData = new TransactionData();
          transaction = new Transaction();
-  
+
          if (typeof rawTransaction.height !== 'undefined') transaction.blockHeight = rawTransaction.height;
          if (typeof rawTransaction.ts !== 'undefined') transaction.timestamp = rawTransaction.ts;
          if (typeof rawTransaction.hash !== 'undefined') transaction.hash = rawTransaction.hash;
-  
+
          transaction.txPubKey = tx_pub_key;
-  
+
          if (paymentId !== null)
            transaction.paymentId = paymentId;
          if (encryptedPaymentId !== null) {
            transaction.paymentId = Cn.decrypt_payment_id(encryptedPaymentId, tx_pub_key, wallet.keys.priv.view);
          }
-  
+
          if (rawTransaction.vin[0].type === 'ff') {
            transaction.fees = 0;
          } else {
@@ -682,17 +699,28 @@ declare var config: {
          // fill the transaction info
          transaction.outs = outs;
          transaction.ins = ins;
-  
+
          // assing transaction, deposits etc... to wrapper
          transactionData.transaction = transaction;
          transactionData.withdrawals = withdrawals;
          transactionData.deposits = deposits;
-  
+
          if (rawMessage !== '') {
            // decode message
-           try {
+           try {             
              let message: string = this.decryptMessage(extraIndex, tx_pub_key, wallet.keys.priv.spend, rawMessage);
              transaction.message = message;
+             
+             console.log('TransactionsExplorer: Message decrypted successfully:', message);
+             
+            // Check if this is a smart message and process it
+            if (message && message !== 'null') {
+              console.log('TransactionsExplorer: Calling processSmartMessage...');
+              this.processSmartMessage(message, wallet, rawTransaction.hash);
+              console.log('TransactionsExplorer: processSmartMessage completed');
+            } else {
+              console.log('TransactionsExplorer: Message is null or empty, skipping smart message processing');
+            }
            } catch (e) {
              console.error('ERROR IN DECRYPTING MESSAGE: ', e);
            }
@@ -1268,5 +1296,47 @@ declare var config: {
       
       return mixOuts;
     }
+
+    /**
+     * Process smart message from transaction
+     */
+    static processSmartMessage(message: string, wallet: Wallet, transactionHash?: string): void {
+      try {
+        if (!SmartMessageParser.isSmartMessage(message)) {
+          return; // Not a smart message
+        }
+
+        console.log('TransactionsExplorer: Processing smart message:', message);
+        console.log('TransactionsExplorer: Raw smart message content:', message);
+
+        const smartMessage = SmartMessageParser.parse(message);
+        if (!smartMessage) {
+          console.error('TransactionsExplorer: Failed to parse smart message');
+          return;
+        }
+
+        console.log('TransactionsExplorer: Parsed smart message:', smartMessage);
+
+        // Process the smart message
+        SmartMessageParser.process(smartMessage, wallet).then(result => {
+          if (result.success) {
+            console.log('TransactionsExplorer: Smart message processed successfully:', result.message);
+            
+            // Handle the result data based on the smart message type
+            if (result.data) {
+              SmartMessageService.handleSmartMessageResult(result.data, smartMessage, transactionHash);
+            }
+          } else {
+            console.error('TransactionsExplorer: Smart message processing failed:', result.message);
+          }
+        }).catch(error => {
+          console.error('TransactionsExplorer: Error processing smart message:', error);
+        });
+
+      } catch (error) {
+        console.error('TransactionsExplorer: Error in processSmartMessage:', error);
+      }
+    }
+
   
    }

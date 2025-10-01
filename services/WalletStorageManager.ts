@@ -1,3 +1,6 @@
+/**
+*     Copyright (c) 2025, Acktarius 
+*/
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -363,12 +366,19 @@ export class WalletStorageManager {
     }
   }
 
-  static async hasStoredWallet(): Promise<boolean> {
+  static async hasAnyWalletData(): Promise<boolean> {
     try {
-      const walletData = await this.getWallet();
-      return walletData !== null;
+      let data: string | null;
+      if (Platform.OS === 'web') {
+        data = localStorage.getItem(this.WALLET_KEY);
+      } else {
+        data = await AsyncStorage.getItem(this.WALLET_KEY);
+      }
+      
+      // Return true if any data exists (encrypted or not)
+      return data !== null;
     } catch (error) {
-      console.error('Error checking for stored wallet:', error);
+      console.error('Error checking for wallet data:', error);
       return false;
     }
   }

@@ -1,3 +1,6 @@
+/**
+*     Copyright (c) 2025, Acktarius 
+*/
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -82,6 +85,17 @@ export default function WalletScreen() {
       setSyncStatus(null);
     }
   }, [wallet, refreshCounter]);
+
+  // Register balance refresh callback for automatic updates
+  useEffect(() => {
+    // Register this screen's refreshBalance function with WalletService
+    WalletService.registerBalanceRefreshCallback(refreshBalance);
+    
+    // Cleanup: unregister when component unmounts
+    return () => {
+      WalletService.registerBalanceRefreshCallback(() => {}); // Clear callback
+    };
+  }, [refreshBalance]);
 
   // Check wallet and show upgrade prompt if needed
   useEffect(() => {

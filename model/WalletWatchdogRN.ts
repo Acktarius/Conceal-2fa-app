@@ -2,6 +2,7 @@
  *     Copyright (c) 2018-2020, ExploShot
  *     Copyright (c) 2018-2020, The Qwertycoin Project
  *     Copyright (c) 2018-2025, The Conceal Network, Conceal Devs
+ *     Copyright (c) 2025, Acktarius 
  *
  *     All rights reserved.
  *     Redistribution and use in source and binary forms, with or without modification,
@@ -35,6 +36,8 @@ import {Transaction, TransactionData, Deposit} from "./Transaction";
 import {TransactionsExplorer} from "./TransactionsExplorer";
 import { config } from "../config";
 import { dependencyContainer } from "../services/DependencyContainer";
+import { IWalletOperations } from "../services/interfaces/IWalletOperations";
+import { CronBuddy } from "../services/CronBuddy";
 
 // Smart thread management with fallback for Expo Go compatibility
 let ThreadManager: any = null;
@@ -149,6 +152,14 @@ class TxQueueRN {
             this.wallet.addNew(txDataObject.transaction);
             this.wallet.addDeposits(txDataObject.deposits);
             this.wallet.addWithdrawals(txDataObject.withdrawals);
+            
+            // Call janitor after adding transaction
+            // Use dependency injection to avoid circular dependency
+        const walletOperations = dependencyContainer.getWalletOperations();
+        if (walletOperations) {
+          walletOperations.janitor();
+        }
+          
           }
 
           // Increase the number of transactions we actually added to wallet
@@ -813,6 +824,7 @@ export class WalletWatchdogRN {
       for (const rawTx of transactions) {
         // Debug: Check if this transaction belongs to us
         const isOwned = TransactionsExplorer.ownsTx(rawTx, this.wallet);
+        
         if (isOwned) {
           console.log(`WalletWatchdogRN: Found owned transaction at height ${rawTx.height}, hash: ${rawTx.hash}`);
           // Process the transaction
@@ -822,6 +834,13 @@ export class WalletWatchdogRN {
             this.wallet.addDeposits(txData.deposits);
             this.wallet.addWithdrawals(txData.withdrawals);
             console.log(`WalletWatchdogRN: Successfully processed owned transaction at height ${rawTx.height}`);
+            
+            // Call janitor after adding transaction
+            // Use dependency injection to avoid circular dependency
+        const walletOperations = dependencyContainer.getWalletOperations();
+        if (walletOperations) {
+          walletOperations.janitor();
+        }
           }
         } else {
           // Debug: Log transactions that are NOT owned (for debugging)
@@ -927,6 +946,7 @@ export class WalletWatchdogRN {
 
           // Get the current height of the chain
           let height = await self.explorer.getHeight();
+          console.log('WalletWatchdogRN: Sync loop - blockchain height:', height, 'wallet lastHeight:', self.wallet.lastHeight, 'lastMaximumHeight:', self.lastMaximumHeight);
 
           // Make sure we are not ahead of chain
           if (self.lastBlockLoading > height) {
@@ -957,13 +977,20 @@ export class WalletWatchdogRN {
             self.lastMaximumHeight = height;
           } else {
             if (self.wallet.lastHeight >= self.lastMaximumHeight) {
+              // Wallet is synced - start CronBuddy if not already started
+              if (!CronBuddy.isActive()) {
+                CronBuddy.start();
+              }
               await new Promise(r => setTimeout(r, 1000));
               continue;
+            } else {
+              self.blockCounter = 0; // Reset counter for small sync jobs
             }
           }
 
           // Get a free worker and check if we have idle blocks first
           let freeWorker: SyncWorkerRN | null = self.getFreeWorker();
+          console.log('WalletWatchdogRN: Free worker available:', freeWorker !== null);
 
           if (freeWorker) {
             // First check if we have any stale ranges available
@@ -1018,5 +1045,29 @@ export class WalletWatchdogRN {
         }
       }
     })(this);
+  }
+
+  /**
+   * Janitor - Perform maintenance tasks after processing a transaction that belongs to us
+   * This is a pragmatic approach - instead of relying on observers, just do the maintenance directly
+   */
+  public janitor(): void {
+    try {
+      console.log('WalletWatchdogRN: Starting maintenance after transaction...');
+      
+      // 1. Save wallet to storage (persist the new transaction)
+      this.saveWallet('transaction processed');
+      
+      // 2. Trigger balance refresh directly via dependency injection
+      // This is more reliable than the observer pattern
+      const walletOperations = dependencyContainer.getWalletOperations();
+      if (walletOperations) {
+        walletOperations.triggerBalanceRefresh();
+      }
+      
+      console.log('WalletWatchdogRN: Maintenance completed after transaction');
+    } catch (error) {
+      console.error('WalletWatchdogRN: Error during maintenance after transaction:', error);
+    }
   }
 }

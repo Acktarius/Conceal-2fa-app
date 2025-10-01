@@ -85,14 +85,7 @@ export class WalletRepository {
 				creationHeight: decodedRawWallet.creationHeight,
 				lastHeight: decodedRawWallet.lastHeight
 			});
-			
-			// Debug actual key values from decoded raw wallet
-			if (decodedRawWallet.keys?.priv?.spend) {
-				console.log('WALLET REPO: Decoded spend key value:', decodedRawWallet.keys.priv.spend);
-			}
-			if (decodedRawWallet.keys?.priv?.view) {
-				console.log('WALLET REPO: Decoded view key value:', decodedRawWallet.keys.priv.view);
-			}
+	
 			
 			let wallet = Wallet.loadFromRaw(decodedRawWallet);
 			

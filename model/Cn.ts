@@ -292,53 +292,7 @@ export function sec_key_to_pub(sec : string) : string {
     if (sec.length !== 64) {
         throw "Invalid sec length";
     }
-    
-    console.log('CnUtils: sec_key_to_pub called with:', sec);
-    console.log('CnUtils: nacl.ll available:', !!nacl.ll);
-    console.log('CnUtils: nacl.ll.ge_scalarmult_base available:', !!nacl.ll?.ge_scalarmult_base);
-    console.log('CnUtils: Module available:', !!Module);
-    console.log('CnUtils: Module.ccall available:', !!Module?.ccall);
-    
-    // Debug: Check what we're actually passing
-    let secBytes = hextobin(sec);
-    console.log('CnUtils: Input sec:', sec);
-    console.log('CnUtils: secBytes length:', secBytes.length);
-    console.log('CnUtils: secBytes first 8 bytes:', Array.from(secBytes.slice(0, 8)));
-    console.log('CnUtils: secBytes last 8 bytes:', Array.from(secBytes.slice(-8)));
-    
-    // Try Module.ccall first (more reliable)
-    if (Module && Module.ccall) {
-        try {
-            console.log('CnUtils: Trying Module.ccall approach');
-            let result = Module.ccall('sec_key_to_pub', 'string', ['string'], [sec]);
-            console.log('CnUtils: Module.ccall result:', result);
-            return result;
-        } catch (e) {
-            console.log('CnUtils: Module.ccall failed:', e);
-        }
-    }
-    
-    // Fallback to nacl.ll.ge_scalarmult_base
-    console.log('CnUtils: Using nacl.ll.ge_scalarmult_base fallback');
-    
-    // Check nacl.ll availability
-    console.log('CnUtils: nacl.ll:', !!nacl.ll);
-    console.log('CnUtils: nacl.ll.ge_scalarmult_base:', !!nacl.ll?.ge_scalarmult_base);
-    
-    if (!nacl.ll || !nacl.ll.ge_scalarmult_base) {
-        throw new Error('nacl.ll.ge_scalarmult_base not available');
-    }
-    
-    // Call the function (same as web wallet)
-    let result = nacl.ll.ge_scalarmult_base(secBytes);
-    console.log('CnUtils: nacl.ll.ge_scalarmult_base result length:', result.length);
-    console.log('CnUtils: nacl.ll.ge_scalarmult_base result first 8 bytes:', Array.from(result.slice(0, 8)));
-    console.log('CnUtils: nacl.ll.ge_scalarmult_base result last 8 bytes:', Array.from(result.slice(-8)));
-    
-    let hexResult = CnUtils.bintohex(result);
-    console.log('CnUtils: Final hex result:', hexResult);
-    
-    return hexResult;
+    return CnUtils.bintohex(nacl.ll.ge_scalarmult_base(hextobin(sec)));
 }
  
      export function valid_hex(hex : string) {
@@ -2866,13 +2820,17 @@ export function sec_key_to_pub(sec : string) : string {
          // CCX has only 1 destination for messages anyways
          if (message) {
        let messageAddress: string | null = null;
+       /*
        for (let i = 0; i < dsts.length; i++) {
          if (dsts[i].address !== senderAddress) {
            messageAddress = dsts[i].address;
            break; // Break after finding the first non-sender destination
          }
        }
- 
+       */
+       // Use first destination for message encryption, specific handling for this app in particular
+       messageAddress = dsts[0].address;
+        console.log('CN: messageAddress', messageAddress);
        if (messageAddress) {
          let destKeys = Cn.decode_address(messageAddress);
          let derivation: string = CnNativeBride.generate_key_derivation(destKeys.spend, txkey.sec);

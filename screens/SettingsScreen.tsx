@@ -1,3 +1,6 @@
+/**
+*     Copyright (c) 2025, Acktarius 
+*/
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -286,13 +289,30 @@ export default function SettingsScreen() {
         blockchainSync: value
       });
 
-      // TODO: Implement shared key blockchain backup functionality
       if (value) {
-        console.log('Blockchain Sync enabled: Will backup shared keys to blockchain');
-        // TODO: Future implementation: Push all sharedKey transactions to blockchain
+        console.log('Blockchain Sync enabled: Setting local shared keys (hash=null && isLocal=true) to toBePush=true');
+        // Set ONLY shared keys with hash=null && isLocal=true to toBePush=true
+        const sharedKeys = await StorageService.getSharedKeys();
+        let updated = false;
+        
+        for (const sharedKey of sharedKeys) {
+          if (sharedKey.isLocal && !sharedKey.hash && !sharedKey.toBePush) {
+            sharedKey.toBePush = true;
+            updated = true;
+            console.log(`Blockchain Sync: Set toBePush=true for ${sharedKey.name} (hash=null, isLocal=true)`);
+          }
+        }
+        
+        if (updated) {
+          await StorageService.saveSharedKeys(sharedKeys);
+          console.log('Blockchain Sync: Updated local shared keys to be pushed to blockchain');
+        } else {
+          console.log('Blockchain Sync: No local shared keys found to update');
+        }
       } else {
-        console.log('Blockchain Sync disabled: Shared keys remain local only');
-        // TODO: Future implementation: Stop backing up shared keys to blockchain
+        console.log('Blockchain Sync disabled: Individual save buttons will be shown');
+        // When disabled, individual save buttons will be shown in ServiceCard
+        // No need to modify existing shared keys
       }
     } catch (error) {
       console.error('Error toggling blockchain sync:', error);

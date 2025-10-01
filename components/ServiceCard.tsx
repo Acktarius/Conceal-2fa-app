@@ -19,6 +19,7 @@ interface ServiceCardProps {
   sharedKey: SharedKey;
   isSelected: boolean;
   walletBalance: number;
+  blockchainSyncEnabled?: boolean;
 
   onCopy: () => void;
   onDelete: () => void;
@@ -45,6 +46,7 @@ const ServiceCard = React.forwardRef<any, ServiceCardProps>(({
   sharedKey, 
   isSelected, 
   walletBalance, 
+  blockchainSyncEnabled = false,
 
   onCopy, 
   onDelete, 
@@ -177,6 +179,45 @@ const ServiceCard = React.forwardRef<any, ServiceCardProps>(({
     }).start();
   };
 
+  const handleUnknownSourceWarning = () => {
+    Alert.alert(
+      'Unknown Source Warning',
+      'This service card comes from an unknown source. Do you want to trust it or keep it as unknown?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => {
+            // Keep unknownSource flag as true, do nothing
+          }
+        },
+        {
+          text: 'Trust',
+          style: 'default',
+          onPress: async () => {
+            try {
+              // Update the shared key to mark as trusted
+              const sharedKeys = await StorageService.getSharedKeys();
+              const updatedSharedKeys = sharedKeys.map(sk => {
+                if (sk.hash === sharedKey.hash || (sk.name === sharedKey.name && sk.secret === sharedKey.secret)) {
+                  sk.unknownSource = false;
+                }
+                return sk;
+              });
+              await StorageService.saveSharedKeys(updatedSharedKeys);
+              
+              // Trigger a refresh by calling onSelect
+              onSelect();
+            } catch (error) {
+              console.error('Error trusting unknown source:', error);
+              Alert.alert('Error', 'Failed to trust the service. Please try again.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const handleCancelDelete = () => {
     Animated.timing(flipAnim, {
       toValue: 0,
@@ -205,6 +246,7 @@ const ServiceCard = React.forwardRef<any, ServiceCardProps>(({
   
   const minTransactionAmount = 0.011;
   const canUseBlockchainFeatures = walletBalance >= minTransactionAmount;
+  
 
   const frontInterpolate = flipAnim.interpolate({
     inputRange: [0, 1],
@@ -257,7 +299,7 @@ const ServiceCard = React.forwardRef<any, ServiceCardProps>(({
                 >
                   {sharedKey.issuer}
                 </Text>
-                {sharedKey.isLocalOnly() && (
+                {sharedKey.isLocal ? (
                   <View 
                     className="rounded-md px-1.5 py-0.5 ml-2"
                     style={{ backgroundColor: theme.colors.warning + '20' }}
@@ -269,16 +311,37 @@ const ServiceCard = React.forwardRef<any, ServiceCardProps>(({
                       Local
                     </Text>
                   </View>
+                ) : (
+                  <View 
+                    className="rounded-md px-1.5 py-0.5 ml-2 flex-row items-center"
+                    style={{ backgroundColor: theme.colors.warning + '20' }}
+                  >
+                    <Ionicons name="link" size={12} color={theme.colors.warning} />
+                  </View>
                 )}
               </View>
             </View>
-            <TouchableOpacity
-              className="p-1"
-              onPress={handleDelete}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="trash-outline" size={20} color="#EF4444" />
-            </TouchableOpacity>
+            <View className="flex-row items-center">
+              {/* Warning icon for unknown source */}
+              {sharedKey.unknownSource && (
+                <TouchableOpacity
+                  className="p-1 mr-1"
+                  onPress={handleUnknownSourceWarning}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="warning" size={20} color="#F59E0B" />
+                </TouchableOpacity>
+              )}
+              
+              {/* Delete button */}
+              <TouchableOpacity
+                className="p-1"
+                onPress={handleDelete}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="trash-outline" size={20} color="#EF4444" />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <View className="flex-row items-center mb-3">
@@ -355,7 +418,7 @@ const ServiceCard = React.forwardRef<any, ServiceCardProps>(({
               }}
             >
               <TouchableOpacity
-                className="flex-1 flex-row items-center justify-center rounded-lg px-1.5 py-2 mx-0.5"
+                className="flex-1 flex-row items-center justify-center rounded-lg px-1.5 py-2 mx-0.5 max-w-[45%]"
                 style={{ 
                   backgroundColor: canUseBlockchainFeatures ? theme.colors.primaryLight : theme.colors.border,
                   opacity: canUseBlockchainFeatures ? 1 : 0.5 
@@ -377,28 +440,31 @@ const ServiceCard = React.forwardRef<any, ServiceCardProps>(({
                 </Text>
               </TouchableOpacity>
               
-              <TouchableOpacity
-                className="flex-1 flex-row items-center justify-center rounded-lg px-1.5 py-2 mx-0.5"
-                style={{ 
-                  backgroundColor: canUseBlockchainFeatures ? theme.colors.primaryLight : theme.colors.border,
-                  opacity: canUseBlockchainFeatures ? 1 : 0.5,
-                }}
-                onPress={canUseBlockchainFeatures ? onSaveToBlockchain : undefined}
-                disabled={!canUseBlockchainFeatures}
-                activeOpacity={canUseBlockchainFeatures ? 0.7 : 1}
-              >
-                <Ionicons 
-                  name="link-outline" 
-                  size={16} 
-                  color={canUseBlockchainFeatures ? theme.colors.primary : theme.colors.textSecondary} 
-                />
-                <Text 
-                  className="text-xs font-semibold ml-1 text-center font-poppins-medium" 
-                  style={{ color: canUseBlockchainFeatures ? theme.colors.primary : theme.colors.textSecondary }}
+              {/* Only show Save on Blockchain button if blockchain sync is disabled AND sharedKey is local */}
+              {!blockchainSyncEnabled && sharedKey.isLocal && (
+                <TouchableOpacity
+                  className="flex-1 flex-row items-center justify-center rounded-lg px-1.5 py-2 mx-0.5"
+                  style={{ 
+                    backgroundColor: canUseBlockchainFeatures ? theme.colors.primaryLight : theme.colors.border,
+                    opacity: canUseBlockchainFeatures ? 1 : 0.5,
+                  }}
+                  onPress={canUseBlockchainFeatures ? onSaveToBlockchain : undefined}
+                  disabled={!canUseBlockchainFeatures}
+                  activeOpacity={canUseBlockchainFeatures ? 0.7 : 1}
                 >
-                  Save on Blockchain
-                </Text>
-              </TouchableOpacity>
+                  <Ionicons 
+                    name="link-outline" 
+                    size={16} 
+                    color={canUseBlockchainFeatures ? theme.colors.primary : theme.colors.textSecondary} 
+                  />
+                  <Text 
+                    className="text-xs font-semibold ml-1 text-center font-poppins-medium" 
+                    style={{ color: canUseBlockchainFeatures ? theme.colors.primary : theme.colors.textSecondary }}
+                  >
+                    Save on Blockchain
+                  </Text>
+                </TouchableOpacity>
+              )}
             </Animated.View>
           )}
         </TouchableOpacity>
@@ -426,7 +492,7 @@ const ServiceCard = React.forwardRef<any, ServiceCardProps>(({
             className="text-sm text-center leading-5 mb-3 font-poppins" 
             style={{ color: theme.colors.textSecondary }}
           >
-            {sharedKey.isLocalOnly() 
+            {sharedKey.isLocal 
               ? "This will permanently delete this service from your device."
               : "This will delete the service locally and revoke it from the blockchain."
             }
