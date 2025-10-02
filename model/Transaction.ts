@@ -421,8 +421,8 @@ export class TransactionData {
 
 export class SharedKey extends Transaction {
   timeStampSharedKeyCreate: number = 0;
-  timeStampSharedKeyRevoke: number = 0;
-  sharedKeySaved: boolean = false;     //becomes true when saved to blockchain (vault icon)
+  timeStampSharedKeyRevoke: number = -1;
+  sharedKeySaved: boolean = false;     //becomes true when saved to blockchain (chain icon)
   
   // 2FA specific properties
   name: string = '';

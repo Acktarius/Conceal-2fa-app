@@ -185,8 +185,25 @@ export class WalletService implements IWalletOperations {
   }
 
   // Instance method for IWalletOperations interface
-  isWalletLocal(): boolean {
-    return WalletService.wallet?.isLocal() || true;
+  async isWalletLocal(): Promise<boolean> {
+    // Ensure wallet is loaded
+    if (!WalletService.wallet) {
+      // Try to get wallet from storage if not cached
+      try {
+        const wallet = await WalletStorageManager.getWallet();
+        if (wallet) {
+          WalletService.wallet = wallet;
+        }
+      } catch (error) {
+        console.error('WalletService: Error loading wallet in isWalletLocal():', error);
+      }
+    }
+    
+    if (WalletService.wallet) {
+      return WalletService.wallet.isLocal();
+    }
+    // If no wallet available, assume it's local to be safe
+    return true;
   }
 
   private static async hasAnyWalletData(): Promise<boolean> {

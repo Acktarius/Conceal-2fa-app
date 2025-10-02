@@ -27,11 +27,51 @@ export class SmartMessageService {
           await this.handle2FACreate(data, transactionHash);
         } else if (action === 'd' && data.hash) {
           // Delete 2FA service
-          await this.handle2FADelete(data.hash);
+          await this.handle2FADelete(data.hash, transactionHash);
         }
       }
     } catch (error) {
       console.error('SmartMessageService: Error handling smart message result:', error);
+    }
+  }
+
+  /**
+   * Handle 2FA delete from smart message
+   */
+  private static async handle2FADelete(hash: string, transactionHash?: string): Promise<void> {
+    try {
+      console.log('SmartMessageService: Processing 2FA delete for hash:', hash);
+      
+      const storageService = dependencyContainer.getStorageService();
+      const existingSharedKeys = await storageService.getSharedKeys();
+      
+      // Find the shared key to delete by hash
+      const sharedKeyToDelete = existingSharedKeys.find((sk: any) => sk.hash === hash);
+      
+      if (sharedKeyToDelete) {
+        console.log('SmartMessageService: Found shared key to delete:', sharedKeyToDelete.name);
+        
+        // Update the shared key with revoke information
+        // Keep the existing timeStampSharedKeyRevoke (set when user clicked delete)
+        // Just clear the flags to confirm blockchain processing
+        sharedKeyToDelete.revokeInQueue = false; // Clear revoke queue flag
+        sharedKeyToDelete.toBePush = false; // Clear toBePush flag
+        
+        console.log('SmartMessageService: Updated shared key with revoke timestamp:', {
+          name: sharedKeyToDelete.name,
+          timeStampSharedKeyRevoke: sharedKeyToDelete.timeStampSharedKeyRevoke,
+          revokeInQueue: sharedKeyToDelete.revokeInQueue,
+          toBePush: sharedKeyToDelete.toBePush
+        });
+        
+        // Save updated shared keys
+        await storageService.saveSharedKeys(existingSharedKeys);
+        console.log('SmartMessageService: Successfully processed 2FA delete for:', sharedKeyToDelete.name);
+      } else {
+        console.log('SmartMessageService: No shared key found with hash:', hash);
+      }
+    } catch (error) {
+      console.error('SmartMessageService: Error processing 2FA delete:', error);
     }
   }
 
@@ -100,30 +140,6 @@ export class SmartMessageService {
       console.log('SmartMessageService: 2FA service imported with unknownSource flag:', data.name);
     } catch (error) {
       console.error('SmartMessageService: Error creating 2FA from smart message:', error);
-    }
-  }
-
-  /**
-   * Handle 2FA delete from smart message
-   */
-  private static async handle2FADelete(hash: string): Promise<void> {
-    try {
-      // Get existing shared keys from localStorage
-      const storageService = dependencyContainer.getStorageService();
-      const existingSharedKeys = await storageService.getSharedKeys();
-      
-      // Find and remove shared key by hash
-      const updatedSharedKeys = existingSharedKeys.filter((sk: any) => sk.hash !== hash);
-      
-      if (updatedSharedKeys.length < existingSharedKeys.length) {
-        // Save updated shared keys to localStorage
-        await storageService.saveSharedKeys(updatedSharedKeys);
-        console.log('SmartMessageService: 2FA service deleted successfully by hash:', hash);
-      } else {
-        console.log('SmartMessageService: 2FA service not found for deletion by hash:', hash);
-      }
-    } catch (error) {
-      console.error('SmartMessageService: Error deleting 2FA from smart message:', error);
     }
   }
 }

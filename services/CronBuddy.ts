@@ -15,7 +15,6 @@
  * Stop trigger: When wallet goes from isLocal=false to isLocal=true
  */
 
-import { StorageService } from './StorageService';
 import { IWalletOperations } from './interfaces/IWalletOperations';
 import { dependencyContainer } from './DependencyContainer';
 import { SharedKey } from '../model/Transaction';
@@ -177,7 +176,7 @@ export class CronBuddy {
       }
 
       // Check if wallet is local-only
-      if (walletOperations.isWalletLocal()) {
+      if (await walletOperations.isWalletLocal()) {
         return;
       }
 
@@ -203,7 +202,7 @@ export class CronBuddy {
       }
 
       // Check if wallet is local-only
-      if (walletOperations.isWalletLocal()) {
+      if (await walletOperations.isWalletLocal()) {
         return;
       }
 
@@ -220,7 +219,8 @@ export class CronBuddy {
         return;
       }
 
-      const sharedKeys = await StorageService.getSharedKeys();
+      const storageService = dependencyContainer.getStorageService();
+      const sharedKeys = await storageService.getSharedKeys();
       
       // Find the FIRST key that needs to be pushed
       const keyToPush = sharedKeys.find(key => key.toBePush === true);
@@ -239,7 +239,7 @@ export class CronBuddy {
         // This prevents CronBuddy from retrying the same transaction every 2 minutes
         // while waiting for blockchain confirmation
         keyToPush.toBePush = false;
-        await StorageService.saveSharedKeys(sharedKeys);
+        await storageService.saveSharedKeys(sharedKeys);
         
         // Send smart message to blockchain
         const result = await walletOperations.sendSmartMessage('create', keyToPush);
@@ -249,12 +249,12 @@ export class CronBuddy {
           keyToPush.toBePush = false;
           
           // Save again after successful transaction to persist the hash and toBePush=false
-          await StorageService.saveSharedKeys(sharedKeys);
+          await storageService.saveSharedKeys(sharedKeys);
         } else {
           console.error(`CronBuddy: Failed to push shared key: ${keyToPush.name}`);
           // Re-enable toBePush for retry on next cycle
           keyToPush.toBePush = true;
-          await StorageService.saveSharedKeys(sharedKeys);
+          await storageService.saveSharedKeys(sharedKeys);
         }
         
       } catch (error) {
@@ -262,7 +262,7 @@ export class CronBuddy {
         
         // Re-enable toBePush for retry on next cycle
         keyToPush.toBePush = true;
-        await StorageService.saveSharedKeys(sharedKeys);
+        await storageService.saveSharedKeys(sharedKeys);
         
         // Check if it's a blockchain transaction error
         if (error.message && error.message.includes('Failed to send raw transaction')) {
@@ -280,55 +280,114 @@ export class CronBuddy {
 
   /**
    * Check for shared keys that need to be revoked from blockchain
+   * Process only ONE key at a time and adjust interval dynamically
    */
   private static async checkRevokeQueue(): Promise<void> {
     try {
+      console.log('CronBuddy: checkRevokeQueue() started');
       
-      const sharedKeys = await StorageService.getSharedKeys();
-      const keysToRevoke = sharedKeys.filter(key => key.revokeInQueue === true);
-      
-      if (keysToRevoke.length === 0) {
-        console.log('CronBuddy: No shared keys to revoke');
+      // Check if wallet operations are available
+      const walletOperations = dependencyContainer.getWalletOperations();
+      if (!walletOperations) {
+        console.log('CronBuddy: No wallet operations available, skipping revokeQueue check');
         return;
       }
 
-      console.log(`CronBuddy: Found ${keysToRevoke.length} shared keys to revoke`);
+      // Check if wallet is local-only
+      if (await walletOperations.isWalletLocal()) {
+        console.log('CronBuddy: Wallet is local-only, skipping revokeQueue check');
+        return;
+      }
 
-      for (const sharedKey of keysToRevoke) {
-        try {
-          if (!sharedKey.hash) {
-            console.error(`CronBuddy: Cannot revoke shared key without hash: ${sharedKey.name}`);
-            continue;
-          }
+      // Check wallet sync status
+      const syncStatus = walletOperations.getWalletSyncStatus();
+      if (!syncStatus.isWalletSynced) {
+        console.log('CronBuddy: Wallet not synced, skipping revokeQueue check');
+        return;
+      }
 
-          console.log(`CronBuddy: Revoking shared key: ${sharedKey.name} (${sharedKey.hash})`);
-          
-          // Send smart message to blockchain
-          const walletOperations = dependencyContainer.getWalletOperations();
-          if (!walletOperations) {
-            console.error(`CronBuddy: Cannot revoke shared key - wallet operations not available: ${sharedKey.name}`);
-            continue;
-          }
-          const result = await walletOperations.sendSmartMessage('delete', sharedKey);
-          
-          if (result.success) {
-            // Remove shared key from local storage
-            const updatedKeys = sharedKeys.filter(key => key !== sharedKey);
-            await StorageService.saveSharedKeys(updatedKeys);
-            
-            console.log(`CronBuddy: Successfully revoked shared key: ${sharedKey.name}`);
-            console.log(`CronBuddy: Delete transaction hash: ${result.txHash}`);
-          } else {
-            console.error(`CronBuddy: Failed to revoke shared key: ${sharedKey.name}`);
-            console.log(`CronBuddy: Delete transaction may be pending, hash: ${result.txHash}`);
-          }
-        } catch (error) {
-          console.error(`CronBuddy: Error revoking shared key ${sharedKey.name}:`, error);
+      // Check wallet balance (wallet.amount is number, convert to JSBigInt for comparison)
+      const walletAmountBigInt = new JSBigInt(walletOperations.getWalletBalance().toString());
+      if (walletAmountBigInt.compare(this.MIN_BALANCE_ATOMIC) < 0) {
+        console.log('CronBuddy: Insufficient balance, skipping revokeQueue check');
+        return;
+      }
+
+      console.log('CronBuddy: All safety checks passed, proceeding with revokeQueue check');
+
+      const storageService = dependencyContainer.getStorageService();
+      const sharedKeys = await storageService.getSharedKeys();
+      
+      console.log('CronBuddy: Retrieved shared keys:', sharedKeys.length);
+      const revokeKeys = sharedKeys.filter(key => key.revokeInQueue === true);
+      console.log('CronBuddy: Found keys with revokeInQueue=true:', revokeKeys.length);
+      
+      // Find the FIRST key that needs to be revoked
+      const keyToRevoke = sharedKeys.find(key => key.revokeInQueue === true);
+      
+      if (!keyToRevoke) {
+        // No keys to revoke - adjust interval back to default
+        this.adjustJobInterval('revokeQueue', this.DEFAULT_INTERVAL);
+        return;
+      }
+
+      // Found a key to revoke - adjust interval to busy mode
+      this.adjustJobInterval('revokeQueue', this.BUSY_INTERVAL);
+
+      try {
+        if (!keyToRevoke.hash) {
+          console.error(`CronBuddy: Cannot revoke shared key without hash: ${keyToRevoke.name}`);
+          // Remove from revoke queue since it can't be processed
+          keyToRevoke.revokeInQueue = false;
+          await storageService.saveSharedKeys(sharedKeys);
+          return;
+        }
+
+        console.log(`CronBuddy: Revoking shared key: ${keyToRevoke.name} (${keyToRevoke.hash})`);
+        
+        // CRITICAL: Set revokeInQueue = false IMMEDIATELY to prevent retry loops
+        // This prevents CronBuddy from retrying the same transaction every 2 minutes
+        // while waiting for blockchain confirmation
+        keyToRevoke.revokeInQueue = false;
+        await storageService.saveSharedKeys(sharedKeys);
+        
+        // Send smart message to blockchain
+        const result = await walletOperations.sendSmartMessage('delete', keyToRevoke);
+        
+        if (result.success) {
+          // Transaction was sent successfully
+          console.log(`CronBuddy: Successfully sent revoke transaction for: ${keyToRevoke.name}`);
+          console.log(`CronBuddy: Delete transaction hash: ${result.txHash}`);
+        } else {
+          console.error(`CronBuddy: Failed to revoke shared key: ${keyToRevoke.name}`);
+          // Re-enable revokeInQueue for retry on next cycle
+          keyToRevoke.revokeInQueue = true;
+          await storageService.saveSharedKeys(sharedKeys);
+        }
+        
+      } catch (error) {
+        console.error(`CronBuddy: Error revoking shared key ${keyToRevoke.name}:`, error);
+        
+        // Re-enable revokeInQueue for retry on next cycle
+        keyToRevoke.revokeInQueue = true;
+        await storageService.saveSharedKeys(sharedKeys);
+        
+        // Check if it's a blockchain transaction error
+        if (error.message && error.message.includes('Failed to send raw transaction')) {
+          console.error(`CronBuddy: Blockchain transaction failed for ${keyToRevoke.name}. This may be due to network issues or insufficient balance.`);
+          // Will retry on next cycle since revokeInQueue is re-enabled
+        } else {
+          console.error(`CronBuddy: Non-blockchain error for ${keyToRevoke.name}:`, error.message);
         }
       }
 
     } catch (error) {
       console.error('CronBuddy: Error checking revokeQueue:', error);
+      console.error('CronBuddy: Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
     }
   }
 

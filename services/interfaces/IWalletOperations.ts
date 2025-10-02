@@ -14,7 +14,7 @@ export interface IWalletOperations {
   triggerBalanceRefresh(): void;
   sendSmartMessage(action: 'create' | 'delete', sharedKey: any, paymentId?: string): Promise<{success: boolean, txHash?: string}>;
   getWalletBalance(): number;
-  isWalletLocal(): boolean;
+  isWalletLocal(): Promise<boolean>;
 }
 
 export interface IWalletOperationsProvider {

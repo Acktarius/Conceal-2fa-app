@@ -112,6 +112,7 @@ export class StorageService implements IStorageService {
           code: item.code || '',
           timeRemaining: item.timeRemaining || 0,
           timeStampSharedKeyCreate: item.timeStampSharedKeyCreate || Date.now(),
+          timeStampSharedKeyRevoke: item.timeStampSharedKeyRevoke !== undefined ? item.timeStampSharedKeyRevoke : -1, // Include timeStampSharedKeyRevoke property
           isLocal: item.isLocal !== undefined ? item.isLocal : true, // Default to true for backward compatibility
           unknownSource: item.unknownSource || false // Default to false for backward compatibility
         });

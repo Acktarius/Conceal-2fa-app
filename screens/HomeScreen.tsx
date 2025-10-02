@@ -290,6 +290,7 @@ export default function HomeScreen() {
       } else {
         // SharedKey is on blockchain, set revokeInQueue and hide from screen
         sharedKey.revokeInQueue = true;
+        sharedKey.timeStampSharedKeyRevoke = Date.now(); // Set immediately to prevent gap
         const updatedSharedKeys = sharedKeys.map(sk => 
           sk === sharedKey ? sharedKey : sk
         );
@@ -318,50 +319,21 @@ export default function HomeScreen() {
       hash: sharedKey.hash,
       isLocal: sharedKey.isLocal,
       revokeInQueue: sharedKey.revokeInQueue,
+      timeStampSharedKeyRevoke: sharedKey.timeStampSharedKeyRevoke,
       extraStatus: sharedKey.extraStatus,
       extraSharedKey: sharedKey.extraSharedKey,
       toBePush: sharedKey.toBePush
     });   
-    // 1. isLocal() (hash === '') and revokeInQueue = false -> Display
-    if (sharedKey.isLocal && !sharedKey.revokeInQueue) {
-      //console.log('Display: Local card, not in revoke queue');
+    
+    // PRIMARY RULE: Don't display if revoked (either in queue OR confirmed revoked)
+    if (sharedKey.revokeInQueue || sharedKey.timeStampSharedKeyRevoke > 0) {
+      console.log('Hidden: Service is revoked (revokeInQueue or timeStampSharedKeyRevoke)');
+      return false;
+    }
+   
       return true;
-    }
-    
-    // 2. !isLocal() and revokeInQueue = true -> Hidden
-    if (!sharedKey.isLocal && sharedKey.revokeInQueue) {
-      console.log('Hidden: Blockchain card in revoke queue');
-      return false;
-    }
-    
-    // 4. extraStatus = ff02 (revoke transactions) -> Never display
-    if (!sharedKey.isLocal && sharedKey.extraStatus === 'ff02') {
-      console.log('Hidden: Revoke transaction');
-      return false;
-    }
-    
-    // 5. Check if there's a matching revoke transaction
-    const hasMatchingRevokeTransaction = sharedKeys.some(sk => 
-      sk.extraStatus === 'ff02' && 
-      sk.extraSharedKey !== ''
-    );
-    
-    if (hasMatchingRevokeTransaction) {
-      console.log('Hidden: Has matching revoke transaction');
-      return false;
-    }
-    
-    // 3. !isLocal() and revokeInQueue = false -> Display (if not revoked)
-    if (!sharedKey.isLocal && !sharedKey.revokeInQueue) {
-      console.log('Display: Blockchain card, not revoked');
-      return true;
-    }
-    
-    // Default: don't display
-    console.log('Hidden: Default case');
-    return false;
+   
   };
-
 
   // Styles are now handled by Tailwind CSS classes
 
