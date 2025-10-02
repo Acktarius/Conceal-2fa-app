@@ -15,7 +15,8 @@
       "icon": "./assets/icon.png",
       "infoPlist": {
         "NSCameraUsageDescription": "This app needs access to camera to scan QR codes for adding 2FA services."
-      }
+      },
+      "bundleIdentifier": "com.acktarius.blockchain2faapp"
     },
     "android": {
       "icon": "./assets/icon.png",

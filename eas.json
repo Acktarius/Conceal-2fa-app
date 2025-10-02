@@ -6,6 +6,14 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "env": {
+        "NODE_ENV": "development",
+        "APP_VERSION": "1.0.0-dev",
+        "DEBUG_MODE": "true",
+        "CONCEAL_NODE_URL": "https://explorer.conceal.network/daemon/",
+        "CONCEAL_MESSAGE_TX_AMOUNT": "100",
+        "CONCEAL_DEFAULT_MIXIN": "5"
+      },
       "android": {
         "gradleCommand": ":app:assembleDebug",
         "buildType": "apk"
@@ -16,11 +24,27 @@
     },
     "preview": {
       "distribution": "internal",
+      "env": {
+        "NODE_ENV": "preview",
+        "APP_VERSION": "1.0.0-preview",
+        "DEBUG_MODE": "false",
+        "CONCEAL_NODE_URL": "https://explorer.conceal.network/daemon/",
+        "CONCEAL_MESSAGE_TX_AMOUNT": "100",
+        "CONCEAL_DEFAULT_MIXIN": "5"
+      },
       "android": {
         "buildType": "apk"
       }
     },
     "production": {
+      "env": {
+        "NODE_ENV": "production",
+        "APP_VERSION": "1.0.0",
+        "DEBUG_MODE": "false",
+        "CONCEAL_NODE_URL": "https://explorer.conceal.network/daemon/",
+        "CONCEAL_MESSAGE_TX_AMOUNT": "100",
+        "CONCEAL_DEFAULT_MIXIN": "5"
+      },
       "android": {
         "buildType": "app-bundle"
       }

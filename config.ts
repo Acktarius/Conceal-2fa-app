@@ -1,5 +1,10 @@
+import { getRuntimeConfig, logConfigInfo } from './config/runtime';
+
+// Get runtime configuration
+const runtimeConfig = getRuntimeConfig();
+
 export const config = {
-  debug: false,
+  debug: runtimeConfig.debugMode,
   apiUrl: [
     "https://ccxapi.conceal.network/api/"
   ],
@@ -15,7 +20,7 @@ export const config = {
   testnetExplorerUrlHash: "https://explorer.testnet.conceal.network/index.html?hash={ID}#blockchain_transaction",
   testnetExplorerUrlBlock: "https://explorer.testnet.conceal.network/index.html?hash={ID}#blockchain_block",
   testnet: false,
-  coinUnitPlaces: 6,
+  coinUnitPlaces: runtimeConfig.conceal.coinUnitPlaces,
   coinFee: new JSBigInt('1000'),
   remoteNodeFee: new JSBigInt('10000'),
   donationAddress: 'ccx7V4LeUXy2eZ9waDXgsLS7Uc11e2CpNSCWVdxEqSRFAm6P6NQhSb7XMG1D6VAZKmJeaJP37WYQg84zbNrPduTX2whZ5pacfj',
@@ -24,7 +29,7 @@ export const config = {
   minimumFee_V2: new JSBigInt('1000'),
   fusionTxMinInOutCountRatio: 4,
   maxFusionOutputs: 8,
-  messageTxAmount: new JSBigInt('100'),
+  messageTxAmount: new JSBigInt(runtimeConfig.conceal.messageTxAmount),
   maxMessageSize: 260,
   txMinConfirms: 10,
   txCoinbaseMinConfirms: 10,
@@ -41,7 +46,7 @@ export const config = {
   subAddressPrefixTestnet: 0x7AD6,
   feePerKB: new JSBigInt('1000'),
   dustThreshold: new JSBigInt('10'),
-  defaultMixin: 5,
+  defaultMixin: runtimeConfig.conceal.defaultMixin,
   txChargeAddress: '',
   idleTimeout: 30,
   idleWarningDuration: 20,
@@ -92,3 +97,6 @@ export function logDebugMsg(...data: any[]) {
     }
   }
 }
+
+// Log configuration info on startup (only in debug mode)
+logConfigInfo();
