@@ -13,18 +13,32 @@ import { IStorageService } from './interfaces/IStorageService';
 
 export class SmartMessageService {
   
+  // Get wallet operations once for the entire class
+  private static getWalletOperations() {
+    return dependencyContainer.getWalletOperations();
+  }
+  
+  // Get storage service once for the entire class
+  private static getStorageService() {
+    return dependencyContainer.getStorageService();
+  }
+  
   /**
    * Handle smart message result and update localStorage
    */
-  static async handleSmartMessageResult(data: any, smartMessage: any, transactionHash?: string): Promise<void> {
+  static async handleSmartMessageResult(data: any, smartMessage: any, transactionHash?: string, paymentId?: string): Promise<void> {
     try {
       if (smartMessage.command.startsWith('2FA,')) {
         const parts = smartMessage.command.split(',');
         const action = parts[1]; // 'c' for create, 'd' for delete
 
         if (action === 'c' && data.name && data.issuer && data.sharedKey) {
+          // Check payment ID whitelist to determine unknownSource
+          const unknownSource = await this.checkPaymentIdWhitelist(paymentId);
+          console.log('SmartMessageService: Payment ID check result:', { paymentId, unknownSource });
+          
           // Create 2FA service
-          await this.handle2FACreate(data, transactionHash);
+          await this.handle2FACreate(data, transactionHash, unknownSource);
         } else if (action === 'd' && data.hash) {
           // Delete 2FA service
           await this.handle2FADelete(data.hash, transactionHash);
@@ -42,7 +56,7 @@ export class SmartMessageService {
     try {
       console.log('SmartMessageService: Processing 2FA delete for hash:', hash);
       
-      const storageService = dependencyContainer.getStorageService();
+      const storageService = SmartMessageService.getStorageService();
       const existingSharedKeys = await storageService.getSharedKeys();
       
       // Find the shared key to delete by hash
@@ -67,6 +81,9 @@ export class SmartMessageService {
         // Save updated shared keys
         await storageService.saveSharedKeys(existingSharedKeys);
         console.log('SmartMessageService: Successfully processed 2FA delete for:', sharedKeyToDelete.name);
+        
+        // Trigger HomeScreen refresh to show updated shared keys
+        SmartMessageService.getWalletOperations().triggerSharedKeysRefresh();
       } else {
         console.log('SmartMessageService: No shared key found with hash:', hash);
       }
@@ -78,10 +95,10 @@ export class SmartMessageService {
   /**
    * Handle 2FA create from smart message
    */
-  private static async handle2FACreate(data: { name: string, issuer: string, sharedKey: string }, transactionHash?: string): Promise<void> {
+  private static async handle2FACreate(data: { name: string, issuer: string, sharedKey: string }, transactionHash?: string, unknownSource?: boolean): Promise<void> {
     try {
       // Get existing shared keys from localStorage
-      const storageService = dependencyContainer.getStorageService();
+      const storageService = SmartMessageService.getStorageService();
       const existingSharedKeys = await storageService.getSharedKeys();
       
       // 1. Check for existing shared key by hash first
@@ -94,6 +111,9 @@ export class SmartMessageService {
         // Save updated shared keys
         await storageService.saveSharedKeys(existingSharedKeys);
         console.log('SmartMessageService: Updated existing shared key with isLocal=false:', data.name);
+        
+        // Trigger HomeScreen refresh to show updated shared keys
+        SmartMessageService.getWalletOperations().triggerSharedKeysRefresh();
         return;
       }
 
@@ -107,12 +127,15 @@ export class SmartMessageService {
         existingBySharedKey.hash = transactionHash || 'blockchain-imported';
         existingBySharedKey.toBePush = false; // Safety: ensure toBePush is false
         existingBySharedKey.revokeInQueue = false; // Safety: ensure not in revoke queue
-        existingBySharedKey.unknownSource = false; // Known source, trusted
+        existingBySharedKey.unknownSource = unknownSource !== undefined ? unknownSource : false; // Use the provided unknownSource flag
         existingBySharedKey.isLocal = false; // Now confirmed on blockchain
         
         // Save updated shared keys
         await storageService.saveSharedKeys(existingSharedKeys);
         console.log('SmartMessageService: Updated existing shared key with hash:', data.name);
+        
+        // Trigger HomeScreen refresh to show updated shared keys
+        SmartMessageService.getWalletOperations().triggerSharedKeysRefresh();
         return;
       }
 
@@ -130,7 +153,7 @@ export class SmartMessageService {
       newSharedKey.hash = transactionHash || 'blockchain-imported'; // Use actual transaction hash
       newSharedKey.toBePush = false; // Already on blockchain
       newSharedKey.revokeInQueue = false; // Not being revoked
-      newSharedKey.unknownSource = true; // Unknown source, needs user verification
+      newSharedKey.unknownSource = unknownSource !== undefined ? unknownSource : true; // Use the provided unknownSource flag, default to true for safety
       newSharedKey.isLocal = false; // On blockchain
 
       // Add to localStorage
@@ -138,8 +161,48 @@ export class SmartMessageService {
       await storageService.saveSharedKeys(updatedSharedKeys);
 
       console.log('SmartMessageService: 2FA service imported with unknownSource flag:', data.name);
+      
+      // Trigger HomeScreen refresh to show updated shared keys
+      SmartMessageService.getWalletOperations().triggerSharedKeysRefresh();
     } catch (error) {
       console.error('SmartMessageService: Error creating 2FA from smart message:', error);
+    }
+  }
+
+  /**
+   * Check if payment ID is in the whitelist
+   * @param paymentId - Payment ID to check
+   * @returns Promise<boolean> - true if unknown source (not in whitelist or empty)
+   */
+  private static async checkPaymentIdWhitelist(paymentId?: string): Promise<boolean> {
+    try {
+      // If no payment ID provided, it's an unknown source
+      if (!paymentId || paymentId.trim() === '') {
+        console.log('SmartMessageService: No payment ID provided, marking as unknown source');
+        return true;
+      }
+
+      // Get the payment ID whitelist from settings
+      const storageService = SmartMessageService.getStorageService();
+      const settings = await storageService.getSettings();
+      const paymentIdWhiteList = settings.paymentIdWhiteList || [];
+      
+      // Check if payment ID is in whitelist
+      const isInWhitelist = paymentIdWhiteList.includes(paymentId);
+      const isUnknownSource = !isInWhitelist;
+      
+      console.log('SmartMessageService: Payment ID whitelist check:', {
+        paymentId: paymentId.substring(0, 16) + '...',
+        whitelistSize: paymentIdWhiteList.length,
+        isInWhitelist,
+        isUnknownSource
+      });
+      
+      return isUnknownSource;
+    } catch (error) {
+      console.error('SmartMessageService: Error checking payment ID whitelist:', error);
+      // Default to unknown source if check fails
+      return true;
     }
   }
 }

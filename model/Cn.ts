@@ -422,15 +422,41 @@ export function sec_key_to_pub(sec : string) : string {
          };
      }
  
-     export function encode_rct_ecdh(ecdh : {mask:string, amount:string}, key : string) {
-         let first = Cn.hash_to_scalar(key);
-         let second = Cn.hash_to_scalar(first);
-         return {
-             mask: CnNativeBride.sc_add(ecdh.mask, first),
-             amount: CnNativeBride.sc_add(ecdh.amount, second),
-         };
-     }
- }
+    export function encode_rct_ecdh(ecdh : {mask:string, amount:string}, key : string) {
+        let first = Cn.hash_to_scalar(key);
+        let second = Cn.hash_to_scalar(first);
+        return {
+            mask: CnNativeBride.sc_add(ecdh.mask, first),
+            amount: CnNativeBride.sc_add(ecdh.amount, second),
+        };
+    }
+
+    /**
+     * Payment ID Generator for regular transactions
+     * Generates 64-character (32-byte) payment IDs for regular transactions
+     */
+    export class PaymentIdGenerator {
+        generateRandomPaymentId(): string {
+            const randomBytes = new Uint8Array(32);  // 32 bytes = sizeof(Hash)
+            crypto.getRandomValues(randomBytes);     // OS entropy pool
+            return Array.from(randomBytes)
+                .map(byte => byte.toString(16).padStart(2, '0'))
+                .join('');                            // 64-character hex string
+        }
+    }
+
+    /**
+     * Validate payment ID format for regular transactions
+     * @param paymentId - Payment ID string to validate
+     * @returns true if valid 64-character hex string
+     */
+    export function validatePaymentId(paymentId: string): boolean {
+        // Same validation as Conceal's checkPaymentId()
+        if (paymentId.length !== 64) return false;
+        
+        return /^[0-9a-fA-F]{64}$/.test(paymentId);
+    }
+}
  
  export namespace CnNativeBride{
      export function sc_reduce32(hex : string) {
@@ -2580,20 +2606,7 @@ export function sec_key_to_pub(sec : string) : string {
              let txkey = Cn.random_keypair();
              logDebugMsg(txkey);
              let extra = '';
-             if (payment_id) {
-                 if (pid_encrypt && payment_id.length !== INTEGRATED_ID_SIZE * 2) {
-                     throw "payment ID must be " + INTEGRATED_ID_SIZE + " bytes to be encrypted!";
-                 }
-                 logDebugMsg("Adding payment id: " + payment_id);
-                 if (pid_encrypt && realDestViewKey) { //get the derivation from our passed viewkey, then hash that + tail to get encryption key
-                     let pid_key = CnUtils.cn_fast_hash(Cn.generate_key_derivation(realDestViewKey, txkey.sec) + ENCRYPTED_PAYMENT_ID_TAIL.toString(16)).slice(0, INTEGRATED_ID_SIZE * 2);
-                     logDebugMsg("Txkeys:", txkey, "Payment ID key:", pid_key);
-                     payment_id = CnUtils.hex_xor(payment_id, pid_key);
-                 }
-                 let nonce = CnTransactions.get_payment_id_nonce(payment_id, pid_encrypt);
-                 logDebugMsg("Extra nonce: " + nonce);
-                 extra = CnTransactions.add_nonce_to_extra(extra, nonce);
-             }
+            // Payment ID will be added after message and TTL (WalletGreen order)
              let tx : CnTransactions.Transaction = {
                  unlock_time: unlock_time,
                  version: rct ? CURRENT_TX_VERSION : OLD_TX_VERSION,
@@ -2827,8 +2840,12 @@ export function sec_key_to_pub(sec : string) : string {
            break; // Break after finding the first non-sender destination
          }
        }
+       * 
+       * Use first destination for message encryption, specific handling for this app in particular
+       * this way we make sure that message is sent to the correct destination and not the remote node fee destination
+       * TO CONSIDER: in case of chat app, with messages sent to multiple dsts, we would have to revisit this
+       * and have for (let i = 0; i < dsts.length-1; i++) where node operator being last dsts.
        */
-       // Use first destination for message encryption, specific handling for this app in particular
        messageAddress = dsts[0].address;
         console.log('CN: messageAddress', messageAddress);
        if (messageAddress) {
@@ -2868,6 +2885,22 @@ export function sec_key_to_pub(sec : string) : string {
              let ttlStr = CnUtils.encode_varint(ttlTimestamp);
              let ttlSize = CnUtils.encode_varint(ttlStr.length / 2);
              tx.extra = tx.extra + TX_EXTRA_TAGS.TTL_TAG + ttlSize + ttlStr;
+         }
+
+         // Add Payment ID LAST (WalletGreen order: Messages first, TTL second, PaymentId last)
+         if (payment_id) {
+             if (pid_encrypt && payment_id.length !== INTEGRATED_ID_SIZE * 2) {
+                 throw "payment ID must be " + INTEGRATED_ID_SIZE + " bytes to be encrypted!";
+             }
+             logDebugMsg("Adding payment id: " + payment_id);
+             if (pid_encrypt && realDestViewKey) { //get the derivation from our passed viewkey, then hash that + tail to get encryption key
+                 let pid_key = CnUtils.cn_fast_hash(Cn.generate_key_derivation(realDestViewKey, txkey.sec) + ENCRYPTED_PAYMENT_ID_TAIL.toString(16)).slice(0, INTEGRATED_ID_SIZE * 2);
+                 logDebugMsg("Txkeys:", txkey, "Payment ID key:", pid_key);
+                 payment_id = CnUtils.hex_xor(payment_id, pid_key);
+             }
+             let nonce = CnTransactions.get_payment_id_nonce(payment_id, pid_encrypt);
+             logDebugMsg("Extra nonce: " + nonce);
+             tx.extra = CnTransactions.add_nonce_to_extra(tx.extra, nonce);
          }
      
      if (outputs_money.add(fee_amount).compare(inputs_money) > 0) {
@@ -3219,5 +3252,6 @@ export function sec_key_to_pub(sec : string) : string {
          }
          return CnTransactions.construct_tx(keys, sources, dsts, senderAddress, fee_amount, payment_id, pid_encrypt, realDestViewKey, unlock_time, rct, message, ttl, transactionType, term);
      }
+
  }
  

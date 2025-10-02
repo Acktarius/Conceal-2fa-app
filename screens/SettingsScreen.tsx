@@ -24,6 +24,7 @@ import { ExpandableSection } from '../components/ExpandableSection';
 import { ExpSectionToggle } from '../components/ExpSectionToggle';
 import { StorageService } from '../services/StorageService';
 import { WalletService } from '../services/WalletService';
+import { CnUtils } from '../model/Cn';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Mnemonic } from '../model/Mnemonic';
@@ -54,6 +55,10 @@ export default function SettingsScreen() {
   const [biometricAuth, setBiometricAuth] = useState(false);
   const [showBlockchainSyncToggle, setShowBlockchainSyncToggle] = useState(false);
   
+  // Trust Anchor (Payment ID Whitelist) state
+  const [paymentIdWhiteList, setPaymentIdWhiteList] = useState<string[]>([]);
+  const [isTrustAnchorExpanded, setIsTrustAnchorExpanded] = useState(false);
+  
   // Custom Node Modal state
   const [showCustomNodeModal, setShowCustomNodeModal] = useState(false);
   const [currentNodeUrl, setCurrentNodeUrl] = useState('');
@@ -62,6 +67,8 @@ export default function SettingsScreen() {
   const [showUnlockWalletAlert, setShowUnlockWalletAlert] = useState(false);
   const [showPasswordCreationAlert, setShowPasswordCreationAlert] = useState(false);
   const [showClearDataOptions, setShowClearDataOptions] = useState(false);
+  const [showCleanLocalStorageOptions, setShowCleanLocalStorageOptions] = useState(false);
+  const [revokedKeys, setRevokedKeys] = useState<any[]>([]);
   const [isThemeExpanded, setIsThemeExpanded] = useState(false);
   const [is2FADisplayExpanded, setIs2FADisplayExpanded] = useState(false);
   const [current2FADisplaySetting, setCurrent2FADisplaySetting] = useState('off');
@@ -192,6 +199,7 @@ export default function SettingsScreen() {
     loadSettings();
     checkBlockchainSyncVisibility();
     loadNodeInfo();
+    loadRevokedKeys();
   }, [wallet]);
 
   const loadNodeInfo = async () => {
@@ -247,6 +255,8 @@ export default function SettingsScreen() {
       setBroadcastAddress(settings.broadcastAddress || '');
       // Enable biometric auth by default since we're using it
       setBiometricAuth(settings.biometricAuth !== false); // Default to true unless explicitly set to false
+      // Load payment ID whitelist
+      setPaymentIdWhiteList(settings.paymentIdWhiteList || []);
     } catch (error) {
       console.error('Error loading settings:', error);
     }
@@ -420,6 +430,141 @@ export default function SettingsScreen() {
 
   const handleToggleClearDataOptions = () => {
     setShowClearDataOptions(!showClearDataOptions);
+  };
+
+  const handleToggleCleanLocalStorageOptions = () => {
+    setShowCleanLocalStorageOptions(!showCleanLocalStorageOptions);
+  };
+
+  const loadRevokedKeys = async () => {
+    try {
+      const sharedKeys = await StorageService.getSharedKeys();
+      const revoked = sharedKeys.filter(key => key.timeStampSharedKeyRevoke > 0);
+      setRevokedKeys(revoked);
+    } catch (error) {
+      console.error('Error loading revoked keys:', error);
+    }
+  };
+
+  const handleResuscitateKey = async (keyId: string) => {
+    try {
+      const sharedKeys = await StorageService.getSharedKeys();
+      const keyIndex = sharedKeys.findIndex(key => key.hash === keyId);
+      
+      if (keyIndex !== -1) {
+        sharedKeys[keyIndex].timeStampSharedKeyRevoke = 0;
+        sharedKeys[keyIndex].isLocal = true;
+        sharedKeys[keyIndex].hash = '';
+        // Set toBePush based on blockchain sync toggle position
+        sharedKeys[keyIndex].toBePush = blockchainSync;
+        
+        await StorageService.saveSharedKeys(sharedKeys);
+        await loadRevokedKeys(); // Refresh the list
+        
+        // Trigger HomeScreen refresh to show resuscitated key
+        WalletService.triggerSharedKeysRefresh();
+        
+        Alert.alert('Success', 'Shared key resuscitated successfully');
+      }
+    } catch (error) {
+      console.error('Error resuscitating key:', error);
+      Alert.alert('Error', 'Failed to resuscitate shared key');
+    }
+  };
+
+  const handleDeleteKey = async (keyId: string) => {
+    Alert.alert(
+      'Delete Shared Key',
+      'Are you sure you want to permanently delete this shared key?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const sharedKeys = await StorageService.getSharedKeys();
+              const filteredKeys = sharedKeys.filter(key => key.hash !== keyId);
+              
+              await StorageService.saveSharedKeys(filteredKeys);
+              await loadRevokedKeys(); // Refresh the list
+              
+              Alert.alert('Success', 'Shared key deleted successfully');
+            } catch (error) {
+              console.error('Error deleting key:', error);
+              Alert.alert('Error', 'Failed to delete shared key');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleResuscitateAll = () => {
+    Alert.alert(
+      'Resuscitate All',
+      'Are you sure you want to resuscitate all revoked shared keys?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Resuscitate All',
+          onPress: async () => {
+            try {
+              const sharedKeys = await StorageService.getSharedKeys();
+              
+              sharedKeys.forEach(key => {
+                if (key.timeStampSharedKeyRevoke > 0) {
+                  key.timeStampSharedKeyRevoke = 0;
+                  key.isLocal = true;
+                  key.hash = '';
+                  // Set toBePush based on blockchain sync toggle position
+                  key.toBePush = blockchainSync;
+                }
+              });
+              
+              await StorageService.saveSharedKeys(sharedKeys);
+              await loadRevokedKeys(); // Refresh the list
+              
+              // Trigger HomeScreen refresh to show resuscitated keys
+              WalletService.triggerSharedKeysRefresh();
+              
+              Alert.alert('Success', 'All revoked keys resuscitated successfully');
+            } catch (error) {
+              console.error('Error resuscitating all keys:', error);
+              Alert.alert('Error', 'Failed to resuscitate all keys');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleDeleteAll = () => {
+    Alert.alert(
+      'Delete All',
+      'Are you sure you want to permanently delete all revoked shared keys?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete All',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const sharedKeys = await StorageService.getSharedKeys();
+              const filteredKeys = sharedKeys.filter(key => key.timeStampSharedKeyRevoke <= 0);
+              
+              await StorageService.saveSharedKeys(filteredKeys);
+              await loadRevokedKeys(); // Refresh the list
+              
+              Alert.alert('Success', 'All revoked keys deleted successfully');
+            } catch (error) {
+              console.error('Error deleting all keys:', error);
+              Alert.alert('Error', 'Failed to delete all keys');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleToggleRescanOptions = () => {
@@ -760,6 +905,57 @@ export default function SettingsScreen() {
     </TouchableOpacity>
   );
 
+  // Payment ID Whitelist Management Functions
+  const handleGeneratePaymentId = async () => {
+    try {
+      const generator = new CnUtils.PaymentIdGenerator();
+      const newPaymentId = generator.generateRandomPaymentId();
+      
+      const updatedList = [...paymentIdWhiteList, newPaymentId];
+      setPaymentIdWhiteList(updatedList);
+      
+      // Save to settings
+      const settings = await StorageService.getSettings();
+      await StorageService.saveSettings({
+        ...settings,
+        paymentIdWhiteList: updatedList
+      });
+      
+      Alert.alert('Success', 'New Payment ID generated and added to whitelist');
+    } catch (error) {
+      console.error('Error generating payment ID:', error);
+      Alert.alert('Error', 'Failed to generate payment ID');
+    }
+  };
+
+  const handleCopyPaymentId = async (paymentId: string) => {
+    try {
+      await Clipboard.setStringAsync(paymentId);
+      Alert.alert('Copied', 'Payment ID copied to clipboard!');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to copy payment ID');
+    }
+  };
+
+  const handleDeletePaymentId = async (paymentIdToDelete: string) => {
+    try {
+      const updatedList = paymentIdWhiteList.filter(id => id !== paymentIdToDelete);
+      setPaymentIdWhiteList(updatedList);
+      
+      // Save to settings
+      const settings = await StorageService.getSettings();
+      await StorageService.saveSettings({
+        ...settings,
+        paymentIdWhiteList: updatedList
+      });
+      
+      Alert.alert('Deleted', 'Payment ID removed from whitelist');
+    } catch (error) {
+      console.error('Error deleting payment ID:', error);
+      Alert.alert('Error', 'Failed to delete payment ID');
+    }
+  };
+
   return (
     <GestureNavigator>
       <View className="flex-1" style={{ backgroundColor: theme.colors.background }}>
@@ -1095,6 +1291,81 @@ export default function SettingsScreen() {
             </View>
           </View>
 
+          {/* Trust Anchor (Payment ID Whitelist) */}
+          {showBlockchainSyncToggle && (
+            <View className="mb-6">
+            <Text className="text-base font-semibold mb-2 ml-1" style={{ color: theme.colors.text }}>Trust Anchor</Text>
+            <View className="rounded-2xl shadow-lg" style={{ backgroundColor: theme.colors.card }}>
+              <SettingItem
+                icon="shield-checkmark-outline"
+                title="Payment ID Whitelist"
+                subtitle={`${paymentIdWhiteList.length} trusted payment IDs`}
+                onPress={() => setIsTrustAnchorExpanded(!isTrustAnchorExpanded)}
+                rightElement={
+                  <Ionicons 
+                    name={isTrustAnchorExpanded ? "chevron-up" : "chevron-down"} 
+                    size={20} 
+                    color={theme.colors.textSecondary} 
+                  />
+                }
+              />
+              
+              {/* Trust Anchor Expandable Section */}
+              {isTrustAnchorExpanded && (
+                <View className="p-4 mt-2 rounded-xl border" style={{ backgroundColor: theme.colors.background, borderColor: theme.colors.border }}>
+                  <Text 
+                    className="text-sm font-medium mb-3 font-poppins-medium" 
+                    style={{ color: theme.colors.textSecondary }}
+                  >
+                    Whitelist of trusted payment IDs for smart messages
+                  </Text>
+                  
+                  {/* Generate Button */}
+                  <TouchableOpacity
+                    className="flex-row items-center justify-center p-3 mb-4 rounded-lg border-2 border-dashed"
+                    style={{ borderColor: theme.colors.primary }}
+                    onPress={handleGeneratePaymentId}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="add-circle-outline" size={20} color={theme.colors.primary} />
+                    <Text className="ml-2 font-medium" style={{ color: theme.colors.primary }}>Generate Payment ID</Text>
+                  </TouchableOpacity>
+                  
+                  {/* Payment ID List */}
+                  {paymentIdWhiteList.length > 0 ? (
+                    <View>
+                      {paymentIdWhiteList.map((paymentId, index) => (
+                        <View key={index} className="flex-row items-center justify-between p-3 mb-2 rounded-lg" style={{ backgroundColor: theme.colors.card }}>
+                          <TouchableOpacity
+                            className="flex-1"
+                            onPress={() => handleCopyPaymentId(paymentId)}
+                            activeOpacity={0.7}
+                          >
+                            <Text className="text-xs font-mono" style={{ color: theme.colors.text }}>
+                              {paymentId.substring(0, 16)}...{paymentId.substring(48)}
+                            </Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            className="p-2"
+                            onPress={() => handleDeletePaymentId(paymentId)}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons name="trash-outline" size={16} color={theme.colors.warning} />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </View>
+                  ) : (
+                    <Text className="text-sm text-center py-4" style={{ color: theme.colors.textSecondary }}>
+                      No payment IDs in whitelist
+                    </Text>
+                  )}
+                </View>
+              )}
+            </View>
+          </View>
+          )}
+          
           {/* Security Settings */}
           <View className="mb-6">
             <Text className="text-base font-semibold mb-2 ml-1" style={{ color: theme.colors.text }}>Security</Text>
@@ -1179,14 +1450,80 @@ export default function SettingsScreen() {
             </View>
           </View>
 
-          {/* Storage Management */}
+
+          {/* Storage */}
           <ExpandableSection
             title="Storage"
-            subtitle="Clear wallet data or all app data"
+            subtitle="Clear or delete data"
             icon="trash-outline"
             isExpanded={showClearDataOptions}
             onToggle={handleToggleClearDataOptions}
           >
+            {/* Clean LocalStorage Subsection */}
+            <ExpandableSection
+              title="Clean"
+              subtitle="Manage revoked shared keys"
+              icon="brush-outline"
+              isExpanded={showCleanLocalStorageOptions}
+              onToggle={handleToggleCleanLocalStorageOptions}
+            >
+              {revokedKeys.length > 0 ? (
+                <View>
+                  {revokedKeys.map((key) => (
+                  <View key={key.hash} className="flex-row items-center justify-between p-3 border-b border-gray-200">
+                    {/* Resuscitate icon on the left */}
+                    <TouchableOpacity
+                      onPress={() => handleResuscitateKey(key.hash)}
+                      className="p-2 rounded-full mr-3"
+                      style={{ backgroundColor: theme.colors.primary + '20' }}
+                    >
+                      <Ionicons name="refresh-outline" size={20} color={theme.colors.primary} />
+                    </TouchableOpacity>
+                    
+                    {/* Key info in the middle */}
+                    <View className="flex-1">
+                      <Text className="text-base font-medium" style={{ color: theme.colors.text }}>
+                        {key.name.length > 10 ? key.name.substring(0, 10) + '...' : key.name}
+                      </Text>
+                      <Text className="text-sm" style={{ color: theme.colors.textSecondary }}>
+                        {key.issuer}
+                      </Text>
+                    </View>
+                    
+                    {/* Delete icon on the right */}
+                    <TouchableOpacity
+                      onPress={() => handleDeleteKey(key.hash)}
+                      className="p-2 rounded-full"
+                      style={{ backgroundColor: theme.colors.error + '20' }}
+                    >
+                      <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                <View className="flex-row justify-between p-3">
+                  <TouchableOpacity
+                    onPress={handleResuscitateAll}
+                    className="flex-1 bg-green-500 p-3 rounded-lg mr-2"
+                  >
+                    <Text className="text-white text-center font-medium">Resuscitate All</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={handleDeleteAll}
+                    className="flex-1 bg-red-500 p-3 rounded-lg ml-2"
+                  >
+                    <Text className="text-white text-center font-medium">Delete All</Text>
+                  </TouchableOpacity>
+                </View>
+                  </View>
+                ) : (
+                  <View className="p-4">
+                    <Text className="text-center" style={{ color: theme.colors.textSecondary }}>
+                      No revoked shared keys found
+                    </Text>
+                  </View>
+                )}
+            </ExpandableSection>
+
             <SettingItem
               icon="wallet-outline"
               title="Clear Wallet Data"

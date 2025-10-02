@@ -38,7 +38,6 @@
             "org.gradle.java.home": "/usr/lib/jvm/java-17-openjdk-amd64",
             "androidSdkPath": "/home/katana/Android/Sdk",
             "android.abiFilters": "armeabi-v7a,arm64-v8a,x86,x86_64"
-
           }
         }
       ],
@@ -57,8 +56,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "55b2b55e-df3e-4357-9a2c-c562b160e22e"
+        "projectId": "conceal-2fa-app"
       }
-    }
+    },
+    "owner": "acktarius"
   }
 }

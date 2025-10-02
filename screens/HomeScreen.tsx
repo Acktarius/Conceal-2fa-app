@@ -314,6 +314,7 @@ export default function HomeScreen() {
   };
 
   const shouldDisplaySharedKey = (sharedKey: SharedKey): boolean => {
+    /*
     console.log('Checking display for SharedKey:', {
       name: sharedKey.name,
       hash: sharedKey.hash,
@@ -324,7 +325,7 @@ export default function HomeScreen() {
       extraSharedKey: sharedKey.extraSharedKey,
       toBePush: sharedKey.toBePush
     });   
-    
+    */
     // PRIMARY RULE: Don't display if revoked (either in queue OR confirmed revoked)
     if (sharedKey.revokeInQueue || sharedKey.timeStampSharedKeyRevoke > 0) {
       console.log('Hidden: Service is revoked (revokeInQueue or timeStampSharedKeyRevoke)');

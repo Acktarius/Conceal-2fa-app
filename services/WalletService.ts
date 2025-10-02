@@ -13,7 +13,6 @@ import { Cn, CnNativeBride, CnRandom } from '../model/Cn';
 import { BlockchainExplorerRpcDaemon } from '../model/blockchain/BlockchainExplorerRPCDaemon';
 import { Alert } from 'react-native';
 import { ImportService } from './ImportService';
-import { StorageService } from './StorageService';
 import { WalletRepository } from '../model/WalletRepository';
 import { WalletWatchdogRN } from '../model/WalletWatchdogRN';
 import { IWalletOperations } from './interfaces/IWalletOperations';
@@ -48,7 +47,8 @@ export class WalletService implements IWalletOperations {
   // Load upgrade prompt flags from storage
   private static async loadUpgradeFlags(): Promise<void> {
     try {
-      const settings = await StorageService.getSettings();
+      const storageService = dependencyContainer.getStorageService();
+      const settings = await storageService.getSettings();
       this.flag_prompt_main_tab = settings.flag_prompt_main_tab || false;
       this.flag_prompt_wallet_tab = settings.flag_prompt_wallet_tab || false;
       console.log('WALLET SERVICE: Loaded upgrade flags:', {
@@ -64,8 +64,9 @@ export class WalletService implements IWalletOperations {
   // Save upgrade prompt flags to storage
   private static async saveUpgradeFlags(): Promise<void> {
     try {
-      const settings = await StorageService.getSettings();
-      await StorageService.saveSettings({
+      const storageService = dependencyContainer.getStorageService();
+      const settings = await storageService.getSettings();
+      await storageService.saveSettings({
         ...settings,
         flag_prompt_main_tab: this.flag_prompt_main_tab,
         flag_prompt_wallet_tab: this.flag_prompt_wallet_tab
@@ -172,6 +173,11 @@ export class WalletService implements IWalletOperations {
   // Instance method for IWalletOperations interface
   triggerBalanceRefresh(): void {
     return WalletService.triggerBalanceRefresh();
+  }
+
+  // Instance method for IWalletOperations interface
+  triggerSharedKeysRefresh(): void {
+    return WalletService.triggerSharedKeysRefresh();
   }
 
   // Instance method for IWalletOperations interface
@@ -722,7 +728,8 @@ export class WalletService implements IWalletOperations {
       this.wallet = null;
       
       // Clear all storage using StorageService
-      await StorageService.clearAll();
+      const storageService = dependencyContainer.getStorageService();
+      await storageService.clearAll();
       
       console.log('Force clear all completed');
     } catch (error) {
@@ -759,7 +766,8 @@ export class WalletService implements IWalletOperations {
       console.log('TESTING: Service flags reset');
       
       // 5. Reset biometric to default (enabled)
-      await StorageService.saveSettings({
+      const storageService = dependencyContainer.getStorageService();
+      await storageService.saveSettings({
         biometricAuth: true  // Default to enabled
       });
       console.log('TESTING: Biometric reset to default (enabled)');
@@ -818,7 +826,8 @@ export class WalletService implements IWalletOperations {
     this.flag_prompt_main_tab = false;
     this.flag_prompt_wallet_tab = false;
     this.wallet = null; // Clear cached instance
-    await StorageService.saveSettings({
+    const storageService = dependencyContainer.getStorageService();
+    await storageService.saveSettings({
       biometricAuth: true  // Default to enabled
     });
     console.log('WALLET SERVICE: Biometric reset to default (enabled)');
@@ -1259,10 +1268,25 @@ export class WalletService implements IWalletOperations {
       // Set up global logDebugMsg for TransactionsExplorer
       (global as any).logDebugMsg = logDebugMsg;
 
+      // Use whitelisted payment ID if available and no payment ID provided
+      let finalPaymentId = paymentId;
+      if (!paymentId) {
+        try {
+          const storageService = dependencyContainer.getStorageService();
+          const settings = await storageService.getSettings();
+          if (settings.paymentIdWhiteList && settings.paymentIdWhiteList.length > 0) {
+            finalPaymentId = settings.paymentIdWhiteList[0];
+            console.log('WalletService: Using whitelisted payment ID for smart message:', finalPaymentId);
+          }
+        } catch (error) {
+          console.log('WalletService: Could not get payment ID whitelist, using empty payment ID');
+        }
+      }
+
       // Create transaction (following webWallet pattern exactly)
       const rawTxData = await TransactionsExplorer.createTx(
         destination,
-        paymentId,
+        finalPaymentId,
         this.wallet,
         blockchainHeight,
         (amounts: number[], numberOuts: number): Promise<any> => {

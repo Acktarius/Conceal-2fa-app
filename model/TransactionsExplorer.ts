@@ -73,8 +73,8 @@ declare var config: {
    import { Currency } from "./Currency";
    import { decode as varintDecode } from "./Varint";
    import { logDebugMsg } from "../config";
-   import { SmartMessageParser } from "./SmartMessage";
-   import { SmartMessageService } from "../services/SmartMessageService";
+  import { SmartMessageParser } from "./SmartMessage";
+  import { SmartMessageService } from "../services/SmartMessageService";
   
    export const TX_EXTRA_PADDING_MAX_COUNT = 255;
    export const TX_EXTRA_NONCE_MAX_COUNT = 255;
@@ -335,15 +335,22 @@ declare var config: {
        let decryptedMessage: string = '';
        let mlen: number = rawMessage.length / 2;
   
-       console.log('decryptMessage: Message length check:', { mlen, required: TX_EXTRA_MESSAGE_CHECKSUM_SIZE });
-       if (mlen < TX_EXTRA_MESSAGE_CHECKSUM_SIZE) {    
-          console.log('decryptMessage: Message too short, returning null');
-          return null;
-       }    
+      console.log('decryptMessage: Message length check:', { 
+        mlen, 
+        required: TX_EXTRA_MESSAGE_CHECKSUM_SIZE,
+        rawMessageLength: rawMessage.length,
+        rawMessagePreview: rawMessage.substring(0, 20) + '...'
+      });
+      if (mlen < TX_EXTRA_MESSAGE_CHECKSUM_SIZE) {    
+         console.log('decryptMessage: Message too short, returning null');
+         console.log('decryptMessage: Raw message:', rawMessage);
+         return null;
+      }
   
        let derivation: string;
        try {
           derivation = CnNativeBride.generate_key_derivation(txPubKey, recepientSecretSpendKey);
+          console.log('decryptMessage: Derivation created successfully:', derivation.substring(0, 16) + '...');
         } catch (e) {
           console.error('decryptMessage: UNABLE TO CREATE DERIVATION', e);
           return null;
@@ -367,9 +374,13 @@ declare var config: {
        // typescripted chacha
        const cha = new JSChaCha8(hashBuf, nonceBuf);
        let _buf = cha.decrypt(rawMessArr);
+       
+       console.log('decryptMessage: ChaCha8 decryption result length:', _buf.length);
+       console.log('decryptMessage: Decrypted buffer preview:', Array.from(_buf.slice(0, 10)));
   
        // decode the buffer from chacha8 with text decoder
        decryptedMessage = new TextDecoder().decode(_buf);
+       console.log('decryptMessage: Final decrypted message:', decryptedMessage);
   
        mlen -= TX_EXTRA_MESSAGE_CHECKSUM_SIZE;
        for (let i = 0; i < TX_EXTRA_MESSAGE_CHECKSUM_SIZE; i++) {
@@ -390,7 +401,7 @@ declare var config: {
   
        let tx_pub_key = '';
        let paymentId: string | null = null;
-       let rawMessage: string = '';
+       let rawMessage: string = ''; //future multi-message support rawMessage: string[] = [];
        let ttl: number = 0;
   
        let txExtras = [];
@@ -425,10 +436,16 @@ declare var config: {
        tx_pub_key = CnUtils.bintohex(tx_pub_key);
        let encryptedPaymentId: string | null = null;
        let extraIndex: number = 0;
-  
+       let messageExtraIndex: number = -1; // Initialize to -1, will be set to 0 at first message found
+       // let messageCount: number = 0; Count of messages found for future multi-message support
+       // First pass: Find and extract all extras, storing message position for decryption
+       
        for (let extra of txExtras) {
+         console.log('TransactionsExplorer: Processing extra at index:', extraIndex, 'type:', extra.type, 'dataLength:', extra.data.length);
+         
          if (extra.type === TX_EXTRA_NONCE) {
            if (extra.data[0] === TX_EXTRA_NONCE_PAYMENT_ID) {
+             console.log('TransactionsExplorer: Found payment ID at index:', extraIndex);
              paymentId = '';
              for (let i = 1; i < extra.data.length; ++i) {
                paymentId += String.fromCharCode(extra.data[i]);
@@ -436,6 +453,7 @@ declare var config: {
              paymentId = CnUtils.bintohex(paymentId);
              //break;
            } else if (extra.data[0] === TX_EXTRA_NONCE_ENCRYPTED_PAYMENT_ID) {
+             console.log('TransactionsExplorer: Found encrypted payment ID at index:', extraIndex);
              encryptedPaymentId = '';
              for (let i = 1; i < extra.data.length; ++i) {
                encryptedPaymentId += String.fromCharCode(extra.data[i]);
@@ -445,26 +463,39 @@ declare var config: {
            }
          }
          else if (extra.type === TX_EXTRA_MESSAGE_TAG) {
-            // TODO: Only extract message if not a remote node fee transaction
            console.log('TransactionsExplorer: Found message in extra at index:', extraIndex);
+           messageExtraIndex++; // Increment to message index (0-based) -1 will be set to 0 at first message found
+           //messageCount++; // Increment message count for future multi-message support
+           // rawMessages[messageExtraIndex] = '';
            for (let i = 0; i < extra.data.length; ++i) {
+             // rawMessages[messageExtraIndex] += String.fromCharCode(extra.data[i]);
              rawMessage += String.fromCharCode(extra.data[i]);
            }
            rawMessage = CnUtils.bintohex(rawMessage);
            console.log('TransactionsExplorer: Extracted raw message:', rawMessage);
-           console.log('TransactionsExplorer: Using extraIndex for decryption:', extraIndex);
+           console.log('TransactionsExplorer: Using messageExtraIndex for decryption:', messageExtraIndex);
          }
          else if (extra.type === TX_EXTRA_TTL) {
-                    let rawTTL: string = '';
-                   for (let i = 0; i < extra.data.length; ++i) {
-                     rawTTL += String.fromCharCode(extra.data[i]);
-                 }
-                   let ttlStr = CnUtils.bintohex(rawTTL);
-                   let uint8Array = CnUtils.hextobin(ttlStr);
+           console.log('TransactionsExplorer: Found TTL at index:', extraIndex);
+           let rawTTL: string = '';
+           for (let i = 0; i < extra.data.length; ++i) {
+             rawTTL += String.fromCharCode(extra.data[i]);
+           }
+           let ttlStr = CnUtils.bintohex(rawTTL);
+           let uint8Array = CnUtils.hextobin(ttlStr);
            ttl = varintDecode(uint8Array);         
-               }
+         }
          extraIndex++;
        }
+       
+           // messageExtraIndex is already set when message was found
+           console.log('TransactionsExplorer: Using messageExtraIndex for decryption:', messageExtraIndex);
+           
+           // TODO: Future multi-message support
+           // for (let i = 0; i < messageCount; i++) {
+           //   let message = this.decryptMessage(i, tx_pub_key, wallet.keys.priv.spend, rawMessages[i]);
+           //   // Process each message...
+           // }
   
        let derivation = null;
        try {
@@ -708,7 +739,7 @@ declare var config: {
          if (rawMessage !== '') {
            // decode message
            try {             
-             let message: string = this.decryptMessage(extraIndex, tx_pub_key, wallet.keys.priv.spend, rawMessage);
+             let message: string = this.decryptMessage(messageExtraIndex, tx_pub_key, wallet.keys.priv.spend, rawMessage);
              transaction.message = message;
              
              console.log('TransactionsExplorer: Message decrypted successfully:', message);
@@ -716,7 +747,7 @@ declare var config: {
             // Check if this is a smart message and process it
             if (message && message !== 'null') {
               console.log('TransactionsExplorer: Calling processSmartMessage...');
-              this.processSmartMessage(message, wallet, rawTransaction.hash);
+              this.processSmartMessage(message, wallet, rawTransaction.hash, paymentId);
               console.log('TransactionsExplorer: processSmartMessage completed');
             } else {
               console.log('TransactionsExplorer: Message is null or empty, skipping smart message processing');
@@ -1300,7 +1331,7 @@ declare var config: {
     /**
      * Process smart message from transaction
      */
-    static processSmartMessage(message: string, wallet: Wallet, transactionHash?: string): void {
+    static processSmartMessage(message: string, wallet: Wallet, transactionHash?: string, paymentId?: string): void {
       try {
         if (!SmartMessageParser.isSmartMessage(message)) {
           return; // Not a smart message
@@ -1324,7 +1355,7 @@ declare var config: {
             
             // Handle the result data based on the smart message type
             if (result.data) {
-              SmartMessageService.handleSmartMessageResult(result.data, smartMessage, transactionHash);
+              SmartMessageService.handleSmartMessageResult(result.data, smartMessage, transactionHash, paymentId);
             }
           } else {
             console.error('TransactionsExplorer: Smart message processing failed:', result.message);
