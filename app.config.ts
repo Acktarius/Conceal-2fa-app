@@ -16,7 +16,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     infoPlist: {
       NSCameraUsageDescription: 'This app needs access to camera to scan QR codes for adding 2FA services.'
     },
-    bundleIdentifier: 'com.acktarius.blockchain2faapp'
+    bundleIdentifier: 'com.acktarius.conceal2faapp'
   },
   
   android: {
@@ -26,7 +26,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'android.permission.CAMERA',
       'android.permission.RECORD_AUDIO'
     ],
-    package: 'com.acktarius.blockchain2faapp'
+    package: 'com.acktarius.conceal2faapp'
   },
   
   plugins: [
