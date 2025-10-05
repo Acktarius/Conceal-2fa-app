@@ -30,6 +30,8 @@
  *     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+import { scheduleOnRuntime, createWorkletRuntime } from 'react-native-worklets';
+
 import {Wallet} from "./Wallet";
 import {BlockchainExplorer, RawDaemon_Transaction} from "./blockchain/BlockchainExplorer";
 import {Transaction, TransactionData, Deposit} from "./Transaction";
@@ -38,6 +40,8 @@ import { config } from "../config";
 import { dependencyContainer } from "../services/DependencyContainer";
 import { IWalletOperations } from "../services/interfaces/IWalletOperations";
 import { CronBuddy } from "../services/CronBuddy";
+import { getGlobalWorkletLogging } from '../services/interfaces/IWorkletLogging';
+
 
 // Smart thread management with fallback for Expo Go compatibility
 let ThreadManager: any = null;
@@ -235,7 +239,9 @@ class TxQueueRN {
 
   private processTransactionsSync = (transactions: RawDaemon_Transaction[], maxBlockNum: number): void => {
     try {
-      console.log(`TxQueueRN: Processing ${transactions.length} transactions synchronously`);
+
+      getGlobalWorkletLogging().loggingWithNumber(`TxQueueRN: Processing {} transactions synchronously`, transactions.length);
+      //console.log(`TxQueueRN: Processing ${transactions.length} transactions synchronously`);
       
       for (const rawTx of transactions) {
         const txData = TransactionsExplorer.parse(rawTx, this.wallet);
@@ -673,7 +679,10 @@ export class WalletWatchdogRN {
     // Update max threads for react-native-threads (if available)
     this.maxThreads = this.useThreads ? this.maxCpuCores : 1;
     
-    console.log(`WalletWatchdogRN: Thread management - Max threads: ${this.maxThreads} (${this.useThreads ? 'multi-threaded' : 'single-threaded fallback'})`);
+    scheduleOnRuntime(getGlobalWorkletLogging().runtime, (maxThreads: number, useThreads: boolean) => {
+      console.log(`WalletWatchdogRN: Thread management - Max threads: ${maxThreads} (${useThreads ? 'multi-threaded' : 'single-threaded fallback'})`);
+    }, this.maxThreads, this.useThreads);
+    //console.log(`WalletWatchdogRN: Thread management - Max threads: ${this.maxThreads} (${this.useThreads ? 'multi-threaded' : 'single-threaded fallback'})`);
   }
 
   setupWorkers = () => {
@@ -693,11 +702,13 @@ export class WalletWatchdogRN {
     // Random nodes are dependent both on max nodes available as well as on number of cores we have available and performance settings
     this.remoteNodes = Math.min(config.maxRemoteNodes, config.nodeList.length, this.cpuCores);
     
-    console.log(`WalletWatchdogRN: Setup complete - CPU cores: ${this.cpuCores}, Remote nodes: ${this.remoteNodes}`);
+
+    //console.log(`WalletWatchdogRN: Setup complete - CPU cores: ${this.cpuCores}, Remote nodes: ${this.remoteNodes}`);
   }
 
   signalWalletUpdate = () => {
-    console.log('WalletWatchdogRN: Wallet update in progress');
+    getGlobalWorkletLogging().logging1string('WalletWatchdogRN: Wallet update in progress');
+    //console.log('WalletWatchdogRN: Wallet update in progress');
 
     // Reset the last block loading
     this.lastBlockLoading = -1; // Reset scanning
@@ -758,7 +769,11 @@ export class WalletWatchdogRN {
   }
 
   checkMempool = (): boolean => {
-    console.log("WalletWatchdogRN: checkMempool", this.lastMaximumHeight, this.wallet.lastHeight);
+    
+    scheduleOnRuntime(getGlobalWorkletLogging().runtime, (lastMaximumHeight: number, walletLastHeight: number) => {
+      console.log("WalletWatchdogRN: checkMempool", lastMaximumHeight, walletLastHeight);
+    }, this.lastMaximumHeight, this.wallet.lastHeight);
+    //console.log("WalletWatchdogRN: checkMempool", this.lastMaximumHeight, this.wallet.lastHeight);
 
     if (((this.lastMaximumHeight - this.wallet.lastHeight) > 1) && (this.lastMaximumHeight > 0)) {
       return false;
@@ -819,34 +834,39 @@ export class WalletWatchdogRN {
 
   private processTransactionsSync = (transactions: RawDaemon_Transaction[], lastBlock: number): void => {
     try {
-      console.log(`WalletWatchdogRN: Processing ${transactions.length} transactions synchronously`);
+      scheduleOnRuntime(getGlobalWorkletLogging().runtime, (transactionsLength: number) => {
+        console.log(`WalletWatchdogRN: Processing ${transactionsLength} transactions synchronously`);
+      }, transactions.length);
+      //console.log(`WalletWatchdogRN: Processing ${transactions.length} transactions synchronously`);
       
       for (const rawTx of transactions) {
         // Debug: Check if this transaction belongs to us
         const isOwned = TransactionsExplorer.ownsTx(rawTx, this.wallet);
         
         if (isOwned) {
-          console.log(`WalletWatchdogRN: Found owned transaction at height ${rawTx.height}, hash: ${rawTx.hash}`);
+          
+          scheduleOnRuntime(getGlobalWorkletLogging().runtime, (height: number, hash: string) => {
+            console.log(`WalletWatchdogRN: Found owned transaction at height ${height}, hash: ${hash}`);
+          }, rawTx.height, rawTx.hash);
+          //console.log(`WalletWatchdogRN: Found owned transaction at height ${rawTx.height}, hash: ${rawTx.hash}`);
           // Process the transaction
           const txData = TransactionsExplorer.parse(rawTx, this.wallet);
           if (txData && txData.transaction) {
             this.wallet.addNew(txData.transaction);
             this.wallet.addDeposits(txData.deposits);
             this.wallet.addWithdrawals(txData.withdrawals);
-            console.log(`WalletWatchdogRN: Successfully processed owned transaction at height ${rawTx.height}`);
+            scheduleOnRuntime(getGlobalWorkletLogging().runtime, (height: number) => {
+              console.log(`WalletWatchdogRN: Successfully processed owned transaction at height ${height}`);
+            }, rawTx.height);
+            //console.log(`WalletWatchdogRN: Successfully processed owned transaction at height ${rawTx.height}`);
             
             // Call janitor after adding transaction
             // Use dependency injection to avoid circular dependency
         const walletOperations = dependencyContainer.getWalletOperations();
         if (walletOperations) {
           walletOperations.janitor();
+          }
         }
-          }
-        } else {
-          // Debug: Log transactions that are NOT owned (for debugging)
-          if (rawTx.height >= 1901870 && rawTx.height <= 1901875) {
-            console.log(`WalletWatchdogRN: Transaction at height ${rawTx.height} is NOT owned by wallet`);
-          }
         }
       }
       
@@ -864,7 +884,10 @@ export class WalletWatchdogRN {
       lastBlock: lastBlock,
     }
 
-    console.log(`WalletWatchdogRN: processTransactions called...`, transactions.length, 'transactions');
+    scheduleOnRuntime(getGlobalWorkletLogging().runtime, (transactionsLength: number) => {
+      console.log(`WalletWatchdogRN: processTransactions called...`, transactionsLength, 'transactions');
+    }, transactions.length);
+    //console.log(`WalletWatchdogRN: processTransactions called...`, transactions.length, 'transactions');
     // Add the raw transaction to the processing FIFO list
     this.transactionsToProcess.push(txList);
     // Parse the transactions immediately
@@ -929,12 +952,21 @@ export class WalletWatchdogRN {
           
           if (self.lastBlockLoading === -1) {
             self.lastBlockLoading = self.wallet.lastHeight;
-            console.log('WalletWatchdogRN: Starting synchronization from height:', {
+            
+            scheduleOnRuntime(getGlobalWorkletLogging().runtime, (lastBlockLoading: number, walletLastHeight: number, walletCreationHeight: number, walletAddress: string) => {
+              console.log('WalletWatchdogRN: Starting synchronization from height:', {
+                lastBlockLoading: lastBlockLoading,
+                walletLastHeight: walletLastHeight,
+                walletCreationHeight: walletCreationHeight,
+                walletAddress: walletAddress
+              });
+            }, self.lastBlockLoading, self.wallet.lastHeight, self.wallet.creationHeight, self.wallet.getPublicAddress());
+            /*console.log('WalletWatchdogRN: Starting synchronization from height:', {
               lastBlockLoading: self.lastBlockLoading,
               walletLastHeight: self.wallet.lastHeight,
               walletCreationHeight: self.wallet.creationHeight,
               walletAddress: self.wallet.getPublicAddress()
-            });
+            });*/
           }
 
           // Check if transactions to process stack is too big
@@ -946,7 +978,11 @@ export class WalletWatchdogRN {
 
           // Get the current height of the chain
           let height = await self.explorer.getHeight();
-          console.log('WalletWatchdogRN: Sync loop - blockchain height:', height, 'wallet lastHeight:', self.wallet.lastHeight, 'lastMaximumHeight:', self.lastMaximumHeight);
+          
+          scheduleOnRuntime(getGlobalWorkletLogging().runtime, (height: number, walletLastHeight: number, lastMaximumHeight: number) => {
+            console.log('WalletWatchdogRN: Sync loop - blockchain height:', height, 'wallet lastHeight:', walletLastHeight, 'lastMaximumHeight:', lastMaximumHeight);
+          }, height, self.wallet.lastHeight, self.lastMaximumHeight);
+          //console.log('WalletWatchdogRN: Sync loop - blockchain height:', height, 'wallet lastHeight:', self.wallet.lastHeight, 'lastMaximumHeight:', self.lastMaximumHeight);
 
           // Make sure we are not ahead of chain
           if (self.lastBlockLoading > height) {
@@ -958,17 +994,33 @@ export class WalletWatchdogRN {
           self.isBigSyncJob = blocksToSync > self.bigSyncJob_threshold;
           
           if (self.isBigSyncJob && self.blockCounter === 0) {
-            console.log('WalletWatchdogRN: Big sync job detected - enabling 5000-block saves', {
+            
+            scheduleOnRuntime(getGlobalWorkletLogging().runtime, (blocksToSync: number, walletLastHeight: number, blockchainHeight: number) => {
+              console.log('WalletWatchdogRN: Big sync job detected - enabling 5000-block saves', {
+                blocksToSync: blocksToSync,
+                walletLastHeight: walletLastHeight,
+                blockchainHeight: blockchainHeight
+              });
+            }, blocksToSync, self.wallet.lastHeight, height);
+            /*console.log('WalletWatchdogRN: Big sync job detected - enabling 5000-block saves', {
               blocksToSync,
               walletLastHeight: self.wallet.lastHeight,
               blockchainHeight: height
-            });
+            });*/
           } else if (!self.isBigSyncJob && self.blockCounter > 0) {
-            console.log('WalletWatchdogRN: Small sync job - disabling counter saves', {
+            
+            scheduleOnRuntime(getGlobalWorkletLogging().runtime, (blocksToSync: number, walletLastHeight: number, blockchainHeight: number) => {
+              console.log('WalletWatchdogRN: Small sync job - disabling counter saves', {
+                blocksToSync: blocksToSync,
+                walletLastHeight: walletLastHeight,
+                blockchainHeight: blockchainHeight
+              });
+            }, blocksToSync, self.wallet.lastHeight, height);
+            /*console.log('WalletWatchdogRN: Small sync job - disabling counter saves', {
               blocksToSync,
               walletLastHeight: self.wallet.lastHeight,
               blockchainHeight: height
-            });
+            });*/
             self.blockCounter = 0; // Reset counter for small sync jobs
           }
 
@@ -990,7 +1042,11 @@ export class WalletWatchdogRN {
 
           // Get a free worker and check if we have idle blocks first
           let freeWorker: SyncWorkerRN | null = self.getFreeWorker();
-          console.log('WalletWatchdogRN: Free worker available:', freeWorker !== null);
+          
+          scheduleOnRuntime(getGlobalWorkletLogging().runtime, (freeWorker: SyncWorkerRN | null) => {
+            console.log('WalletWatchdogRN: Free worker available:', freeWorker !== null);
+          }, freeWorker);
+          //console.log('WalletWatchdogRN: Free worker available:', freeWorker !== null);
 
           if (freeWorker) {
             // First check if we have any stale ranges available
@@ -1004,7 +1060,11 @@ export class WalletWatchdogRN {
             } else if (self.lastBlockLoading < height) {
               // Check if block range list is too big
               if (self.blockList.getSize() >= config.maxBlockQueue) {
-                console.log('WalletWatchdogRN: Block range list is too big', self.blockList.getSize());
+                
+                scheduleOnRuntime(getGlobalWorkletLogging().runtime, (blockListSize: number) => {
+                  console.log('WalletWatchdogRN: Block range list is too big', blockListSize);
+                }, self.blockList.getSize());
+                //console.log('WalletWatchdogRN: Block range list is too big', self.blockList.getSize());
                 await new Promise(r => setTimeout(r, 500));
                 continue;
               }
@@ -1053,7 +1113,9 @@ export class WalletWatchdogRN {
    */
   public janitor(): void {
     try {
-      console.log('WalletWatchdogRN: Starting maintenance after transaction...');
+      
+      getGlobalWorkletLogging().logging1string('WalletWatchdogRN: Starting maintenance after transaction...');
+      //console.log('WalletWatchdogRN: Starting maintenance after transaction...');
       
       // 1. Save wallet to storage (persist the new transaction)
       this.saveWallet('transaction processed');
@@ -1065,7 +1127,8 @@ export class WalletWatchdogRN {
         walletOperations.triggerBalanceRefresh();
       }
       
-      console.log('WalletWatchdogRN: Maintenance completed after transaction');
+      getGlobalWorkletLogging().logging1string('WalletWatchdogRN: Maintenance completed after transaction');
+      //console.log('WalletWatchdogRN: Maintenance completed after transaction');
     } catch (error) {
       console.error('WalletWatchdogRN: Error during maintenance after transaction:', error);
     }

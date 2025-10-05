@@ -18,10 +18,10 @@ export class Observable{
 	observers : any = {};
 
 	addObserver(eventType : string, callback : Function){
-		console.log('OBSERVABLE: addObserver() called', { eventType, callbackType: typeof callback });
+		//console.log('OBSERVABLE: addObserver() called', { eventType, callbackType: typeof callback });
 		if(!(eventType in this.observers))this.observers[eventType] = [];
 		this.observers[eventType].push(callback);
-		console.log('OBSERVABLE: Observer added. Total observers for', eventType + ':', this.observers[eventType].length);
+		//console.log('OBSERVABLE: Observer added. Total observers for', eventType + ':', this.observers[eventType].length);
 	}
 
 	removeObserver(eventType:string, callback : Function){
@@ -36,9 +36,9 @@ export class Observable{
 	}
 
 	notify(eventType : string=Observable.EVENT_MODIFIED, data : any=null){
-		console.log('OBSERVABLE: notify() called', { eventType, data, observerCount: this.observers[eventType]?.length || 0 });
+		//console.log('OBSERVABLE: notify() called', { eventType, data, observerCount: this.observers[eventType]?.length || 0 });
 		if(!(eventType in this.observers)) {
-			console.log('OBSERVABLE: No observers for event type:', eventType);
+			//console.log('OBSERVABLE: No observers for event type:', eventType);
 			return;
 		}
 
@@ -47,7 +47,7 @@ export class Observable{
 			observers.push(this.observers[eventType][i]);
 		}
 
-		console.log('OBSERVABLE: Calling', observers.length, 'observers for event:', eventType);
+		//console.log('OBSERVABLE: Calling', observers.length, 'observers for event:', eventType);
 		for(let i in observers){
 			observers[i](eventType, data);
 		}

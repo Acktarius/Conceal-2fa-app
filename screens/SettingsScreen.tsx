@@ -11,6 +11,7 @@ import {
   Alert,
   ScrollView,
   Dimensions,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
@@ -76,6 +77,7 @@ export default function SettingsScreen() {
   const [broadcastAddress, setBroadcastAddress] = useState('');
   const [showBroadcastQRScanner, setShowBroadcastQRScanner] = useState(false);
   const [biometricAction, setBiometricAction] = useState<'enable' | 'disable'>('enable');
+  const [manualPaymentId, setManualPaymentId] = useState('');
   
   // Theme options
   const themeOptions = [
@@ -956,6 +958,47 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleValidatePaymentId = (paymentId: string): boolean => {
+    return CnUtils.validatePaymentId(paymentId);
+  };
+
+  const handleAddManualPaymentId = async () => {
+    const trimmedPaymentId = manualPaymentId.trim();
+    
+    if (!trimmedPaymentId) {
+      Alert.alert('Error', 'Please enter a payment ID');
+      return;
+    }
+
+    if (!handleValidatePaymentId(trimmedPaymentId)) {
+      Alert.alert('Invalid Payment ID', 'Payment ID must be exactly 64 hexadecimal characters (0-9, a-f, A-F)');
+      return;
+    }
+
+    if (paymentIdWhiteList.includes(trimmedPaymentId)) {
+      Alert.alert('Duplicate', 'This payment ID is already in the whitelist');
+      return;
+    }
+
+    try {
+      const updatedList = [...paymentIdWhiteList, trimmedPaymentId];
+      setPaymentIdWhiteList(updatedList);
+      
+      // Save to settings
+      const settings = await StorageService.getSettings();
+      await StorageService.saveSettings({
+        ...settings,
+        paymentIdWhiteList: updatedList
+      });
+      
+      setManualPaymentId(''); // Clear input
+      Alert.alert('Success', 'Payment ID added to whitelist');
+    } catch (error) {
+      console.error('Error adding manual payment ID:', error);
+      Alert.alert('Error', 'Failed to add payment ID');
+    }
+  };
+
   return (
     <GestureNavigator>
       <View className="flex-1" style={{ backgroundColor: theme.colors.background }}>
@@ -1330,6 +1373,51 @@ export default function SettingsScreen() {
                     <Ionicons name="add-circle-outline" size={20} color={theme.colors.primary} />
                     <Text className="ml-2 font-medium" style={{ color: theme.colors.primary }}>Generate Payment ID</Text>
                   </TouchableOpacity>
+                  
+                  {/* Manual Payment ID Input */}
+                  <View className="mb-4">
+                    <Text 
+                      className="text-sm font-medium mb-2 font-poppins-medium" 
+                      style={{ color: theme.colors.textSecondary }}
+                    >
+                      Or enter a payment ID manually:
+                    </Text>
+                    <View className="flex-row items-center">
+                      <TextInput
+                        className="flex-1 p-3 rounded-lg border mr-2 font-mono text-xs"
+                        style={{ 
+                          backgroundColor: theme.colors.surface, 
+                          borderColor: theme.colors.border,
+                          color: theme.colors.text 
+                        }}
+                        placeholder="Enter 64-character payment ID..."
+                        placeholderTextColor={theme.colors.textSecondary}
+                        value={manualPaymentId}
+                        onChangeText={setManualPaymentId}
+                        maxLength={64}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                      />
+                      <TouchableOpacity
+                        className="px-4 py-3 rounded-lg"
+                        style={{ backgroundColor: theme.colors.primary }}
+                        onPress={handleAddManualPaymentId}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="checkmark" size={16} color={theme.colors.background} />
+                      </TouchableOpacity>
+                    </View>
+                    {manualPaymentId.length > 0 && (
+                      <Text 
+                        className="text-xs mt-1" 
+                        style={{ 
+                          color: handleValidatePaymentId(manualPaymentId) ? theme.colors.success : theme.colors.error 
+                        }}
+                      >
+                        {handleValidatePaymentId(manualPaymentId) ? 'Valid payment ID' : 'Invalid payment ID format'}
+                      </Text>
+                    )}
+                  </View>
                   
                   {/* Payment ID List */}
                   {paymentIdWhiteList.length > 0 ? (

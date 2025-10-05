@@ -22,6 +22,7 @@ import { SmartMessageParser } from '../model/SmartMessage';
 import { config, logDebugMsg } from '../config';
 import { JSBigInt } from '../lib/biginteger';
 import { Platform, BackHandler } from 'react-native';
+import { getGlobalWorkletLogging } from './interfaces/IWorkletLogging';
 
 export class WalletService implements IWalletOperations {
   private static readonly ENCRYPTION_KEY = 'wallet_encryption_key';
@@ -116,39 +117,47 @@ export class WalletService implements IWalletOperations {
   // Pragmatic approach: Register a callback for balance refresh
   static registerBalanceRefreshCallback(callback: () => void): void {
     this.balanceRefreshCallback = callback;
-    console.log('WalletService: Balance refresh callback registered');
+    getGlobalWorkletLogging().logging1string('WalletService: Balance refresh callback registered');
+    //console.log('WalletService: Balance refresh callback registered');
   }
 
   // Pragmatic approach: Trigger balance refresh directly
   static triggerBalanceRefresh(): void {
     if (this.balanceRefreshCallback) {
-      console.log('WalletService: Triggering balance refresh via callback');
+      getGlobalWorkletLogging().logging1string('WalletService: Triggering balance refresh via callback');
+      //console.log('WalletService: Triggering balance refresh via callback');
       this.balanceRefreshCallback();
     } else {
-      console.log('WalletService: No balance refresh callback registered');
+      getGlobalWorkletLogging().logging1string('WalletService: No balance refresh callback registered');
+      //console.log('WalletService: No balance refresh callback registered');
     }
   }
 
   // Pragmatic approach: Register a callback for shared keys refresh
   static registerSharedKeysRefreshCallback(callback: () => void): void {
     this.sharedKeysRefreshCallback = callback;
-    console.log('WalletService: Shared keys refresh callback registered');
+    getGlobalWorkletLogging().logging1string('WalletService: Shared keys refresh callback registered');
+    //console.log('WalletService: Shared keys refresh callback registered');
   }
 
   // Pragmatic approach: Trigger shared keys refresh directly
   static triggerSharedKeysRefresh(): void {
     if (this.sharedKeysRefreshCallback) {
-      console.log('WalletService: Triggering shared keys refresh via callback');
+      getGlobalWorkletLogging().logging1string('WalletService: Triggering shared keys refresh via callback');
+      //console.log('WalletService: Triggering shared keys refresh via callback');
       this.sharedKeysRefreshCallback();
     } else {
-      console.log('WalletService: No shared keys refresh callback registered');
+      getGlobalWorkletLogging().logging1string('WalletService: No shared keys refresh callback registered');
+      //console.log('WalletService: No shared keys refresh callback registered');
     }
   }
 
   // Global janitor function - call this after processing transactions
   static async janitor(): Promise<void> {
+    'worklet';
     try {
-      console.log('WalletService: janitor() called - performing maintenance');
+      getGlobalWorkletLogging().logging1string('WalletService: janitor() called - performing maintenance');
+      //console.log('WalletService: janitor() called - performing maintenance');
       
       // 1. Save wallet to storage (persist any changes)
       await this.saveWallet('janitor maintenance');
@@ -159,7 +168,8 @@ export class WalletService implements IWalletOperations {
       // 3. Trigger shared keys refresh (for smart message updates)
       this.triggerSharedKeysRefresh();
       
-      console.log('WalletService: janitor() completed');
+      getGlobalWorkletLogging().logging1string('WalletService: janitor() completed');
+      //console.log('WalletService: janitor() completed');
     } catch (error) {
       console.error('WalletService: Error in janitor():', error);
     }
@@ -265,7 +275,8 @@ export class WalletService implements IWalletOperations {
       if (this.blockchainExplorer) {
         // Reset nodes to pick up custom node changes (like WebWallet does)
         await this.blockchainExplorer.resetNodes();
-        console.log('WALLET SERVICE: Blockchain explorer nodes reset for custom node changes');
+        getGlobalWorkletLogging().logging1string('WALLET SERVICE: Blockchain explorer nodes reset for custom node changes');
+        //console.log('WALLET SERVICE: Blockchain explorer nodes reset for custom node changes');
       }
     } catch (error) {
       console.error('WALLET SERVICE: Error resetting blockchain explorer nodes:', error);
@@ -320,12 +331,14 @@ export class WalletService implements IWalletOperations {
       // BUT: If this is due to authentication failure, we should NOT create a new wallet
       // as this would overwrite the existing blockchain wallet
       if (!wallet) {
-        console.log('WALLET SERVICE: No wallet loaded - checking if this is a new user or auth failure...');
+        getGlobalWorkletLogging().logging1string('WALLET SERVICE: No wallet loaded - checking if this is a new user or auth failure...');
+        //console.log('WALLET SERVICE: No wallet loaded - checking if this is a new user or auth failure...');
         
         // Check if this is a new user (no data) vs auth failure (data exists but can't decrypt)
         const hasAnyWalletData = await this.hasAnyWalletData();
         if (hasAnyWalletData) {
-          console.log('WALLET SERVICE: Wallet data exists but authentication failed - EXITING APP for security');
+          getGlobalWorkletLogging().logging1string('WALLET SERVICE: Wallet data exists but authentication failed - EXITING APP for security');
+          //console.log('WALLET SERVICE: Wallet data exists but authentication failed - EXITING APP for security');
           // Exit app immediately - authentication failure
           if (Platform.OS === 'android') {
             BackHandler.exitApp();
@@ -339,7 +352,8 @@ export class WalletService implements IWalletOperations {
           }
           throw new Error('Authentication failed - app exiting');
         } else {
-          console.log('WALLET SERVICE: No wallet data exists - creating new local wallet for new user');
+          getGlobalWorkletLogging().logging1string('WALLET SERVICE: No wallet data exists - creating new local wallet for new user');
+          //console.log('WALLET SERVICE: No wallet data exists - creating new local wallet for new user');
           wallet = await this.createLocalWallet();
         }
       }
@@ -349,7 +363,8 @@ export class WalletService implements IWalletOperations {
       
       // If wallet exists but is local-only (no keys), check flags and show prompt
       if (wallet && wallet.isLocal()) {
-        console.log('WALLET SERVICE: Local wallet detected, checking flags...');
+        getGlobalWorkletLogging().logging1string('WALLET SERVICE: Local wallet detected, checking flags...');
+        //console.log('WALLET SERVICE: Local wallet detected, checking flags...');
         console.log('WALLET SERVICE: flag_prompt_main_tab:', this.flag_prompt_main_tab);
         console.log('WALLET SERVICE: flag_prompt_wallet_tab:', this.flag_prompt_wallet_tab);
         console.log('WALLET SERVICE: callerScreen:', callerScreen);
@@ -357,7 +372,8 @@ export class WalletService implements IWalletOperations {
         
         // Only show prompt if not prompted before
         if (!this.flag_prompt_main_tab || !this.flag_prompt_wallet_tab) {
-          console.log('WALLET SERVICE: Showing upgrade prompt...');
+          getGlobalWorkletLogging().logging1string('WALLET SERVICE: Showing upgrade prompt...');
+          //console.log('WALLET SERVICE: Showing upgrade prompt...');
           const result = await new Promise<'create' | 'import' | 'cancel'>((resolve) => {
             Alert.alert(
               'Upgrade Wallet',
@@ -384,16 +400,19 @@ export class WalletService implements IWalletOperations {
           // Set flag based on calling screen and save to storage
           if (callerScreen === 'home') {
             this.flag_prompt_main_tab = true;
-            console.log('WALLET SERVICE: Set flag_prompt_main_tab = true');
+            getGlobalWorkletLogging().logging1string('WALLET SERVICE: Set flag_prompt_main_tab = true');
+            //console.log('WALLET SERVICE: Set flag_prompt_main_tab = true');
           } else if (callerScreen === 'wallet') {
             this.flag_prompt_wallet_tab = true;
-            console.log('WALLET SERVICE: Set flag_prompt_wallet_tab = true');
+            getGlobalWorkletLogging().logging1string('WALLET SERVICE: Set flag_prompt_wallet_tab = true');
+            //console.log('WALLET SERVICE: Set flag_prompt_wallet_tab = true');
           }
           
           // Save flags to storage
           await this.saveUpgradeFlags();
           
-          console.log('WALLET SERVICE: User choice:', result);
+          getGlobalWorkletLogging().logging2string('WALLET SERVICE: User choice:', result);
+          //console.log('WALLET SERVICE: User choice:', result);
 
           if (result === 'cancel') {
             return wallet;

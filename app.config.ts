@@ -40,8 +40,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
           kotlinVersion: '2.2.0',
           'org.gradle.java.home': '/usr/lib/jvm/java-17-openjdk-amd64',
           androidSdkPath: '/home/katana/Android/Sdk',
-          'android.abiFilters': 'armeabi-v7a,arm64-v8a,x86,x86_64'
-        }
+          'android.abiFilters': 'armeabi-v7a,arm64-v8a,x86,x86_64',
+          newArchEnabled: true,
+          hermesEnabled: true
+        },
+        jsEngine: 'hermes'
       }
     ],
     [

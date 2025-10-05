@@ -69,7 +69,6 @@ console.log('APP: Module functions:', typeof self !== 'undefined' ? Object.keys(
 console.log('APP: nacl.util.encodeBase64 available:', !!(global as any).nacl?.util?.encodeBase64);
 
 
-
 import TabNavigator from './components/TabNavigator';
 import { WalletProvider } from './contexts/WalletContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
@@ -80,8 +79,14 @@ import { PasswordInputAlert } from './components/PasswordInputAlert';
 import { PasswordCreationAlert } from './components/PasswordCreationAlert';
 import { WalletService } from './services/WalletService'; // MAINTENANCE MODE: One-time wallet clearing for development/testing
 import { StorageService } from './services/StorageService';
+import { initializeGlobalWorkletLogging } from './services/WorkletLoggingService';
+
+
 
 export default function App() {
+  // Initialize global worklet logging service
+  initializeGlobalWorkletLogging();
+  
   // Register services in dependency container to break circular dependencies
   WalletService.registerInContainer();
   StorageService.registerInContainer();
@@ -132,6 +137,7 @@ function AppContent() {
   const { showSeedInputModal } = useSeedInput();
   const { showQRScannerModal } = useQRInput();
 
+
   // Set global functions for services to access
   React.useEffect(() => {
     console.log('APP: Setting global passwordPromptContext...');
@@ -176,6 +182,17 @@ function AppContent() {
   }, []); // Empty dependency array = run once on mount
   */
 
+  // Simple UI worklet test
+/*
+  React.useEffect(() => {
+    const simpleUIWork = () => {
+      'worklet';
+      console.log('🎨 Simple UI worklet running...');
+    };
+
+    runOnUI(simpleUIWork)();
+  }, []);
+*/
   // Debug log when alert state changes
   React.useEffect(() => {
     console.log('APP: Password prompt state changed:', { showPasswordPrompt, passwordPromptTitle, passwordPromptMessage });

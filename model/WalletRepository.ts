@@ -17,14 +17,14 @@
 
 import {RawFullyEncryptedWallet, RawWallet, Wallet} from "./Wallet";
 import {CoinUri} from "./CoinUri";
-
+import { getGlobalWorkletLogging } from "../services/interfaces/IWorkletLogging";
 export class WalletRepository {
 
   // Note: Storage methods are handled by WalletStorageManager in React Native
 	
 	static decodeWithPassword(rawWallet : RawWallet|RawFullyEncryptedWallet, password : string) : Wallet|null {
 		if(password.length > 32)
-			password = password.substr(0 , 32);
+			password = password.slice(0 , 32);
 		if(password.length < 32){
 			password = ('00000000000000000000000000000000'+password).slice(-32);
 		}
@@ -131,11 +131,10 @@ export class WalletRepository {
 	}
 	
 	static save(wallet : Wallet, password : string) : RawFullyEncryptedWallet{
-		console.log('WALLET REPO: Starting save with password length:', password.length);
-		console.log('WALLET REPO: nacl available?', typeof global.nacl !== 'undefined');
-		console.log('WALLET REPO: nacl.randomBytes available?', typeof global.nacl?.randomBytes === 'function');
+
 		
 		// Debug wallet keys before saving
+		/*
 		console.log('WALLET REPO: Wallet keys before save:', {
 			hasKeys: !!wallet.keys,
 			hasSpendKey: !!wallet.keys?.priv?.spend,
@@ -145,43 +144,40 @@ export class WalletRepository {
 			address: wallet.getPublicAddress(),
 			isLocal: wallet.isLocal()
 		});
-		
-		// Debug actual key values
-		if (wallet.keys?.priv?.spend) {
-			console.log('WALLET REPO: Spend key value before save:', wallet.keys.priv.spend);
-		}
-		if (wallet.keys?.priv?.view) {
-			console.log('WALLET REPO: View key value before save:', wallet.keys.priv.view);
-		}
-		
+		*/
+			
 		return this.getEncrypted(wallet, password);
 	}
 
 	static getEncrypted(wallet : Wallet, password : string) : RawFullyEncryptedWallet{
 		console.log('WALLET REPO: getEncrypted starting');
 		if(password.length > 32)
-			password = password.substr(0 , 32);
+			password = password.slice(0 , 32);
 		if(password.length < 32){
 			password = ('00000000000000000000000000000000'+password).slice(-32);
 		}
-		console.log('WALLET REPO: Password normalized to length:', password.length);
+		getGlobalWorkletLogging().logging1string1number('WALLET REPO: Password normalized to length:', password.length);
+		//console.log('WALLET REPO: Password normalized to length:', password.length);
 
 		let privKey = new (<any>TextEncoder)("utf8").encode(password);
-		console.log('WALLET REPO: privKey created, length:', privKey.length);
+		getGlobalWorkletLogging().logging1string1number('WALLET REPO: privKey created, length:', privKey.length);
+		//console.log('WALLET REPO: privKey created, length:', privKey.length);
 		
 		// Fix cyrillic (non-latin) passwords
 		if(privKey.length > 32){
 		   privKey = privKey.slice(-32);
 		}
-		console.log('WALLET REPO: privKey normalized to length:', privKey.length);
+		getGlobalWorkletLogging().logging1string1number('WALLET REPO: privKey normalized to length:', privKey.length);
+		//console.log('WALLET REPO: privKey normalized to length:', privKey.length);
 		
-		console.log('WALLET REPO: About to call nacl.randomBytes(24)');
+		getGlobalWorkletLogging().logging1string('WALLET REPO: About to call nacl.randomBytes(24)');
 		let nonce = nacl.randomBytes(24); // nacl.secretbox expects exactly 24 bytes
-		console.log('WALLET REPO: nacl.randomBytes completed, nonce length:', nonce.length);
+		getGlobalWorkletLogging().logging1string1number('WALLET REPO: nacl.randomBytes completed, nonce length:', nonce.length);
+		//console.log('WALLET REPO: nacl.randomBytes completed, nonce length:', nonce.length);
 		
 		// Check if nacl.util is available
-		console.log('WALLET REPO: nacl.util available?', typeof nacl.util !== 'undefined');
-		console.log('WALLET REPO: nacl.util.encodeBase64 available?', typeof nacl.util?.encodeBase64 === 'function');
+		//console.log('WALLET REPO: nacl.util available?', typeof nacl.util !== 'undefined');
+		//console.log('WALLET REPO: nacl.util.encodeBase64 available?', typeof nacl.util?.encodeBase64 === 'function');
 		
 		let rawNonce;
 		if (nacl.util && nacl.util.encodeBase64) {

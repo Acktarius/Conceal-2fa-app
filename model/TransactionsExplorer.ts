@@ -315,32 +315,34 @@ declare var config: {
       }     
   
        // If transaction has a message sent to us, we own it (even if no ins/outs)
-       console.log('TransactionsExplorer: Final ownsTx result:', {
+       /*console.log('TransactionsExplorer: Final ownsTx result:', {
          hash: rawTransaction.hash,
          height: rawTransaction.height,
          hasMessageToUs,
          result: hasMessageToUs
        });
+       */
        return hasMessageToUs;
      }
   
      static decryptMessage(index: number, txPubKey: string, recepientSecretSpendKey: string, rawMessage: string): string | any {
-       console.log('decryptMessage: Starting decryption with params:', {
+       /*console.log('decryptMessage: Starting decryption with params:', {
          index,
          txPubKey: txPubKey.substring(0, 10) + '...',
          recepientSecretSpendKey: recepientSecretSpendKey.substring(0, 10) + '...',
          rawMessageLength: rawMessage.length
        });
-       
+       */
        let decryptedMessage: string = '';
        let mlen: number = rawMessage.length / 2;
   
-      console.log('decryptMessage: Message length check:', { 
+      /*console.log('decryptMessage: Message length check:', { 
         mlen, 
         required: TX_EXTRA_MESSAGE_CHECKSUM_SIZE,
         rawMessageLength: rawMessage.length,
         rawMessagePreview: rawMessage.substring(0, 20) + '...'
       });
+      */
       if (mlen < TX_EXTRA_MESSAGE_CHECKSUM_SIZE) {    
          console.log('decryptMessage: Message too short, returning null');
          console.log('decryptMessage: Raw message:', rawMessage);
@@ -441,11 +443,11 @@ declare var config: {
        // First pass: Find and extract all extras, storing message position for decryption
        
        for (let extra of txExtras) {
-         console.log('TransactionsExplorer: Processing extra at index:', extraIndex, 'type:', extra.type, 'dataLength:', extra.data.length);
+         // console.log('TransactionsExplorer: Processing extra at index:', extraIndex, 'type:', extra.type, 'dataLength:', extra.data.length);
          
          if (extra.type === TX_EXTRA_NONCE) {
            if (extra.data[0] === TX_EXTRA_NONCE_PAYMENT_ID) {
-             console.log('TransactionsExplorer: Found payment ID at index:', extraIndex);
+             // console.log('TransactionsExplorer: Found payment ID at index:', extraIndex);
              paymentId = '';
              for (let i = 1; i < extra.data.length; ++i) {
                paymentId += String.fromCharCode(extra.data[i]);
@@ -453,7 +455,7 @@ declare var config: {
              paymentId = CnUtils.bintohex(paymentId);
              //break;
            } else if (extra.data[0] === TX_EXTRA_NONCE_ENCRYPTED_PAYMENT_ID) {
-             console.log('TransactionsExplorer: Found encrypted payment ID at index:', extraIndex);
+             // console.log('TransactionsExplorer: Found encrypted payment ID at index:', extraIndex);
              encryptedPaymentId = '';
              for (let i = 1; i < extra.data.length; ++i) {
                encryptedPaymentId += String.fromCharCode(extra.data[i]);
@@ -472,8 +474,10 @@ declare var config: {
              rawMessage += String.fromCharCode(extra.data[i]);
            }
            rawMessage = CnUtils.bintohex(rawMessage);
+           /*
            console.log('TransactionsExplorer: Extracted raw message:', rawMessage);
            console.log('TransactionsExplorer: Using messageExtraIndex for decryption:', messageExtraIndex);
+           */
          }
          else if (extra.type === TX_EXTRA_TTL) {
            console.log('TransactionsExplorer: Found TTL at index:', extraIndex);
@@ -489,7 +493,7 @@ declare var config: {
        }
        
            // messageExtraIndex is already set when message was found
-           console.log('TransactionsExplorer: Using messageExtraIndex for decryption:', messageExtraIndex);
+           // console.log('TransactionsExplorer: Using messageExtraIndex for decryption:', messageExtraIndex);
            
            // TODO: Future multi-message support
            // for (let i = 0; i < messageCount; i++) {

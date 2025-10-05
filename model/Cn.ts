@@ -34,10 +34,10 @@
  *     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
  import {Mnemonic} from "./Mnemonic";
  import {JSChaCha8} from './ChaCha8';
  import { config } from '../config';
- 
  declare let Module : any;
 
 // Ensure Module is available globally (from crypto.js)
@@ -165,7 +165,7 @@ if (typeof Module === 'undefined') {
  export namespace CnUtils{
  
      export function hextobin(hex : string) : Uint8Array{
-         if (hex.length % 2 !== 0) throw "Hex string has invalid length!";
+        if (hex.length % 2 !== 0) throw "Hex string has invalid length!";
          let res = new Uint8Array(hex.length / 2);
          for (let i = 0; i < hex.length / 2; ++i) {
              res[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
@@ -911,7 +911,6 @@ export function sec_key_to_pub(sec : string) : string {
 		// IMPORTANT: This function uses Module from crypto.js (NOT cn_utils_native.js)
 		// We removed cn_utils_native.js import from App.tsx to avoid Module conflicts
 		// This function implements the C++ generate_key_derivation logic using crypto.js functions
-		
 		// Convert hex strings to byte arrays
 		let pub_b = CnUtils.hextobin(pub);
 		let sec_b = CnUtils.hextobin(sec);
@@ -974,7 +973,6 @@ export function sec_key_to_pub(sec : string) : string {
 									  pubSpend : string){
 		// IMPORTANT: This function implements the C++ derive_public_key logic using crypto.js functions
 		// C++ logic: ge_frombytes_vartime -> derivation_to_scalar -> ge_scalarmult_base -> ge_p3_to_cached -> ge_add -> ge_p1p1_to_p2 -> ge_tobytes
-		
 		let derivation_b = CnUtils.hextobin(derivation);
 		let pub_spend_b = CnUtils.hextobin(pubSpend);
 
