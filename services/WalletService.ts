@@ -154,7 +154,6 @@ export class WalletService implements IWalletOperations {
 
   // Global janitor function - call this after processing transactions
   static async janitor(): Promise<void> {
-    'worklet';
     try {
       getGlobalWorkletLogging().logging1string('WalletService: janitor() called - performing maintenance');
       //console.log('WalletService: janitor() called - performing maintenance');

@@ -233,13 +233,13 @@ export default function WalletScreen() {
       // Convert user input (CCX) to atomic units (smallest blockchain unit)
       // CCX has 6 decimal places, so 1 CCX = 1,000,000 atomic units
       const amountInAtoms = Math.floor(amount * Math.pow(10, config.coinUnitPlaces));
-      
+      /*
       console.log('WalletScreen: Converting user input to atomic units', {
         userInputHuman: amount.toFixed(6) + ' CCX',
         amountInAtoms: amountInAtoms,
         coinUnitPlaces: config.coinUnitPlaces
       });
-      
+      */
       // Send transaction using WalletService (amount parameter expects atomic units)
       const txHash = await WalletService.sendTransaction(
         sendAddress.trim(),

@@ -73,8 +73,9 @@ declare var config: {
    import { Currency } from "./Currency";
    import { decode as varintDecode } from "./Varint";
    import { logDebugMsg } from "../config";
-  import { SmartMessageParser } from "./SmartMessage";
-  import { SmartMessageService } from "../services/SmartMessageService";
+   import { SmartMessageParser } from "./SmartMessage";
+   import { SmartMessageService } from "../services/SmartMessageService";
+   import { getGlobalWorkletLogging } from "../services/interfaces/IWorkletLogging";
   
    export const TX_EXTRA_PADDING_MAX_COUNT = 255;
    export const TX_EXTRA_NONCE_MAX_COUNT = 255;
@@ -251,8 +252,7 @@ declare var config: {
          if (out.target.type == "02" && typeof txout_k.key !== 'undefined') {
           let publicEphemeral = CnNativeBride.derive_public_key(derivation, keyIndex, wallet.keys.pub.spend);
            if (txout_k.key == publicEphemeral) {
-             logDebugMsg("Found our tx...");
-             console.log('TransactionsExplorer: MATCH FOUND! We own this transaction:');
+             getGlobalWorkletLogging().logging1string("Found our tx...");
              return true;
            }
            ++keyIndex;

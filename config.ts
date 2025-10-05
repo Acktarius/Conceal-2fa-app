@@ -1,4 +1,5 @@
 import { getRuntimeConfig, logConfigInfo } from './config/runtime';
+import { getGlobalWorkletLogging } from './services/interfaces/IWorkletLogging';
 
 // Get runtime configuration
 const runtimeConfig = getRuntimeConfig();
@@ -87,13 +88,15 @@ export const config = {
   ]
 };
 
-// Function to log debug messages
+// Function to log debug messages using worklet logging
 export function logDebugMsg(...data: any[]) {
   if (config.debug) {
     if (data.length > 1) {
-      console.log(data[0], data.slice(1));
+      getGlobalWorkletLogging().logging2string(data[0].toString(), data.slice(1).toString());
+      //console.log(data[0], data.slice(1));
     } else {
-      console.log(data[0]);
+      getGlobalWorkletLogging().logging1string(data[0].toString());
+      //console.log(data[0]);
     }
   }
 }

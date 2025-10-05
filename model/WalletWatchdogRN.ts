@@ -155,17 +155,14 @@ class TxQueueRN {
 
             this.wallet.addNew(txDataObject.transaction);
             this.wallet.addDeposits(txDataObject.deposits);
-            this.wallet.addWithdrawals(txDataObject.withdrawals);
-            
-            // Call janitor after adding transaction
-            // Use dependency injection to avoid circular dependency
-        const walletOperations = dependencyContainer.getWalletOperations();
-        if (walletOperations) {
-          walletOperations.janitor();
-        }
-          
+            this.wallet.addWithdrawals(txDataObject.withdrawals);            
           }
-
+          // Call janitor after adding transaction
+          // Use dependency injection to avoid circular dependency
+          const walletOperations = dependencyContainer.getWalletOperations();
+          if (walletOperations) {
+            walletOperations.janitor();
+          }
           // Increase the number of transactions we actually added to wallet
           this.countAdded = this.countAdded + message.transactions.length;
         }
@@ -859,16 +856,15 @@ export class WalletWatchdogRN {
               console.log(`WalletWatchdogRN: Successfully processed owned transaction at height ${height}`);
             }, rawTx.height);
             //console.log(`WalletWatchdogRN: Successfully processed owned transaction at height ${rawTx.height}`);
-            
-            // Call janitor after adding transaction
-            // Use dependency injection to avoid circular dependency
+          }
+        }
+      }
+      
         const walletOperations = dependencyContainer.getWalletOperations();
         if (walletOperations) {
           walletOperations.janitor();
-          }
         }
-        }
-      }
+   
       
       // Finish the block range
       this.blockList.finishBlockRange(lastBlock, transactions);
@@ -1111,6 +1107,7 @@ export class WalletWatchdogRN {
    * Janitor - Perform maintenance tasks after processing a transaction that belongs to us
    * This is a pragmatic approach - instead of relying on observers, just do the maintenance directly
    */
+  /*
   public janitor(): void {
     try {
       
@@ -1133,4 +1130,5 @@ export class WalletWatchdogRN {
       console.error('WalletWatchdogRN: Error during maintenance after transaction:', error);
     }
   }
+    */
 }
