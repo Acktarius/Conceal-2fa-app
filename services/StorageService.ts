@@ -1,19 +1,81 @@
+/**
+*     Copyright (c) 2025, Acktarius 
+*/
 import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Crypto from 'expo-crypto';
 import { Platform } from 'react-native';
-import { SharedKey } from '../models/Transaction';
+import { SharedKey } from '../model/Transaction';
+import { WalletStorageManager } from './WalletStorageManager';
+import { IStorageService } from './interfaces/IStorageService';
+import { dependencyContainer } from './DependencyContainer';
 
-export class StorageService {
+export class StorageService implements IStorageService {
   private static readonly SHARED_KEYS_KEY = 'shared_keys';
   private static readonly WALLET_KEY = 'wallet_data';
   private static readonly SETTINGS_KEY = 'app_settings';
+  private static readonly ENCRYPTION_SALT = 'conceal_shared_keys_salt';
+
+  // Register this service in the dependency container
+  static registerInContainer(): void {
+    dependencyContainer.registerStorageService(new StorageService());
+  }
+
+  // Instance methods for IStorageService interface
+  async getSharedKeys(): Promise<SharedKey[]> {
+    return StorageService.getSharedKeys();
+  }
+
+  async saveSharedKeys(sharedKeys: SharedKey[]): Promise<void> {
+    return StorageService.saveSharedKeys(sharedKeys);
+  }
+
+  async getSettings(): Promise<any> {
+    return StorageService.getSettings();
+  }
+
+  async saveSettings(settings: any): Promise<void> {
+    return StorageService.saveSettings(settings);
+  }
+
+  async clearAll(): Promise<void> {
+    return StorageService.clearAll();
+  }
+
+  // TEMPORARY: Simple encryption for shared keys
+  // TODO: Remove these functions when shared keys are integrated into transactions
+  // Shared keys should use WalletRepository encryption like wallet data
+  private static async encryptData(data: string): Promise<string> {
+    const combined = data + this.ENCRYPTION_SALT;
+    const hash = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, combined);
+    return btoa(data + '|' + hash);
+  }
+
+  // TEMPORARY: Simple decryption for shared keys
+  private static async decryptData(encryptedData: string): Promise<string> {
+    const decoded = atob(encryptedData);
+    const [data, hash] = decoded.split('|');
+    
+    // Verify the data integrity
+    const combined = data + this.ENCRYPTION_SALT;
+    const expectedHash = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, combined);
+    
+    if (hash !== expectedHash) {
+      throw new Error('Invalid encrypted data');
+    }
+    
+    return data;
+  }
 
   static async saveSharedKeys(sharedKeys: SharedKey[]): Promise<void> {
     try {
       const data = JSON.stringify(sharedKeys);
+      const encryptedData = await this.encryptData(data);
+      
       if (Platform.OS === 'web') {
-        localStorage.setItem(this.SHARED_KEYS_KEY, data);
+        localStorage.setItem(this.SHARED_KEYS_KEY, encryptedData);
       } else {
-        await SecureStore.setItemAsync(this.SHARED_KEYS_KEY, data);
+        await AsyncStorage.setItem(this.SHARED_KEYS_KEY, encryptedData);
       }
     } catch (error) {
       console.error('Error saving shared keys:', error);
@@ -23,15 +85,16 @@ export class StorageService {
 
   static async getSharedKeys(): Promise<SharedKey[]> {
     try {
-      let data: string | null;
+      let encryptedData: string | null;
       if (Platform.OS === 'web') {
-        data = localStorage.getItem(this.SHARED_KEYS_KEY);
+        encryptedData = localStorage.getItem(this.SHARED_KEYS_KEY);
       } else {
-        data = await SecureStore.getItemAsync(this.SHARED_KEYS_KEY);
+        encryptedData = await AsyncStorage.getItem(this.SHARED_KEYS_KEY);
       }
       
-      if (!data) return [];
+      if (!encryptedData) return [];
       
+      const data = await this.decryptData(encryptedData);
       const parsed = JSON.parse(data);
       return parsed.map((item: any) => {
         const sharedKey = new SharedKey();
@@ -42,12 +105,16 @@ export class StorageService {
           fee: item.fee || 0,
           extraType: item.extraType || '',
           revokeInQueue: item.revokeInQueue || false,
+          toBePush: item.toBePush || false, // Include toBePush property
           name: item.name || '',
           issuer: item.issuer || '',
           secret: item.secret || '',
           code: item.code || '',
           timeRemaining: item.timeRemaining || 0,
-          timeStampSharedKeyCreate: item.timeStampSharedKeyCreate || Date.now()
+          timeStampSharedKeyCreate: item.timeStampSharedKeyCreate || Date.now(),
+          timeStampSharedKeyRevoke: item.timeStampSharedKeyRevoke !== undefined ? item.timeStampSharedKeyRevoke : -1, // Include timeStampSharedKeyRevoke property
+          isLocal: item.isLocal !== undefined ? item.isLocal : true, // Default to true for backward compatibility
+          unknownSource: item.unknownSource || false // Default to false for backward compatibility
         });
         return sharedKey;
       });
@@ -57,34 +124,7 @@ export class StorageService {
     }
   }
 
-  static async saveWallet(walletData: any): Promise<void> {
-    try {
-      const data = JSON.stringify(walletData);
-      if (Platform.OS === 'web') {
-        localStorage.setItem(this.WALLET_KEY, data);
-      } else {
-        await SecureStore.setItemAsync(this.WALLET_KEY, data);
-      }
-    } catch (error) {
-      console.error('Error saving wallet:', error);
-      throw new Error('Failed to save wallet');
-    }
-  }
 
-  static async getWallet(): Promise<any | null> {
-    try {
-      let data: string | null;
-      if (Platform.OS === 'web') {
-        data = localStorage.getItem(this.WALLET_KEY);
-      } else {
-        data = await SecureStore.getItemAsync(this.WALLET_KEY);
-      }
-      return data ? JSON.parse(data) : null;
-    } catch (error) {
-      console.error('Error loading wallet:', error);
-      return null;
-    }
-  }
 
   static async saveSettings(settings: any): Promise<void> {
     try {
@@ -117,18 +157,75 @@ export class StorageService {
 
   static async clearAll(): Promise<void> {
     try {
+      console.log('Starting clearAll...');
+      
       if (Platform.OS === 'web') {
-        localStorage.removeItem(this.SERVICES_KEY);
-        localStorage.removeItem(this.WALLET_KEY);
+        console.log('Clearing web storage...');
+        // Clear all known keys
+        localStorage.removeItem(this.SHARED_KEYS_KEY);
         localStorage.removeItem(this.SETTINGS_KEY);
+        localStorage.removeItem('shared_keys');
+        localStorage.removeItem('app_settings');
+        localStorage.removeItem('wallet_data');
+        localStorage.removeItem('wallet_encryption_key');
+        localStorage.removeItem('wallet_has_password');
+        // Clear any other possible keys
+        localStorage.clear();
       } else {
-        await SecureStore.deleteItemAsync(this.SERVICES_KEY);
-        await SecureStore.deleteItemAsync(this.WALLET_KEY);
+        console.log('Clearing native storage...');
+        // Clear all known keys
+        await SecureStore.deleteItemAsync(this.SHARED_KEYS_KEY);
         await SecureStore.deleteItemAsync(this.SETTINGS_KEY);
+        await SecureStore.deleteItemAsync('shared_keys');
+        await SecureStore.deleteItemAsync('app_settings');
+        await SecureStore.deleteItemAsync('wallet_data');
+        await SecureStore.deleteItemAsync('wallet_encryption_key');
+        await SecureStore.deleteItemAsync('wallet_has_password');
+        // Clear AsyncStorage
+        await AsyncStorage.removeItem(this.SHARED_KEYS_KEY);
       }
+      
+      // Clear wallet data
+      await WalletStorageManager.clearWallet();
+
+      console.log('ClearAll completed successfully');
     } catch (error) {
       console.error('Error clearing storage:', error);
       throw new Error('Failed to clear storage');
+    }
+  }
+
+  static async debugStorage(): Promise<void> {
+    try {
+      console.log('=== STORAGE DEBUG ===');
+      
+      // Check shared keys
+      const sharedKeys = await this.getSharedKeys();
+      console.log('Shared keys count:', sharedKeys.length);
+      sharedKeys.forEach((key, index) => {
+        console.log(`Shared key ${index}:`, {
+          name: key.name,
+          issuer: key.issuer,
+          hash: key.hash,
+          isLocal: key.isLocal,
+          unknownSource: key.unknownSource
+        });
+      });
+      
+      // Check wallet
+      const wallet = await WalletStorageManager.getWallet();
+      console.log('Wallet exists:', !!wallet);
+      if (wallet) {
+        console.log('Wallet address:', wallet.getPublicAddress());
+      }
+      
+      // Check settings
+      const settings = await this.getSettings();
+      console.log('Settings:', settings);
+      
+      console.log('=== END STORAGE DEBUG ===');
+    } catch (error) {
+      console.error('Error debugging storage:', error);
     }
   }
 }

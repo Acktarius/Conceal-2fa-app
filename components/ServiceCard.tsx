@@ -2,44 +2,66 @@ import React from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   TouchableOpacity,
   Alert,
   Platform,
   Animated,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons, FontAwesome } from '@expo/vector-icons';
 
 import { useTheme } from '../contexts/ThemeContext';
-import { SharedKey } from '../models/Transaction';
+import { SharedKey } from '../model/Transaction';
+import { StorageService } from '../services/StorageService';
+import { IconService, IconInfo } from '../services/IconService';
+import { TOTPService } from '../services/TOTPService';
 
 interface ServiceCardProps {
   sharedKey: SharedKey;
   isSelected: boolean;
   walletBalance: number;
-  isWalletSynced: boolean;
+  blockchainSyncEnabled?: boolean;
+
   onCopy: () => void;
   onDelete: () => void;
   onSelect: () => void;
-  onBroadcast: () => void;
+  onBroadcast: (futureCode?: string) => void;
   onSaveToBlockchain: () => void;
 }
 
-export default function ServiceCard({ 
+// Helper component to render the appropriate icon based on family
+const ServiceIcon: React.FC<{ iconInfo: IconInfo; size: number; color: string }> = ({ iconInfo, size, color }) => {
+  switch (iconInfo.family) {
+    case 'Ionicons':
+      return <Ionicons name={iconInfo.name as any} size={size} color={color} />;
+    case 'MaterialIcons':
+      return <MaterialIcons name={iconInfo.name as any} size={size} color={color} />;
+    case 'FontAwesome':
+      return <FontAwesome name={iconInfo.name as any} size={size} color={color} />;
+    default:
+      return <Ionicons name="shield" size={size} color={color} />;
+  }
+};
+
+const ServiceCard = React.forwardRef<any, ServiceCardProps>(({ 
   sharedKey, 
   isSelected, 
   walletBalance, 
-  isWalletSynced, 
+  blockchainSyncEnabled = false,
+
   onCopy, 
   onDelete, 
   onSelect, 
   onBroadcast, 
   onSaveToBlockchain 
-}: ServiceCardProps) {
+}, ref) => {
   const { theme } = useTheme();
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+  const [futureCode, setFutureCode] = React.useState<string>('');
+  const [showFutureCode, setShowFutureCode] = React.useState(false);
+  const [isPulsing, setIsPulsing] = React.useState(false);
   const flipAnim = React.useRef(new Animated.Value(0)).current;
   const actionsAnim = React.useRef(new Animated.Value(0)).current;
+  const pulseAnim = React.useRef(new Animated.Value(1)).current;
   
   React.useEffect(() => {
     Animated.timing(actionsAnim, {
@@ -49,6 +71,105 @@ export default function ServiceCard({
     }).start();
   }, [isSelected]);
 
+  // Future code display logic
+  React.useEffect(() => {
+    const checkFutureCodeDisplay = async () => {
+      try {
+        const settings = await StorageService.getSettings();
+        const futureDisplaySetting = settings.futureCodeDisplay || 'off';
+        
+        if (futureDisplaySetting === 'off') {
+          setShowFutureCode(false);
+          return;
+        }
+        
+        // Generate future code (next 30-second period)
+        const futureTime = Math.floor(Date.now() / 30000) + 1;
+        const futureCodeGenerated = await generateFutureCode(sharedKey.secret, futureTime);
+        setFutureCode(futureCodeGenerated);
+        
+        // Determine when to show future code
+        const timeRemaining = sharedKey.timeRemaining;
+        let shouldShow = false;
+        
+        switch (futureDisplaySetting) {
+          case 'on':
+            shouldShow = true;
+            break;
+          case '5s':
+            shouldShow = timeRemaining <= 5;
+            break;
+          case '10s':
+            shouldShow = timeRemaining <= 10;
+            break;
+          default:
+            shouldShow = false;
+        }
+        
+        setShowFutureCode(shouldShow);
+      } catch (error) {
+        console.error('Error checking future code display:', error);
+        setShowFutureCode(false);
+      }
+    };
+    
+    checkFutureCodeDisplay();
+  }, [sharedKey.timeRemaining, sharedKey.secret]);
+
+  // Generate future TOTP code
+  const generateFutureCode = async (secret: string, timeStep: number): Promise<string> => {
+    try {
+      return await TOTPService.generateTOTPForTimeStep(secret, timeStep);
+    } catch (error) {
+      console.error('Error generating future code:', error);
+      return '000000'; // Fallback
+    }
+  };
+
+  // Trigger pulsing animation
+  const triggerPulse = () => {
+    setIsPulsing(true);
+    Animated.sequence([
+      Animated.timing(pulseAnim, {
+        toValue: 1.1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(pulseAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(pulseAnim, {
+        toValue: 1.1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(pulseAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(pulseAnim, {
+        toValue: 1.1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(pulseAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setIsPulsing(false);
+    });
+  };
+
+  // Expose triggerPulse function to parent component
+  React.useImperativeHandle(ref, () => ({
+    triggerPulse,
+  }));
+
   const handleDelete = () => {
     setShowDeleteConfirm(true);
     Animated.timing(flipAnim, {
@@ -56,6 +177,45 @@ export default function ServiceCard({
       duration: 300,
       useNativeDriver: true,
     }).start();
+  };
+
+  const handleUnknownSourceWarning = () => {
+    Alert.alert(
+      'Unknown Source Warning',
+      'This service card comes from an unknown source. Do you want to trust it or keep it as unknown?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => {
+            // Keep unknownSource flag as true, do nothing
+          }
+        },
+        {
+          text: 'Trust',
+          style: 'default',
+          onPress: async () => {
+            try {
+              // Update the shared key to mark as trusted
+              const sharedKeys = await StorageService.getSharedKeys();
+              const updatedSharedKeys = sharedKeys.map(sk => {
+                if (sk.hash === sharedKey.hash || (sk.name === sharedKey.name && sk.secret === sharedKey.secret)) {
+                  sk.unknownSource = false;
+                }
+                return sk;
+              });
+              await StorageService.saveSharedKeys(updatedSharedKeys);
+              
+              // Trigger a refresh by calling onSelect
+              onSelect();
+            } catch (error) {
+              console.error('Error trusting unknown source:', error);
+              Alert.alert('Error', 'Failed to trust the service. Please try again.');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleCancelDelete = () => {
@@ -85,8 +245,8 @@ export default function ServiceCard({
   const codeOpacity = 0.6 + (sharedKey.timeRemaining / 30) * 0.4;
   
   const minTransactionAmount = 0.011;
-  const canUseBlockchainFeatures = isWalletSynced && walletBalance >= minTransactionAmount;
-  const styles = createStyles(theme, isSelected);
+  const canUseBlockchainFeatures = walletBalance >= minTransactionAmount;
+  
 
   const frontInterpolate = flipAnim.interpolate({
     inputRange: [0, 1],
@@ -98,108 +258,172 @@ export default function ServiceCard({
     outputRange: ['180deg', '360deg'],
   });
   return (
-    <View 
+    <Animated.View 
+      className={`w-full rounded-xl mb-3 shadow-lg ${isSelected ? 'min-h-[160px]' : 'min-h-[130px]'}`}
       style={[
-        styles.container, 
         { backgroundColor: theme.colors.card },
-        isSelected && { borderWidth: 2, borderColor: theme.colors.primary }
+        isSelected && { borderWidth: 2, borderColor: theme.colors.primary },
+        isPulsing && { 
+          borderWidth: 3, 
+          borderColor: theme.colors.pulseColor,
+          transform: [{ scale: pulseAnim }]
+        }
       ]}
     >
       {/* Front of card */}
       <Animated.View
+        className="absolute w-full h-full rounded-2xl"
         style={[
-          styles.cardFace,
           { transform: [{ rotateY: frontInterpolate }] },
-          showDeleteConfirm && styles.hiddenFace
+          showDeleteConfirm && { opacity: 0, pointerEvents: 'none' }
         ]}
       >
         <TouchableOpacity 
-          style={styles.cardContent}
+          className="h-full p-3"
           onPress={onSelect}
           activeOpacity={0.9}
         >
-          <View style={styles.header}>
-            <View style={styles.serviceInfo}>
-              <Text style={[styles.serviceName, { color: theme.colors.text }]} numberOfLines={1}>
+          <View className="flex-row justify-between items-start mb-3">
+            <View className="flex-1">
+              <Text 
+                className="text-lg font-semibold mb-1 min-h-[22px] font-poppins-medium" 
+                style={{ color: theme.colors.text }} 
+                numberOfLines={1}
+              >
                 {sharedKey.name}
               </Text>
-              <View style={styles.issuerRow}>
-                <Text style={[styles.issuer, { color: theme.colors.textSecondary }]}>{sharedKey.issuer}</Text>
-                {sharedKey.isLocalOnly() && (
-                  <View style={[styles.localBadge, { backgroundColor: theme.colors.warning + '20' }]}>
-                    <Text style={[styles.localBadgeText, { color: theme.colors.warning }]}>Local</Text>
+              <View className="flex-row items-center">
+                <Text 
+                  className="text-sm min-h-[18px] font-poppins" 
+                  style={{ color: theme.colors.textSecondary }}
+                >
+                  {sharedKey.issuer}
+                </Text>
+                {sharedKey.isLocal ? (
+                  <View 
+                    className="rounded-md px-1.5 py-0.5 ml-2"
+                    style={{ backgroundColor: theme.colors.warning + '20' }}
+                  >
+                    <Text 
+                      className="text-xs font-semibold font-poppins-medium" 
+                      style={{ color: theme.colors.warning }}
+                    >
+                      Local
+                    </Text>
+                  </View>
+                ) : (
+                  <View 
+                    className="rounded-md px-1.5 py-0.5 ml-2 flex-row items-center"
+                    style={{ backgroundColor: theme.colors.warning + '20' }}
+                  >
+                    <Ionicons name="link" size={12} color={theme.colors.warning} />
                   </View>
                 )}
               </View>
             </View>
-            <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={handleDelete}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="trash-outline" size={20} color="#EF4444" />
-            </TouchableOpacity>
+            <View className="flex-row items-center">
+              {/* Warning icon for unknown source */}
+              {sharedKey.unknownSource && (
+                <TouchableOpacity
+                  className="p-1 mr-1"
+                  onPress={handleUnknownSourceWarning}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="warning" size={20} color="#F59E0B" />
+                </TouchableOpacity>
+              )}
+              
+              {/* Delete button */}
+              <TouchableOpacity
+                className="p-1"
+                onPress={handleDelete}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="trash-outline" size={20} color="#EF4444" />
+              </TouchableOpacity>
+            </View>
           </View>
 
-          <TouchableOpacity
-            style={[styles.codeContainer, { backgroundColor: theme.colors.background }]}
-            onPress={onCopy}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.code, { color: '#3B82F6', opacity: codeOpacity }]}>
-              {sharedKey.code.slice(0, 3)} {sharedKey.code.slice(3)}
-            </Text>
-            <View style={styles.copyIcon}>
-              <Ionicons name="copy-outline" size={20} color={theme.colors.textSecondary} />
+          <View className="flex-row items-center mb-3">
+            {/* Service Icon */}
+            <View className="w-8 h-8 items-center justify-center mr-3">
+              <ServiceIcon 
+                iconInfo={IconService.getServiceIcon(sharedKey.name, sharedKey.issuer)}
+                size={20} 
+                color={theme.colors.textSecondary} 
+              />
             </View>
-          </TouchableOpacity>
-
-          <View style={styles.footer}>
-            <View style={styles.progressContainer}>
-              <View style={[styles.progressBackground, { backgroundColor: theme.colors.border }]}>
-                <View
-                  style={[
-                    styles.progressBar,
-                    {
-                      width: `${progressPercentage}%`,
-                      backgroundColor: '#3B82F6',
-                      opacity: codeOpacity,
-                    },
-                  ]}
-                />
-              </View>
+            
+            {/* 2FA Code - No box, tap to copy */}
+            <TouchableOpacity
+              className="flex-row items-center flex-1 mr-3"
+              onPress={onCopy}
+              activeOpacity={0.8}
+            >
+              <Text 
+                className="text-4xl font-bold font-mono tracking-wider" 
+                style={{ color: '#3B82F6', opacity: codeOpacity }}
+              >
+                {sharedKey.code.slice(0, 3)} {sharedKey.code.slice(3)}
+              </Text>
+              
+              {/* Future Code Display */}
+              {showFutureCode && (
+                <Text 
+                  className="text-lg font-mono italic ml-4" 
+                  style={{ color: theme.colors.textSecondary, opacity: 0.7 }}
+                >
+                  {futureCode.slice(0, 3)} {futureCode.slice(3)}
+                </Text>
+              )}
+            </TouchableOpacity>
+            
+            {/* Circular Countdown Timer */}
+            <View className="w-12 h-12 items-center justify-center">
+              <View 
+                className="absolute w-12 h-12 rounded-full border-2"
+                style={{ borderColor: theme.colors.border }}
+              />
+              <View
+                className="absolute w-12 h-12 rounded-full border-2"
+                style={{
+                  borderColor: '#3B82F6',
+                  borderTopColor: 'transparent',
+                  transform: [{ rotate: `${(sharedKey.timeRemaining / 30) * 360}deg` }],
+                  opacity: codeOpacity,
+                }}
+              />
+              <Text 
+                className="text-xs font-bold font-poppins-medium" 
+                style={{ color: theme.colors.textSecondary }}
+              >
+                {sharedKey.timeRemaining}
+              </Text>
             </View>
-            <Text style={[styles.timeRemaining, { color: theme.colors.textSecondary }]}>
-              {sharedKey.timeRemaining}s
-            </Text>
           </View>
 
           {isSelected && (
             <Animated.View 
-              style={[
-                styles.actions,
-                {
-                  opacity: actionsAnim,
-                  transform: [
-                    {
-                      translateY: actionsAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [10, 0],
-                      }),
-                    },
-                  ],
-                },
-              ]}
+              className="flex-row mt-0.5 px-1"
+              style={{
+                opacity: actionsAnim,
+                transform: [
+                  {
+                    translateY: actionsAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [10, 0],
+                    }),
+                  },
+                ],
+              }}
             >
               <TouchableOpacity
-                style={[
-                  styles.actionButton, 
-                  { 
-                    backgroundColor: canUseBlockchainFeatures ? theme.colors.primaryLight : theme.colors.border,
-                    opacity: canUseBlockchainFeatures ? 1 : 0.5 
-                  }
-                ]}
-                onPress={canUseBlockchainFeatures ? onBroadcast : undefined}
+                className="flex-1 flex-row items-center justify-center rounded-lg px-1.5 py-2 mx-0.5 max-w-[45%]"
+                style={{ 
+                  backgroundColor: canUseBlockchainFeatures ? theme.colors.primaryLight : theme.colors.border,
+                  opacity: canUseBlockchainFeatures ? 1 : 0.5 
+                }}
+                onPress={canUseBlockchainFeatures ? () => onBroadcast(futureCode) : undefined}
                 disabled={!canUseBlockchainFeatures}
                 activeOpacity={canUseBlockchainFeatures ? 0.7 : 1}
               >
@@ -208,38 +432,39 @@ export default function ServiceCard({
                   size={16} 
                   color={canUseBlockchainFeatures ? theme.colors.primary : theme.colors.textSecondary} 
                 />
-                <Text style={[
-                  styles.actionText, 
-                  { color: canUseBlockchainFeatures ? theme.colors.primary : theme.colors.textSecondary }
-                ]}>
-                  Broadcast to myself
+                <Text 
+                  className="text-xs font-semibold ml-1 text-center font-poppins-medium" 
+                  style={{ color: canUseBlockchainFeatures ? theme.colors.primary : theme.colors.textSecondary }}
+                >
+                  Broadcast
                 </Text>
               </TouchableOpacity>
               
-              <TouchableOpacity
-                style={[
-                  styles.actionButton, 
-                  { 
+              {/* Only show Save on Blockchain button if blockchain sync is disabled AND sharedKey is local */}
+              {!blockchainSyncEnabled && sharedKey.isLocal && (
+                <TouchableOpacity
+                  className="flex-1 flex-row items-center justify-center rounded-lg px-1.5 py-2 mx-0.5"
+                  style={{ 
                     backgroundColor: canUseBlockchainFeatures ? theme.colors.primaryLight : theme.colors.border,
                     opacity: canUseBlockchainFeatures ? 1 : 0.5,
-                  }
-                ]}
-                onPress={canUseBlockchainFeatures ? onSaveToBlockchain : undefined}
-                disabled={!canUseBlockchainFeatures}
-                activeOpacity={canUseBlockchainFeatures ? 0.7 : 1}
-              >
-                <Ionicons 
-                  name="link-outline" 
-                  size={16} 
-                  color={canUseBlockchainFeatures ? theme.colors.primary : theme.colors.textSecondary} 
-                />
-                <Text style={[
-                  styles.actionText, 
-                  { color: canUseBlockchainFeatures ? theme.colors.primary : theme.colors.textSecondary }
-                ]}>
-                  Save on Blockchain
-                </Text>
-              </TouchableOpacity>
+                  }}
+                  onPress={canUseBlockchainFeatures ? onSaveToBlockchain : undefined}
+                  disabled={!canUseBlockchainFeatures}
+                  activeOpacity={canUseBlockchainFeatures ? 0.7 : 1}
+                >
+                  <Ionicons 
+                    name="link-outline" 
+                    size={16} 
+                    color={canUseBlockchainFeatures ? theme.colors.primary : theme.colors.textSecondary} 
+                  />
+                  <Text 
+                    className="text-xs font-semibold ml-1 text-center font-poppins-medium" 
+                    style={{ color: canUseBlockchainFeatures ? theme.colors.primary : theme.colors.textSecondary }}
+                  >
+                    Save on Blockchain
+                  </Text>
+                </TouchableOpacity>
+              )}
             </Animated.View>
           )}
         </TouchableOpacity>
@@ -247,240 +472,60 @@ export default function ServiceCard({
 
       {/* Back of card - Delete confirmation */}
       <Animated.View
+        className="absolute w-full h-full rounded-2xl"
         style={[
-          styles.cardFace,
-          styles.cardBack,
           { transform: [{ rotateY: backInterpolate }] },
-          !showDeleteConfirm && styles.hiddenFace
+          !showDeleteConfirm && { opacity: 0, pointerEvents: 'none' }
         ]}
       >
-        <View style={styles.deleteConfirmContainer}>
-          <Ionicons name="warning-outline" size={48} color={theme.colors.warning} />
-          <Text style={[styles.deleteTitle, { color: theme.colors.text }]}>
-            Are you sure you want to delete?
-          </Text>
-          <Text style={[styles.deleteMessage, { color: theme.colors.textSecondary }]}>
-            {sharedKey.isLocalOnly() 
+        <View className="flex-1 items-center justify-center p-5">
+          <View className="flex-row items-center mb-2">
+            <Ionicons name="warning-outline" size={24} color={theme.colors.warning} />
+            <Text 
+              className="text-lg font-semibold ml-2 text-center font-poppins-medium" 
+              style={{ color: theme.colors.text }}
+            >
+              Are you sure you want to delete?
+            </Text>
+          </View>
+          <Text 
+            className="text-sm text-center leading-5 mb-3 font-poppins" 
+            style={{ color: theme.colors.textSecondary }}
+          >
+            {sharedKey.isLocal 
               ? "This will permanently delete this service from your device."
               : "This will delete the service locally and revoke it from the blockchain."
             }
           </Text>
-          <View style={styles.deleteActions}>
+          <View className="flex-row gap-3">
             <TouchableOpacity
-              style={[styles.cancelButton, { backgroundColor: theme.colors.border }]}
+              className="rounded-xl px-6 py-3"
+              style={{ backgroundColor: theme.colors.border }}
               onPress={handleCancelDelete}
               activeOpacity={0.8}
             >
-              <Text style={[styles.cancelButtonText, { color: theme.colors.text }]}>Cancel</Text>
+              <Text 
+                className="text-base font-semibold font-poppins-medium" 
+                style={{ color: theme.colors.text }}
+              >
+                Cancel
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.confirmButton, { backgroundColor: theme.colors.error }]}
+              className="rounded-xl px-6 py-3"
+              style={{ backgroundColor: theme.colors.error }}
               onPress={handleConfirmDelete}
               activeOpacity={0.8}
             >
-              <Text style={styles.confirmButtonText}>Delete</Text>
+              <Text className="text-base font-semibold text-white font-poppins-medium">
+                Delete
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
       </Animated.View>
-    </View>
+    </Animated.View>
   );
-}
-
-const createStyles = (theme: any, isSelected: boolean) => StyleSheet.create({
-  container: {
-    borderRadius: 16,
-    marginBottom: 12,
-    minHeight: isSelected ? 230 : 200,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    ...(Platform.OS === 'web' && {
-      transition: 'all 0.2s ease-in-out',
-    }),
-    elevation: 4,
-    position: 'relative',
-  },
-  cardFace: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    backfaceVisibility: 'hidden',
-    borderRadius: 16,
-    backfaceVisibility: 'hidden',
-    borderRadius: 16,
-  },
-  cardBack: {
-    backgroundColor: 'transparent',
-  },
-  hiddenFace: {
-    opacity: 0,
-    pointerEvents: 'none',
-  },
-  cardContent: {
-    height: '100%',
-    padding: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 16,
-  },
-  serviceInfo: {
-    flex: 1,
-  },
-  serviceName: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 4,
-    minHeight: 22,
-  },
-  issuer: {
-    fontSize: 14,
-    minHeight: 18,
-  },
-  deleteButton: {
-    padding: 4,
-  },
-  codeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  code: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    fontFamily: 'monospace',
-    letterSpacing: 2,
-  },
-  copyIcon: {
-    opacity: 0.6,
-  },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  progressContainer: {
-    flex: 1,
-    marginRight: 12,
-  },
-  progressBackground: {
-    height: 4,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressBar: {
-    height: '100%',
-    borderRadius: 2,
-  },
-  timeRemaining: {
-    fontSize: 14,
-    fontWeight: '600',
-    minWidth: 30,
-    textAlign: 'right',
-  },
-  issuerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  localBadge: {
-    borderRadius: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    marginLeft: 8,
-  },
-  localBadgeText: {
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  queueBadge: {
-    borderRadius: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    marginLeft: 8,
-  },
-  queueBadgeText: {
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  actions: {
-    flexDirection: 'row',
-    marginTop: 12,
-    paddingHorizontal: 4,
-  },
-  actionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 8,
-    marginHorizontal: 2,
-  },
-  actionText: {
-    fontSize: 10,
-    fontWeight: '600',
-    marginLeft: 4,
-    textAlign: 'center',
-  },
-  syncButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  syncText: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginLeft: 4,
-  },
-  deleteConfirmContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  deleteTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginTop: 16,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  deleteMessage: {
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 24,
-  },
-  deleteActions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  cancelButton: {
-    borderRadius: 12,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  confirmButton: {
-    borderRadius: 12,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-  },
-  confirmButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
 });
+
+export default ServiceCard;

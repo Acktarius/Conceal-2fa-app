@@ -1,3 +1,6 @@
+/**
+*     Copyright (c) 2025, Acktarius 
+*/
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -17,8 +20,9 @@ import Header from '../components/Header';
 import FundingBanner from '../components/FundingBanner';
 import { TOTPService } from '../services/TOTPService';
 import { StorageService } from '../services/StorageService';
-import { BlockchainService } from '../services/BlockchainService';
-import { SharedKey } from '../models/Transaction';
+import { WalletService } from '../services/WalletService';
+import { CronBuddy } from '../services/CronBuddy';
+import { SharedKey } from '../model/Transaction';
 import { useWallet } from '../contexts/WalletContext';
 import { useTheme } from '../contexts/ThemeContext';
 import GestureNavigator from '../components/GestureNavigator';
@@ -28,11 +32,17 @@ export default function HomeScreen() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [currentTime, setCurrentTime] = useState(Date.now());
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
-  const { balance, maxKeys } = useWallet();
+  const [blockchainSyncEnabled, setBlockchainSyncEnabled] = useState(false);
+  const { balance, maxKeys, isAuthenticated, authenticate, wallet } = useWallet();
   const { theme } = useTheme();
+  const serviceCardRefs = React.useRef<{ [key: string]: any }>({});
 
   useEffect(() => {
     loadSharedKeys();
+    loadBlockchainSyncSetting();
+    
+    // Register shared keys refresh callback
+    WalletService.registerSharedKeysRefreshCallback(loadSharedKeys);
     
     const interval = setInterval(() => {
       setCurrentTime(Date.now());
@@ -59,17 +69,20 @@ export default function HomeScreen() {
     }
   };
 
+  const loadBlockchainSyncSetting = async () => {
+    try {
+      const settings = await StorageService.getSettings();
+      const syncEnabled = settings.blockchainSync || false;
+      setBlockchainSyncEnabled(syncEnabled);
+      console.log('HomeScreen: Loaded blockchain sync setting:', syncEnabled);
+    } catch (error) {
+      console.error('Error loading blockchain sync setting:', error);
+    }
+  };
+
   const updateCodes = async () => {
-    console.log('updateCodes called, current sharedKeys count:', sharedKeys.length);
     setSharedKeys(prevSharedKeys => {
       Promise.all(prevSharedKeys.map(async sharedKey => {
-        console.log('Updating SharedKey:', {
-          name: sharedKey.name,
-          hash: sharedKey.hash,
-          isLocal: sharedKey.isLocalOnly(),
-          revokeInQueue: sharedKey.revokeInQueue
-        });
-        
         const updatedCode = await TOTPService.generateTOTP(sharedKey.secret);
         const updatedTimeRemaining = TOTPService.getTimeRemaining();
         
@@ -82,7 +95,6 @@ export default function HomeScreen() {
         
         return updatedSharedKey;
       })).then(updatedSharedKeys => {
-        console.log('Setting updated sharedKeys, count:', updatedSharedKeys.length);
         setSharedKeys(updatedSharedKeys);
       });
       
@@ -94,7 +106,7 @@ export default function HomeScreen() {
     try {
      console.log('Adding service with data:', serviceData);
      
-      const newSharedKey = SharedKey.fromService({
+      const newSharedKey = SharedKey.fromRaw({
         name: serviceData.name,
         issuer: serviceData.issuer,
         secret: serviceData.secret
@@ -109,11 +121,23 @@ export default function HomeScreen() {
       newSharedKey.code = await TOTPService.generateTOTP(serviceData.secret);
       newSharedKey.timeRemaining = TOTPService.getTimeRemaining();
       
+      // Set toBePush based on wallet type and blockchain sync setting
+      if (wallet && !wallet.isLocal()) {
+        // Blockchain wallet - check blockchain sync setting
+        const settings = await StorageService.getSettings();
+        // Only set toBePush=true if blockchain sync is enabled AND hash is null (new service)
+        newSharedKey.toBePush = (settings.blockchainSync && !newSharedKey.hash) || false;
+      } else {
+        // Local wallet - always false
+        newSharedKey.toBePush = false;
+      }
+      
       console.log('Creating new SharedKey:', {
         name: newSharedKey.name,
         hash: newSharedKey.hash,
-        isLocal: newSharedKey.isLocalOnly(),
-        revokeInQueue: newSharedKey.revokeInQueue
+        isLocal: newSharedKey.isLocal,
+        revokeInQueue: newSharedKey.revokeInQueue,
+        toBePush: newSharedKey.toBePush
       });
 
       const updatedSharedKeys = [...sharedKeys, newSharedKey];
@@ -122,24 +146,56 @@ export default function HomeScreen() {
       await StorageService.saveSharedKeys(updatedSharedKeys);
       setShowAddModal(false);
       
-      Alert.alert('Success', 'Service added locally! Sync to blockchain when you have CCX balance.');
+      if (newSharedKey.toBePush) {
+        Alert.alert('Success', 'Service added! It will be automatically saved to blockchain.');
+        
+        // Force CronBuddy to check immediately for the new key
+        try {
+          console.log('DEBUG: New service with toBePush=true, triggering CronBuddy check');
+          await CronBuddy.forceCheck();
+        } catch (error) {
+          console.error('DEBUG: Error triggering CronBuddy for new service:', error);
+        }
+      } else {
+        Alert.alert('Success', 'Service added locally! Enable blockchain sync or use individual save buttons to sync to blockchain.');
+      }
     } catch (error) {
       console.error('Error adding service:', error);
       Alert.alert('Error', 'Failed to add service. Please try again.');
     }
   };
 
-  const handleBroadcastToMyself = async (sharedKeyHash: string) => {
+  const handleBroadcastCode = async (sharedKeyHash: string, futureCode?: string) => {
     const sharedKey = sharedKeys.find(sk => sk.hash === sharedKeyHash || sk.name + '_' + sk.timeStampSharedKeyCreate === sharedKeyHash);
     if (!sharedKey) return;
 
     try {
-      // Simulate broadcasting to blockchain mempool with 30s TTL
-      Alert.alert(
-        'Code Broadcasted',
-        `${sharedKey.name} code (${sharedKey.code}) broadcasted to blockchain mempool for 30 seconds. Your other devices can now access it.`,
-        [{ text: 'OK' }]
+      // Get broadcast address from settings
+      const settings = await StorageService.getSettings();
+      const broadcastAddress = settings.broadcastAddress || wallet?.getPublicAddress();
+      
+      if (!broadcastAddress) {
+        Alert.alert('Error', 'No broadcast address configured. Please set one in Settings.');
+        return;
+      }
+
+      // Call WalletService.broadcast()
+      const success = await WalletService.broadcast(
+        broadcastAddress,
+        sharedKey.code,
+        sharedKey.name,
+        sharedKey.timeRemaining,
+        futureCode // Pass future code if available
       );
+
+      if (success) {
+        // Trigger pulsing animation on the service card
+        const serviceCardRef = serviceCardRefs.current[sharedKeyHash];
+        if (serviceCardRef && serviceCardRef.triggerPulse) {
+          serviceCardRef.triggerPulse();
+        }
+        
+      }
     } catch (error) {
       Alert.alert('Error', 'Failed to broadcast code.');
     }
@@ -150,8 +206,21 @@ export default function HomeScreen() {
     if (!sharedKey) return;
 
     try {
-      // Create blockchain transaction
-      const txHash = await BlockchainService.createSharedKeyTransaction(sharedKey);
+      // Check if wallet is blockchain-enabled
+      if (!wallet || wallet.isLocal()) {
+        Alert.alert('Error', 'Blockchain features require a blockchain wallet. Please upgrade your wallet first.');
+        return;
+      }
+
+      // Check if shared key is already on blockchain
+      if (!sharedKey.isLocal) {
+        Alert.alert('Info', 'This service is already saved on the blockchain.');
+        return;
+      }
+
+      // Set toBePush flag to true - CronBuddy will handle the rest
+      sharedKey.toBePush = true;
+      console.log('DEBUG: Set toBePush=true for sharedKey:', sharedKey.name, 'toBePush:', sharedKey.toBePush);
       
       const updatedSharedKeys = sharedKeys.map(sk => 
         sk === sharedKey ? sharedKey : sk
@@ -159,9 +228,39 @@ export default function HomeScreen() {
       
       setSharedKeys(updatedSharedKeys);
       await StorageService.saveSharedKeys(updatedSharedKeys);
+      console.log('DEBUG: Saved sharedKeys to storage, toBePush flag should be persisted');
       
-      Alert.alert('Success', `${sharedKey.name} key saved to blockchain successfully!`);
+      // Verify the flag was saved
+      const savedKeys = await StorageService.getSharedKeys();
+      const savedKey = savedKeys.find(sk => sk.name === sharedKey.name);
+      console.log('DEBUG: Verified saved key toBePush flag:', savedKey?.toBePush);
+      
+      // Ensure CronBuddy is running
+      if (!CronBuddy.isActive()) {
+        console.log('DEBUG: CronBuddy not active, starting it...');
+        CronBuddy.start();
+        console.log('DEBUG: CronBuddy started, is now active:', CronBuddy.isActive());
+      } else {
+        console.log('DEBUG: CronBuddy already active');
+      }
+      
+      Alert.alert('Success', 'Service will be saved to blockchain automatically. CronBuddy will process this in the background.');
+      
+      // Debug: Check CronBuddy status and force a check
+      console.log('DEBUG: CronBuddy is active:', CronBuddy.isActive());
+      console.log('DEBUG: Wallet is local:', wallet?.isLocal());
+      console.log('DEBUG: Wallet sync status:', WalletService.getWalletSyncStatus());
+      
+      // Force CronBuddy to check immediately
+      try {
+        await CronBuddy.forceCheck();
+        console.log('DEBUG: CronBuddy force check completed');
+      } catch (error) {
+        console.error('DEBUG: CronBuddy force check failed:', error);
+      }
+      
     } catch (error) {
+      console.error('Error saving to blockchain:', error);
       Alert.alert('Error', 'Failed to save key to blockchain.');
     }
   };
@@ -183,7 +282,7 @@ export default function HomeScreen() {
     if (!sharedKey) return;
 
     try {
-      if (sharedKey.isLocalOnly()) {
+      if (sharedKey.isLocal) {
         // Simply delete local-only SharedKeys
         const updatedSharedKeys = sharedKeys.filter(sk => sk !== sharedKey);
         setSharedKeys(updatedSharedKeys);
@@ -191,6 +290,7 @@ export default function HomeScreen() {
       } else {
         // SharedKey is on blockchain, set revokeInQueue and hide from screen
         sharedKey.revokeInQueue = true;
+        sharedKey.timeStampSharedKeyRevoke = Date.now(); // Set immediately to prevent gap
         const updatedSharedKeys = sharedKeys.map(sk => 
           sk === sharedKey ? sharedKey : sk
         );
@@ -214,165 +314,121 @@ export default function HomeScreen() {
   };
 
   const shouldDisplaySharedKey = (sharedKey: SharedKey): boolean => {
+    /*
     console.log('Checking display for SharedKey:', {
       name: sharedKey.name,
       hash: sharedKey.hash,
-      isLocal: sharedKey.isLocalOnly(),
+      isLocal: sharedKey.isLocal,
       revokeInQueue: sharedKey.revokeInQueue,
+      timeStampSharedKeyRevoke: sharedKey.timeStampSharedKeyRevoke,
       extraStatus: sharedKey.extraStatus,
-      extraSharedKey: sharedKey.extraSharedKey
-    });
-    
-    // 1. isLocal() (hash === '') and revokeInQueue = false -> Display
-    if (sharedKey.isLocalOnly() && !sharedKey.revokeInQueue) {
-      console.log('Display: Local card, not in revoke queue');
+      extraSharedKey: sharedKey.extraSharedKey,
+      toBePush: sharedKey.toBePush
+    });   
+    */
+    // PRIMARY RULE: Don't display if revoked (either in queue OR confirmed revoked)
+    if (sharedKey.revokeInQueue || sharedKey.timeStampSharedKeyRevoke > 0) {
+      console.log('Hidden: Service is revoked (revokeInQueue or timeStampSharedKeyRevoke)');
+      return false;
+    }
+   
       return true;
-    }
-    
-    // 2. !isLocal() and revokeInQueue = true -> Hidden
-    if (!sharedKey.isLocalOnly() && sharedKey.revokeInQueue) {
-      console.log('Hidden: Blockchain card in revoke queue');
-      return false;
-    }
-    
-    // 4. extraStatus = ff02 (revoke transactions) -> Never display
-    if (!sharedKey.isLocalOnly() && sharedKey.extraStatus === 'ff02') {
-      console.log('Hidden: Revoke transaction');
-      return false;
-    }
-    
-    // 5. Check if there's a matching revoke transaction
-    const hasMatchingRevokeTransaction = sharedKeys.some(sk => 
-      sk.extraStatus === 'ff02' && 
-      sk.extraSharedKey !== ''
-    );
-    
-    if (hasMatchingRevokeTransaction) {
-      console.log('Hidden: Has matching revoke transaction');
-      return false;
-    }
-    
-    // 3. !isLocal() and revokeInQueue = false -> Display (if not revoked)
-    if (!sharedKey.isLocalOnly() && !sharedKey.revokeInQueue) {
-      console.log('Display: Blockchain card, not revoked');
-      return true;
-    }
-    
-    // Default: don't display
-    console.log('Hidden: Default case');
-    return false;
+   
   };
 
-  // Mock wallet sync status - in real app this would come from wallet context
-  const isWalletSynced = true;
+  // Styles are now handled by Tailwind CSS classes
 
-  const styles = createStyles(theme);
+  const renderContent = () => {
 
-  return (
-    <GestureNavigator>
-      <View style={styles.container}>
-        <Header title="Authenticator" />
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-          <FundingBanner 
-            balance={balance}
-            maxKeys={maxKeys}
-            onPress={() => {/* Navigate to wallet tab or show funding info */}}
-          />
-
-          {sharedKeys.filter(shouldDisplaySharedKey).length === 0 ? (
-            <View style={styles.emptyState}>
-              <Ionicons name="shield-checkmark-outline" size={64} color={theme.colors.textSecondary} />
-              <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No Services Added</Text>
-              <Text style={[styles.emptyDescription, { color: theme.colors.textSecondary }]}>
-                Add your first 2FA service by tapping the + button below. Keys are stored locally first.
-              </Text>
+    return (
+      <>
+        <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false}>
+            <FundingBanner 
+              balance={balance}
+              maxKeys={maxKeys}
+              onPress={() => {/* Navigate to wallet tab or show funding info */}}
+            />
+            
+            {/* Services Grid */}
+            <View className="py-4">
+              {!isAuthenticated ? (
+                <View className="flex-1 items-center justify-center py-20">
+                  <Ionicons name="lock-closed" size={64} color={theme.colors.textSecondary} />
+                  <Text className="text-xl font-semibold mt-4 mb-2" style={{ color: theme.colors.text }}>
+                    Authentication Required
+                  </Text>
+                </View>
+              ) : sharedKeys.length === 0 ? (
+                <View className="flex-1 items-center justify-center py-20">
+                  <Ionicons name="shield-outline" size={64} color={theme.colors.textSecondary} />
+                  <Text className="text-xl font-semibold mt-4 mb-2" style={{ color: theme.colors.text }}>
+                    No 2FA Services Added
+                  </Text>
+                  <Text className="text-base text-center leading-6 px-8" style={{ color: theme.colors.textSecondary }}>
+                    Tap the + button to add your first 2FA service
+                  </Text>
+                </View>
+              ) : (
+                <View className="flex-row flex-wrap justify-between">
+                  {sharedKeys
+                    .filter(shouldDisplaySharedKey)
+                    .map((sharedKey) => {
+                      const sharedKeyId = sharedKey.hash || sharedKey.name + '_' + sharedKey.timeStampSharedKeyCreate;                      
+                      return (
+                        <ServiceCard
+                          key={sharedKeyId}
+                          ref={(ref) => {
+                            if (ref) {
+                              serviceCardRefs.current[sharedKeyId] = ref;
+                            }
+                          }}
+                          sharedKey={sharedKey}
+                          isSelected={selectedServiceId === sharedKeyId}
+                          walletBalance={balance}
+                          blockchainSyncEnabled={blockchainSyncEnabled}
+                          onCopy={() => handleCopyCode(sharedKey.code, sharedKey.name)}
+                          onDelete={() => handleDeleteSharedKey(sharedKeyId)}
+                          onSelect={() => handleSelectSharedKey(sharedKeyId)}
+                          onBroadcast={(futureCode) => handleBroadcastCode(sharedKeyId, futureCode)}
+                          onSaveToBlockchain={() => handleSaveToBlockchain(sharedKeyId)}
+                        />
+                      );
+                    })}
+                </View>
+              )}
             </View>
-          ) : (
-            <View style={styles.servicesList}>
-              {sharedKeys.filter(shouldDisplaySharedKey).map((sharedKey) => {
-                const sharedKeyId = sharedKey.hash || sharedKey.name + '_' + sharedKey.timeStampSharedKeyCreate;
-                return (
-                  <ServiceCard
-                    key={sharedKeyId}
-                    sharedKey={sharedKey}
-                    isSelected={selectedServiceId === sharedKeyId}
-                    walletBalance={balance}
-                    isWalletSynced={isWalletSynced}
-                    onCopy={() => handleCopyCode(sharedKey.code, sharedKey.name)}
-                    onDelete={() => handleDeleteSharedKey(sharedKeyId)}
-                    onSelect={() => handleSelectSharedKey(sharedKeyId)}
-                    onBroadcast={() => handleBroadcastToMyself(sharedKeyId)}
-                    onSaveToBlockchain={() => handleSaveToBlockchain(sharedKeyId)}
-                  />
-                );
-              })}
-            </View>
-          )}
-        </ScrollView>
-
-        <TouchableOpacity
-          style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
-          onPress={() => setShowAddModal(true)}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="add" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
+          </ScrollView>
 
         <AddServiceModal
           visible={showAddModal}
           onClose={() => setShowAddModal(false)}
           onAdd={handleAddService}
         />
+        
+        {/* Floating Action Button */}
+        <TouchableOpacity
+          className="absolute bottom-5 right-5 w-14 h-14 rounded-full justify-center items-center shadow-lg z-50"
+          style={{ backgroundColor: theme.colors.primary }}
+          onPress={() => {
+            if (Platform.OS === 'ios') {
+              setTimeout(() => setShowAddModal(true), 200);
+            } else {
+              setShowAddModal(true);
+            }
+          }}
+        >
+          <Ionicons name="add" size={24} color={theme.colors.background} />
+        </TouchableOpacity>
+      </>
+    );
+  };
+
+  return (
+    <GestureNavigator>
+      <View className="flex-1" style={{ backgroundColor: theme.colors.background }}>
+        <Header title="Authenticator" />
+        {renderContent()}
       </View>
     </GestureNavigator>
   );
 }
-
-const createStyles = (theme: any) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  scrollView: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
-  emptyState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 80,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyDescription: {
-    fontSize: 16,
-    textAlign: 'center',
-    lineHeight: 24,
-    paddingHorizontal: 32,
-  },
-  servicesList: {
-    paddingVertical: 16,
-  },
-  addButton: {
-    position: 'absolute',
-    bottom: 24,
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 8,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    ...(Platform.OS === 'web' && {
-      transition: 'all 0.2s ease-in-out',
-    }),
-  },
-});

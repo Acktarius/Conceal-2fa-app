@@ -1,0 +1,65 @@
+{
+  "expo": {
+    "sdkVersion": "54.0.0",
+    "name": "Conceal 2FA",
+    "slug": "conceal-2fa-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "icon": "./assets/icon.png",
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app needs access to camera to scan QR codes for adding 2FA services."
+      },
+      "bundleIdentifier": "com.acktarius.blockchain2faapp"
+    },
+    "android": {
+      "icon": "./assets/icon.png",
+      "permissions": [
+        "CAMERA",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.acktarius.blockchain2faapp"
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "buildToolsVersion": "35.0.0",
+            "kotlinVersion": "2.2.0",
+            "org.gradle.java.home": "/usr/lib/jvm/java-17-openjdk-amd64",
+            "androidSdkPath": "/home/katana/Android/Sdk",
+            "android.abiFilters": "armeabi-v7a,arm64-v8a,x86,x86_64"
+          }
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow SecureAuth to access your camera to scan QR codes."
+        }
+      ],
+      "./withAndroidStrategiesPlugin",
+      "expo-secure-store",
+      "expo-font"
+    ],
+    "web": {
+      "bundler": "metro"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "6ec1baed-9051-4552-8949-cb824a416c11"
+      }
+    },
+    "owner": "acktarius"
+  }
+}
