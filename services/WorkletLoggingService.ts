@@ -47,6 +47,16 @@ export class WorkletLoggingService implements IWorkletLogging {
       console.log(template.replace('{}', varValue.toString()));
     }, variable);
   }
+
+
+  loggingWith_s_d(template: string, variable1: any, variable2: any): void {
+    scheduleOnRuntime(this.runtime, (varValue1: any, varValue2: any) => {
+      const formattedMessage = template.replace('%s', varValue1.toString()).replace('%d', varValue2.toString());
+      console.log(formattedMessage);
+    }, variable1, variable2);
+  }
+
+
 }
 
 /**

@@ -14,6 +14,7 @@ import {
   Platform,
   Keyboard,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
@@ -42,6 +43,7 @@ export default function WalletScreen() {
   const [sendAmount, setSendAmount] = useState<string>('');
   const [showQRScanner, setShowQRScanner] = useState<boolean>(false);
   const [keyboardHeight, setKeyboardHeight] = useState<number>(0);
+  const [showBlockchainSyncInfo, setShowBlockchainSyncInfo] = useState<boolean>(true);
   const scrollViewRef = useRef<ScrollView>(null);
 
 
@@ -129,6 +131,20 @@ export default function WalletScreen() {
     checkWallet();
   }, [wallet, refreshCounter]);
 
+  // Reset and hide blockchain sync info when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      // Reset to show the info when screen comes into focus
+      setShowBlockchainSyncInfo(true);
+      
+      // Hide after 20 seconds
+      const timer = setTimeout(() => {
+        setShowBlockchainSyncInfo(false);
+      }, 20000);
+
+      return () => clearTimeout(timer);
+    }, [])
+  );
 
   const handleUpgradeWallet = async () => {
     try {
@@ -221,7 +237,13 @@ export default function WalletScreen() {
 
     try {
       // Show processing alert but collapse Send CCX section immediately
-      Alert.alert('Processing', 'Sending transaction...', [], {
+      Alert.alert('Processing', 'Sending transaction...', [
+        { text: 'OK', onPress: () => {
+          setSendAddress('');
+          setSendAmount('');
+          setIsSendExpanded(false);
+        }}
+      ], {
         onDismiss: () => {
           // Collapse Send CCX section when alert is dismissed
           setSendAddress('');
@@ -428,7 +450,7 @@ export default function WalletScreen() {
                     ask a friend to send you some CCX to your address below.
                   </Text>
                 </View>
-              ) : (
+              ) : showBlockchainSyncInfo && (
                 <View className="rounded-2xl p-4 flex-row items-start m-4" style={{ backgroundColor: theme.colors.primaryLight }}>
                   <Ionicons name="information-circle-outline" size={24} color={theme.colors.primary} />
                   <View className="flex-1 ml-3">

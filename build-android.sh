@@ -29,8 +29,8 @@ cd android && ./gradlew clean && cd ..
 echo "Bundling!"
 # npx react-native bundle --platform android --dev false --entry-file node_modules/expo/AppEntry.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res/
 echo "📋 Next steps:"
-echo "1. Run in android folder: ./gradlew assembleRelease to build the app"
-echo "2. or for development: in separate terminal: npx expo start --android --reset-cache"
-echo "3. or for development: npx react-native run:android"
+echo "1. To Build APK, Run in android folder: ./gradlew assembleRelease to build the app"
+echo "2. For Development: npx react-native run-android"
+echo "3. and for development debugging: in separate terminal: npx expo start --android --reset-cache"
 echo "4. Check Android Studio Logcat for multithreading test results"
 

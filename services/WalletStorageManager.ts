@@ -103,12 +103,6 @@ export class WalletStorageManager {
         const wallet = await this.getDecryptedWalletWithBiometric();
         if (wallet) {
           console.log('BIOMETRIC: Wallet decrypted successfully');
-          console.log('BIOMETRIC: Wallet keys after decryption:', {
-            hasSpendKey: !!wallet.keys?.priv?.spend,
-            hasViewKey: !!wallet.keys?.priv?.view,
-            spendKey: wallet.keys?.priv?.spend,
-            viewKey: wallet.keys?.priv?.view
-          });
           return wallet;
         } else {
           console.log('BIOMETRIC: Wallet decryption failed');

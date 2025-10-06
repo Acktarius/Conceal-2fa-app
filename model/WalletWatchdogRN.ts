@@ -109,7 +109,7 @@ class TxQueueRN {
     } else {
       // Fallback to synchronous processing
       this.isReady = true;
-      console.log('TxQueueRN: Using synchronous fallback (no threads available)');
+      getGlobalWorkletLogging().logging1string('TxQueueRN: Using synchronous fallback (no threads available)');
     }
   }
 
@@ -138,13 +138,13 @@ class TxQueueRN {
 
   private handleWorkerMessage = (message: any): void => {
     if (message === 'ready') {
-      console.log('TxQueueRN: Worker ready...');
+      getGlobalWorkletLogging().logging1string('TxQueueRN: Worker ready...');
       // Post the wallet to the worker
       this.workerProcess.postMessage(JSON.stringify({
         type: 'initWallet'
       }));
     } else if (message === "missing_wallet") {
-      console.log("TxQueueRN: Wallet is missing for the worker...");
+      getGlobalWorkletLogging().logging1string("TxQueueRN: Wallet is missing for the worker...");
     } else if (message.type) {
       if (message.type === 'readyWallet') {
         this.setIsReady(true);
@@ -186,7 +186,7 @@ class TxQueueRN {
       // We destroy the worker in charge of decoding the transactions every 5k transactions to ensure the memory is not corrupted
       // cnUtil bug, see https://github.com/mymonero/mymonero-core-js/issues/8
       if (this.countProcessed >= 5 * 1000) {
-        console.log('TxQueueRN: Recreating parseWorker for memory management...');
+        getGlobalWorkletLogging().logging1string('TxQueueRN: Recreating parseWorker for memory management...');
         this.restartWorker();
         setTimeout(() => {
           this.runProcessLoop();
@@ -471,7 +471,7 @@ class ParseWorkerRN {
     } else {
       // Fallback to synchronous processing
       this.isReady = true;
-      console.log('ParseWorkerRN: Using synchronous fallback (no threads available)');
+      getGlobalWorkletLogging().logging1string('ParseWorkerRN: Using synchronous fallback (no threads available)');
     }
   }
 
@@ -500,7 +500,7 @@ class ParseWorkerRN {
 
   private handleWorkerMessage = (message: any): void => {
     if (message === 'ready') {
-      console.log('ParseWorkerRN: Worker ready...');
+      getGlobalWorkletLogging().logging1string('ParseWorkerRN: Worker ready...');
       // Signal the wallet update
       this.watchdog.checkMempool();
       // Post the wallet to the worker
@@ -508,7 +508,7 @@ class ParseWorkerRN {
         type: 'initWallet'
       }));
     } else if (message === "missing_wallet") {
-      console.log("ParseWorkerRN: Wallet is missing for the worker...");
+      getGlobalWorkletLogging().logging1string("ParseWorkerRN: Wallet is missing for the worker...");
     } else if (message.type) {
       if (message.type === 'readyWallet') {
         this.setIsReady(true);
@@ -967,7 +967,7 @@ export class WalletWatchdogRN {
 
           // Check if transactions to process stack is too big
           if (self.transactionsToProcess.length > 500) {
-            console.log(`WalletWatchdogRN: Having more than 500 TX packets in FIFO queue`, self.transactionsToProcess.length);
+            getGlobalWorkletLogging().logging1string1number(`WalletWatchdogRN: Having more than 500 TX packets in FIFO queue`, self.transactionsToProcess.length);
             await new Promise(r => setTimeout(r, 5000));
             continue;
           }

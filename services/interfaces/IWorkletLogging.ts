@@ -39,6 +39,11 @@ export interface IWorkletLogging {
    * Log with 1 number variable passed to worklet
    */
   loggingWithNumber(template: string, variable: number): void;
+
+  /**
+   * Log with 2 string variables passed to worklet %s %d
+   */
+  loggingWith_s_d(template: string, variable1: any, variable2: any): void;
 }
 
 /**

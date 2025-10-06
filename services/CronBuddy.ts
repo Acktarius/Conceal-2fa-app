@@ -21,6 +21,7 @@ import { SharedKey } from '../model/Transaction';
 import { SmartMessageParser } from '../model/SmartMessage';
 import { config } from '../config';
 import { JSBigInt } from '../lib/biginteger';
+import { getGlobalWorkletLogging } from './interfaces/IWorkletLogging';
 
 export class CronBuddy {
   private static isRunning: boolean = false;
@@ -36,7 +37,7 @@ export class CronBuddy {
    */
   static start(intervals?: { [jobName: string]: number }): void {
     if (this.isRunning) {
-      console.log('CronBuddy: Already running');
+      getGlobalWorkletLogging().logging1string('CronBuddy: Already running');
       return;
     }
 
@@ -57,14 +58,14 @@ export class CronBuddy {
       this.startJob(jobName, interval);
     }
     
-    console.log('CronBuddy: Started successfully with', Object.keys(jobIntervals).length, 'jobs');
+    getGlobalWorkletLogging().loggingWithNumber('CronBuddy: Started successfully with {} jobs', Object.keys(jobIntervals).length);
   }
 
   /**
    * Start a specific job with its interval
    */
   private static startJob(jobName: string, interval: number): void {
-    console.log(`CronBuddy: Starting job '${jobName}' with ${interval}ms interval`);
+    getGlobalWorkletLogging().loggingWith_s_d(`CronBuddy: Starting job %s with %dms interval`, jobName, interval);
     
     // Run initial check
     this.runJob(jobName);
@@ -84,7 +85,7 @@ export class CronBuddy {
     const existingIntervalId = this.intervalIds.get(jobName);
     if (existingIntervalId) {
       clearInterval(existingIntervalId);
-      console.log(`CronBuddy: Adjusted '${jobName}' interval to ${newInterval}ms`);
+      getGlobalWorkletLogging().loggingWith_s_d(`CronBuddy: Adjusted %s interval to %dms`, jobName, newInterval);
       
       // Set up new interval
       const newIntervalId = setInterval(() => {
@@ -126,17 +127,17 @@ export class CronBuddy {
    */
   static stop(): void {
     if (!this.isRunning) {
-      console.log('CronBuddy: Not running');
+      getGlobalWorkletLogging().logging1string('CronBuddy: Not running');
       return;
     }
 
-    console.log('CronBuddy: Stopping background job scheduler (wallet downgraded to local-only)');
+    getGlobalWorkletLogging().logging1string('CronBuddy: Stopping background job scheduler (wallet downgraded to local-only)');
     this.isRunning = false;
     
     // Clear all intervals
     for (const [jobName, intervalId] of this.intervalIds) {
       clearInterval(intervalId);
-      console.log(`CronBuddy: Stopped job '${jobName}'`);
+      getGlobalWorkletLogging().loggingWithString(`CronBuddy: Stopped job {}`, jobName);
     }
     this.intervalIds.clear();
   }
@@ -153,10 +154,11 @@ export class CronBuddy {
    */
   static async forceCheck(jobName?: string): Promise<void> {
     if (jobName) {
-      console.log(`CronBuddy: Force check requested for job '${jobName}'`);
+      
+      getGlobalWorkletLogging().loggingWithString(`CronBuddy: Force check requested for job {}`, jobName);
       await this.runJob(jobName);
     } else {
-      console.log('CronBuddy: Force check requested for all jobs');
+      getGlobalWorkletLogging().logging1string('CronBuddy: Force check requested for all jobs');
       await Promise.all([
         this.checkToBePushed(),
         this.checkRevokeQueue(),
@@ -215,7 +217,7 @@ export class CronBuddy {
       // Check wallet balance (wallet.amount is number, convert to JSBigInt for comparison)
       const walletAmountBigInt = new JSBigInt(walletOperations.getWalletBalance().toString());
       if (walletAmountBigInt.compare(this.MIN_BALANCE_ATOMIC) < 0) {
-        console.log('CronBuddy: Insufficient balance, skipping toBePushed check');
+        getGlobalWorkletLogging().logging1string('CronBuddy: Insufficient balance, skipping toBePushed check');
         return;
       }
 
@@ -284,43 +286,43 @@ export class CronBuddy {
    */
   private static async checkRevokeQueue(): Promise<void> {
     try {
-      console.log('CronBuddy: checkRevokeQueue() started');
+      getGlobalWorkletLogging().logging1string('CronBuddy: checkRevokeQueue() started');
       
       // Check if wallet operations are available
       const walletOperations = dependencyContainer.getWalletOperations();
       if (!walletOperations) {
-        console.log('CronBuddy: No wallet operations available, skipping revokeQueue check');
+        getGlobalWorkletLogging().logging1string('CronBuddy: No wallet operations available, skipping revokeQueue check');
         return;
       }
 
       // Check if wallet is local-only
       if (await walletOperations.isWalletLocal()) {
-        console.log('CronBuddy: Wallet is local-only, skipping revokeQueue check');
+        getGlobalWorkletLogging().logging1string('CronBuddy: Wallet is local-only, skipping revokeQueue check');
         return;
       }
 
       // Check wallet sync status
       const syncStatus = walletOperations.getWalletSyncStatus();
       if (!syncStatus.isWalletSynced) {
-        console.log('CronBuddy: Wallet not synced, skipping revokeQueue check');
+        getGlobalWorkletLogging().logging1string('CronBuddy: Wallet not synced, skipping revokeQueue check');
         return;
       }
 
       // Check wallet balance (wallet.amount is number, convert to JSBigInt for comparison)
       const walletAmountBigInt = new JSBigInt(walletOperations.getWalletBalance().toString());
       if (walletAmountBigInt.compare(this.MIN_BALANCE_ATOMIC) < 0) {
-        console.log('CronBuddy: Insufficient balance, skipping revokeQueue check');
+        getGlobalWorkletLogging().logging1string('CronBuddy: Insufficient balance, skipping revokeQueue check');
         return;
       }
 
-      console.log('CronBuddy: All safety checks passed, proceeding with revokeQueue check');
+      getGlobalWorkletLogging().logging1string('CronBuddy: All safety checks passed, proceeding with revokeQueue check');
 
       const storageService = dependencyContainer.getStorageService();
       const sharedKeys = await storageService.getSharedKeys();
       
-      console.log('CronBuddy: Retrieved shared keys:', sharedKeys.length);
+      getGlobalWorkletLogging().loggingWithNumber(`CronBuddy: Retrieved shared keys: {}`, sharedKeys.length);
       const revokeKeys = sharedKeys.filter(key => key.revokeInQueue === true);
-      console.log('CronBuddy: Found keys with revokeInQueue=true:', revokeKeys.length);
+      getGlobalWorkletLogging().loggingWithNumber(`CronBuddy: Found keys with revokeInQueue=true: {}`, revokeKeys.length);
       
       // Find the FIRST key that needs to be revoked
       const keyToRevoke = sharedKeys.find(key => key.revokeInQueue === true);
@@ -336,14 +338,14 @@ export class CronBuddy {
 
       try {
         if (!keyToRevoke.hash) {
-          console.error(`CronBuddy: Cannot revoke shared key without hash: ${keyToRevoke.name}`);
+          getGlobalWorkletLogging().loggingWithString(`CronBuddy: Cannot revoke shared key without hash: {}`, keyToRevoke.name);
           // Remove from revoke queue since it can't be processed
           keyToRevoke.revokeInQueue = false;
           await storageService.saveSharedKeys(sharedKeys);
           return;
         }
 
-        console.log(`CronBuddy: Revoking shared key: ${keyToRevoke.name} (${keyToRevoke.hash})`);
+        getGlobalWorkletLogging().loggingWithString(`CronBuddy: Revoking shared key: {}`, keyToRevoke.name);
         
         // CRITICAL: Set revokeInQueue = false IMMEDIATELY to prevent retry loops
         // This prevents CronBuddy from retrying the same transaction every 2 minutes
@@ -356,8 +358,8 @@ export class CronBuddy {
         
         if (result.success) {
           // Transaction was sent successfully
-          console.log(`CronBuddy: Successfully sent revoke transaction for: ${keyToRevoke.name}`);
-          console.log(`CronBuddy: Delete transaction hash: ${result.txHash}`);
+          getGlobalWorkletLogging().loggingWithString(`CronBuddy: Successfully sent revoke transaction for: {}`, keyToRevoke.name);
+          getGlobalWorkletLogging().loggingWithString(`CronBuddy: Delete transaction hash: {}`, result.txHash);
         } else {
           console.error(`CronBuddy: Failed to revoke shared key: ${keyToRevoke.name}`);
           // Re-enable revokeInQueue for retry on next cycle
