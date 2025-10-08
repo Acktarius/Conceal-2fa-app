@@ -6,7 +6,18 @@ module.exports = function (api) {
       "nativewind/babel",
     ],
     plugins: [
+      [
+        'module-resolver',
+        {
+          alias: {
+            'stream': 'readable-stream',
+            'buffer': '@craftzdog/react-native-buffer',
+          },
+        },
+      ],
+      [
       'react-native-worklets/plugin',
+      ],
     ],
-  };
+  }
 };

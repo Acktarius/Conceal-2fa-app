@@ -5,6 +5,8 @@ import { WalletStorageManager } from '../services/WalletStorageManager';
 import { CronBuddy } from '../services/CronBuddy';
 import { Wallet } from '../model/Wallet';
 import { config } from '../config';
+import { getGlobalWorkletLogging } from '../services/interfaces/IWorkletLogging';
+import { Alert } from 'react-native';
 
 interface WalletContextType {
   wallet: Wallet | null;
@@ -27,10 +29,42 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [refreshCounter, setRefreshCounter] = useState(0);
-
+  const [alreadyAsked, setAlreadyAsked] = useState(false);
   const KEY_STORAGE_COST = config.messageTxAmount.add(config.coinFee).add(config.remoteNodeFee);
 
   const maxKeys = balance.divide(KEY_STORAGE_COST);
+
+  const promptUserForSynchronization = () => {
+    Alert.alert(
+      'Wallet Synchronization',
+      'Wallet synchronization is about to start. This will sync your wallet with the blockchain and may temporarily slow down the app.',
+      [
+        {
+          text: 'Delay 45s',
+          onPress: () => {
+            getGlobalWorkletLogging().logging1string('User delayed synchronization by 45 seconds');
+            setTimeout(() => {
+              promptUserForSynchronization();
+            }, 45000);
+          }
+        },
+        {
+          text: 'OK',
+          onPress: async () => {
+            try {
+              getGlobalWorkletLogging().logging1string('User approved synchronization, starting now...');
+              await WalletService.startWalletSynchronization();
+              getGlobalWorkletLogging().logging1string('Wallet synchronization started successfully');
+            } catch (error) {
+              console.error('Error starting wallet synchronization:', error);
+              Alert.alert('Error', 'Failed to start wallet synchronization. Please try again.');
+            }
+          }
+        }
+      ],
+      { cancelable: false }
+    );
+  };
 
   useEffect(() => {
     initializeWallet();
@@ -66,18 +100,19 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         }
         
         // Note: refreshBalance() removed - balance is already calculated and set above
-        
-        // Start wallet synchronization if it's a blockchain wallet
+        /*
+        // Start wallet synchronization if it's a blockchain wallet (with user confirmation after 5s delay)
         if (wallet && !wallet.isLocal()) {
-          try {
-            await WalletService.startWalletSynchronization();
-            console.log('Wallet synchronization started for blockchain wallet');
-          } catch (error) {
-            console.error('Error starting wallet synchronization:', error);
-            // Continue without synchronization
-          }
+          getGlobalWorkletLogging().logging1string('Wallet is blockchain-enabled, scheduling synchronization prompt in 5 seconds...');
+          if (!alreadyAsked) {
+          setAlreadyAsked(true);
+          setTimeout(() => {
+            promptUserForSynchronization();
+          }, 5000);
+        } else {
+          await WalletService.startWalletSynchronization();
         }
-        
+        */        
         // Call refreshWallet to start CronBuddy and complete initialization
         await refreshWallet(wallet);
       } catch (walletError) {
@@ -181,9 +216,17 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         // Start wallet synchronization if it's a blockchain wallet
         if (!walletToUse.isLocal()) {
           try {
-            await WalletService.startWalletSynchronization();
-            console.log('Wallet synchronization started for blockchain wallet');
-            
+            if (!alreadyAsked) {
+              // First time - show prompt after 5 seconds
+              getGlobalWorkletLogging().logging1string('Wallet is blockchain-enabled, scheduling synchronization prompt in 5 seconds...');
+              setAlreadyAsked(true);
+              setTimeout(() => {
+                promptUserForSynchronization();
+              }, 5000);
+            } else {
+              // Already asked - start sync directly
+              await WalletService.startWalletSynchronization();
+            }
             // Start CronBuddy when wallet is blockchain and synced
             const syncStatus = await WalletService.getWalletSyncStatus();
             console.log('WALLET CONTEXT: Sync status:', syncStatus);

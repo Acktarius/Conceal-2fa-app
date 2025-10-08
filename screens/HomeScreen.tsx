@@ -26,6 +26,7 @@ import { SharedKey } from '../model/Transaction';
 import { useWallet } from '../contexts/WalletContext';
 import { useTheme } from '../contexts/ThemeContext';
 import GestureNavigator from '../components/GestureNavigator';
+import { getGlobalWorkletLogging } from '../services/interfaces/IWorkletLogging';
 
 export default function HomeScreen() {
   const [sharedKeys, setSharedKeys] = useState<SharedKey[]>([]);
@@ -328,7 +329,7 @@ export default function HomeScreen() {
     */
     // PRIMARY RULE: Don't display if revoked (either in queue OR confirmed revoked)
     if (sharedKey.revokeInQueue || sharedKey.timeStampSharedKeyRevoke > 0) {
-      console.log('Hidden: Service is revoked (revokeInQueue or timeStampSharedKeyRevoke)');
+      getGlobalWorkletLogging().logging1string('Hidden: Service is revoked (revokeInQueue or timeStampSharedKeyRevoke)');
       return false;
     }
    

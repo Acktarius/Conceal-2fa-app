@@ -846,7 +846,11 @@ declare var config: {
            if (pid_encrypt) {
              realDestViewKey = Cn.decode_address(dsts[0].address).view;
            }
-  
+           // getting message destination address for encrypting here, before splitting and sorting
+           let messageTo = undefined;
+           if (message) {
+             messageTo = dsts[0].address;
+           }
            //let splittedDsts = CnTransactions.decompose_tx_destinations(dsts, rct);
            let splittedDsts;
            if (transactionType === "deposit") {
@@ -878,7 +882,7 @@ declare var config: {
              mix_outs, mixin, neededFee,
              payment_id, pid_encrypt,
              realDestViewKey, 0, rct,
-             message, ttl, 
+             message, messageTo, ttl, 
              transactionType, term);
   
            logDebugMsg("signed tx: ", signed);

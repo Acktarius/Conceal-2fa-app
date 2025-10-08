@@ -1,3 +1,5 @@
+import quickCrypto from 'react-native-quick-crypto';
+
 export class CryptoService {
   static async hmacSha1(key: Uint8Array, data: Uint8Array): Promise<Uint8Array> {
     // SHA-1 implementation
@@ -26,7 +28,6 @@ export class CryptoService {
       // Process message in 512-bit chunks
       for (let chunk = 0; chunk < paddedLength; chunk += 64) {
         const w = new Uint32Array(80);
-        
         // Break chunk into sixteen 32-bit big-endian words
         for (let i = 0; i < 16; i++) {
           w[i] = view.getUint32(chunk + i * 4, false);

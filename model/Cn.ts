@@ -2594,6 +2594,7 @@ export function sec_key_to_pub(sec : string) : string {
          unlock_time : number = 0,    
          rct:boolean,
          message: string,
+         messageTo: string|undefined,
          ttl: number,
          transactionType: string,
          term: number
@@ -2812,11 +2813,7 @@ export function sec_key_to_pub(sec : string) : string {
                          };
                          tx.vout.push(out);
                          ++out_index;
-                     
-                 
-                 
- 
-                 
+                   
              /*
              tx.vout.push(out);
              ++out_index;
@@ -2830,21 +2827,8 @@ export function sec_key_to_pub(sec : string) : string {
      // Encrypt message and add it to the extra
          // CCX has only 1 destination for messages anyways
          if (message) {
-       let messageAddress: string | null = null;
-       /*
-       for (let i = 0; i < dsts.length; i++) {
-         if (dsts[i].address !== senderAddress) {
-           messageAddress = dsts[i].address;
-           break; // Break after finding the first non-sender destination
-         }
-       }
-       * 
-       * Use first destination for message encryption, specific handling for this app in particular
-       * this way we make sure that message is sent to the correct destination and not the remote node fee destination
-       * TO CONSIDER: in case of chat app, with messages sent to multiple dsts, we would have to revisit this
-       * and have for (let i = 0; i < dsts.length-1; i++) where node operator being last dsts.
-       */
-       messageAddress = dsts[0].address;
+         let messageAddress = messageTo;  // Use first destination for message encryption
+            
         console.log('CN: messageAddress', messageAddress);
        if (messageAddress) {
          let destKeys = Cn.decode_address(messageAddress);
@@ -3048,7 +3032,7 @@ export function sec_key_to_pub(sec : string) : string {
      realDestViewKey : string|undefined,
      unlock_time : number = 0,
      rct:boolean,
-     message: string,
+     message: string, messageTo: string|undefined,
      ttl: number,
      transactionType: string,
      term: number
@@ -3248,7 +3232,7 @@ export function sec_key_to_pub(sec : string) : string {
          } else if (cmp > 0) {
              throw "Need more money than found! (have: " + Cn.formatMoney(found_money) + " need: " + Cn.formatMoney(needed_money) + ")";
          }
-         return CnTransactions.construct_tx(keys, sources, dsts, senderAddress, fee_amount, payment_id, pid_encrypt, realDestViewKey, unlock_time, rct, message, ttl, transactionType, term);
+         return CnTransactions.construct_tx(keys, sources, dsts, senderAddress, fee_amount, payment_id, pid_encrypt, realDestViewKey, unlock_time, rct, message, messageTo, ttl, transactionType, term);
      }
 
  }

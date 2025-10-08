@@ -8,12 +8,14 @@ import {
   Animated,
 } from 'react-native';
 import { Ionicons, MaterialIcons, FontAwesome } from '@expo/vector-icons';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import { useTheme } from '../contexts/ThemeContext';
 import { SharedKey } from '../model/Transaction';
 import { StorageService } from '../services/StorageService';
 import { IconService, IconInfo } from '../services/IconService';
 import { TOTPService } from '../services/TOTPService';
+import { dependencyContainer } from '../services/DependencyContainer';
 
 interface ServiceCardProps {
   sharedKey: SharedKey;
@@ -128,6 +130,7 @@ const ServiceCard = React.forwardRef<any, ServiceCardProps>(({
 
   // Trigger pulsing animation
   const triggerPulse = () => {
+    'worklet';
     setIsPulsing(true);
     Animated.sequence([
       Animated.timing(pulseAnim, {
@@ -167,7 +170,9 @@ const ServiceCard = React.forwardRef<any, ServiceCardProps>(({
 
   // Expose triggerPulse function to parent component
   React.useImperativeHandle(ref, () => ({
-    triggerPulse,
+    triggerPulse: () => {
+      scheduleOnRN(triggerPulse);
+    }
   }));
 
   const handleDelete = () => {
@@ -206,8 +211,11 @@ const ServiceCard = React.forwardRef<any, ServiceCardProps>(({
               });
               await StorageService.saveSharedKeys(updatedSharedKeys);
               
-              // Trigger a refresh by calling onSelect
-              onSelect();
+              // Trigger a refresh by calling wallet operations through dependency container
+              const walletOperations = dependencyContainer.getWalletOperations();
+              walletOperations.triggerSharedKeysRefresh();
+              
+              Alert.alert('Success', 'Service is now trusted');
             } catch (error) {
               console.error('Error trusting unknown source:', error);
               Alert.alert('Error', 'Failed to trust the service. Please try again.');
@@ -339,7 +347,7 @@ const ServiceCard = React.forwardRef<any, ServiceCardProps>(({
                 onPress={handleDelete}
                 activeOpacity={0.7}
               >
-                <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                <Ionicons name="trash-outline" size={20} color={theme.colors.warning} />
               </TouchableOpacity>
             </View>
           </View>
@@ -423,7 +431,10 @@ const ServiceCard = React.forwardRef<any, ServiceCardProps>(({
                   backgroundColor: canUseBlockchainFeatures ? theme.colors.primaryLight : theme.colors.border,
                   opacity: canUseBlockchainFeatures ? 1 : 0.5 
                 }}
-                onPress={canUseBlockchainFeatures ? () => onBroadcast(futureCode) : undefined}
+                onPress={canUseBlockchainFeatures ? () => {
+                  onBroadcast(futureCode);
+                  onSelect(); // Retract the card after broadcasting
+                } : undefined}
                 disabled={!canUseBlockchainFeatures}
                 activeOpacity={canUseBlockchainFeatures ? 0.7 : 1}
               >
@@ -448,7 +459,10 @@ const ServiceCard = React.forwardRef<any, ServiceCardProps>(({
                     backgroundColor: canUseBlockchainFeatures ? theme.colors.primaryLight : theme.colors.border,
                     opacity: canUseBlockchainFeatures ? 1 : 0.5,
                   }}
-                  onPress={canUseBlockchainFeatures ? onSaveToBlockchain : undefined}
+                  onPress={canUseBlockchainFeatures ? () => {
+                    onSaveToBlockchain();
+                    onSelect(); // Retract the card after saving to blockchain
+                  } : undefined}
                   disabled={!canUseBlockchainFeatures}
                   activeOpacity={canUseBlockchainFeatures ? 0.7 : 1}
                 >

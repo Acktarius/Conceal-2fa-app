@@ -1,5 +1,6 @@
 import * as Crypto from 'expo-crypto';
 import { CryptoService } from './CryptoService';
+import quickCrypto from 'react-native-quick-crypto';
 
 export class TOTPService {
   private static readonly PERIOD = 30; // 30 seconds
@@ -23,8 +24,13 @@ export class TOTPService {
       }
       
       // Generate HMAC-SHA1
-      const hmac = await CryptoService.hmacSha1(secretBytes, counterBytes);
-      
+      let hmac: Uint8Array;
+      try {
+        hmac = quickCrypto.createHmac('sha1', secretBytes).update(counterBytes).digest();
+      } catch {
+        hmac = await CryptoService.hmacSha1(secretBytes, counterBytes);
+      }
+     
       // Dynamic truncation
       const offset = hmac[hmac.length - 1] & 0x0f;
       const code = ((hmac[offset] & 0x7f) << 24) |
@@ -55,7 +61,12 @@ export class TOTPService {
       }
       
       // Generate HMAC-SHA1
-      const hmac = await CryptoService.hmacSha1(secretBytes, counterBytes);
+      let hmac: Uint8Array;
+      try {
+        hmac = quickCrypto.createHmac('sha1', secretBytes).update(counterBytes).digest();
+      } catch {
+        hmac = await CryptoService.hmacSha1(secretBytes, counterBytes);
+      }
       
       // Dynamic truncation
       const offset = hmac[hmac.length - 1] & 0x0f;

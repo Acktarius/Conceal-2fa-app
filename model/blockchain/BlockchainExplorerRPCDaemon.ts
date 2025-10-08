@@ -24,6 +24,7 @@ import {WalletWatchdog} from "../WalletWatchdog";
 import { config } from "../../config";
 import { WalletStorageManager } from "../../services/WalletStorageManager";
 import { dependencyContainer } from "../../services/DependencyContainer";
+import { getGlobalWorkletLogging } from "../../services/interfaces/IWorkletLogging";
 
 export type NodeInfo = {
   "url": string,
@@ -477,49 +478,53 @@ export class BlockchainExplorerRpcDaemon implements BlockchainExplorer {
     }
 
     if (this.initialized) {
-      console.log('BlockchainExplorerRpcDaemon: Already initialized, skipping');
-      return Promise.resolve(true);
-    } else {
-      console.log('BlockchainExplorerRpcDaemon: Starting initialization...');
-      
-      // Check if user has set a custom node
-      const customNode = await WalletStorageManager.getCustomNode();
-      console.log('BlockchainExplorerRpcDaemon: Custom node check result:', customNode ? 'CUSTOM NODE SET' : 'NO CUSTOM NODE');
-      
-      if (customNode) {
-        // Use custom node directly - skip random node loading
-        console.log('BlockchainExplorerRpcDaemon: Using custom node, skipping random node loading');
-        this.initialized = true;
-        await this.resetNodes();
-        return true;
-      } else {
-        // Use random node selection (original logic)
-        if (config.publicNodes) {
-          return fetch(config.publicNodes + '/list?hasFeeAddr=true&isReachable=true&hasSSL=true')
-            .then(response => response.json())
-            .then(result => {
-              if (result.success && (result.list.length > 0)) {
-                for (let i = 0; i < result.list.length; ++i) {
-                  let finalUrl = "https://" + result.list[i].url.host + "/";
+      getGlobalWorkletLogging().logging1string('BlockchainExplorerRpcDaemon: Already initialized, skipping');
+      return true;
+    }
 
-                  if (config.nodeList.findIndex(doesMatch(finalUrl)) == -1) {
-                    config.nodeList.push(finalUrl);
-                    console.log('BlockchainExplorerRpcDaemon: Added random node:', finalUrl);
-                  }
-                }
-                console.log(`BlockchainExplorerRpcDaemon: Total nodes available: ${config.nodeList.length}`);
-              }
-              
-              this.initialized = true;
-              this.resetNodes();
-              return true;
-            })
-            .catch(() => false);
-        } else {
-          return Promise.resolve(true);
+    getGlobalWorkletLogging().logging1string('BlockchainExplorerRpcDaemon: Starting initialization...');
+    
+    // Check if user has set a custom node
+    const customNode = await WalletStorageManager.getCustomNode();
+    getGlobalWorkletLogging().loggingWithString('BlockchainExplorerRpcDaemon: Custom node check result: {}', `${customNode ? 'CUSTOM NODE SET' : 'NO CUSTOM NODE'}`);
+    
+    if (customNode) {
+      // Use custom node directly - skip random node loading
+      getGlobalWorkletLogging().logging1string('BlockchainExplorerRpcDaemon: Using custom node, skipping random node loading');
+      this.initialized = true;
+      await this.resetNodes();
+      return true;
+    }
+
+    // Use random node selection (original logic)
+    if (!config.publicNodes) {
+      this.initialized = true;
+      return true;
+    }
+
+    try {
+      const response = await fetch(config.publicNodes + '/list?hasFeeAddr=true&isReachable=true&hasSSL=true');
+      const result = await response.json();
+      
+      if (result.success && (result.list.length > 0)) {
+        for (let i = 0; i < result.list.length; ++i) {
+          let finalUrl = "https://" + result.list[i].url.host + "/";
+
+          if (config.nodeList.findIndex(doesMatch(finalUrl)) == -1) {
+            config.nodeList.push(finalUrl);
+            console.log('BlockchainExplorerRpcDaemon: Added random node:', finalUrl);
+          }
         }
+        console.log(`BlockchainExplorerRpcDaemon: Total nodes available: ${config.nodeList.length}`);
       }
-    }   
+      
+      this.initialized = true;
+      await this.resetNodes();
+      return true;
+    } catch (error) {
+      console.error('BlockchainExplorerRpcDaemon: Error fetching node list:', error);
+      return false;
+    }
   }
 
   start = (wallet: Wallet): WalletWatchdog => {
