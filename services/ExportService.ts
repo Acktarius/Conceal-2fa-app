@@ -1,3 +1,11 @@
+/*
+ * Copyright (c) 2025 Acktarius, Conceal Devs
+ * 
+ * This file is part of Conceal-2FA-App
+ * 
+ * Distributed under the BSD 3-Clause License, see the accompanying
+ * file LICENSE or https://opensource.org/licenses/BSD-3-Clause.
+ */
 import type { Wallet } from '../model/Wallet';
 import { CoinUri } from '../model/CoinUri';
 

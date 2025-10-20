@@ -1,3 +1,11 @@
+/*
+ * Copyright (c) 2025 Acktarius, Conceal Devs
+ * 
+ * This file is part of Conceal-2FA-App
+ * 
+ * Distributed under the BSD 3-Clause License, see the accompanying
+ * file LICENSE or https://opensource.org/licenses/BSD-3-Clause.
+ */
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';

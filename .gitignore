@@ -11,3 +11,5 @@ custom-quick-crypto/react-native-quick-crypto/*.js
 custom-quick-crypto/react-native-quick-crypto/*.js.map
 
 *.apk
+
+add.sh
