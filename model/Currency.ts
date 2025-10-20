@@ -59,7 +59,7 @@ export class Currency {
         }
     
         const PRETTY_AMOUNTS = config.PRETTY_AMOUNTS;
-        let idx = PRETTY_AMOUNTS.findIndex(a => a >= amount);
+        const idx = PRETTY_AMOUNTS.findIndex(a => a >= amount);
     
         if (idx === -1 || PRETTY_AMOUNTS[idx] !== amount) {
           return { applicable: false };

@@ -17,12 +17,12 @@
 
 export class MnemonicLang{
 	prefixLen = 0;
-	words: Array<String> = [];
-	trunc_words: Array<String> = [];
+	words: Array<string> = [];
+	trunc_words: Array<string> = [];
 	name='';
 	shortLang='';
 
-	constructor(name:string,shortLang:string,prefixLen: number, words: Array<String>) {
+	constructor(name:string,shortLang:string,prefixLen: number, words: Array<string>) {
 		this.prefixLen = prefixLen;
 		this.words = words;
 		this.name = name;
@@ -34,13 +34,13 @@ export class MnemonicLang{
 		if(this.prefixLen === 0)return;
 
 		this.trunc_words = [];
-		for (let word of this.words) {
+		for (const word of this.words) {
 			this.trunc_words.push(word.slice(0, this.prefixLen));
 		}
 	}
 
 	static getLangs(): Array<MnemonicLang> {
-		let langs = [];
+		const langs = [];
 		langs.push(new MnemonicLang(
 			'electrum',
 			'el',
@@ -2622,8 +2622,8 @@ export class MnemonicLang{
 	}
 
 	static getLang(name : string) : MnemonicLang|null{
-		let langs = MnemonicLang.getLangs();
-		for(let lang of langs){
+		const langs = MnemonicLang.getLangs();
+		for(const lang of langs){
 			if(lang.name == name)
 				return lang;
 		}

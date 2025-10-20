@@ -39,8 +39,8 @@ export class MathUtil{
 	}
 
 	static randomTriangularSimplified(max : number){
-		let r = MathUtil.randomUint32() % (1 << 53);
-		let frac = Math.sqrt(r / (1 << 53));
+		const r = MathUtil.randomUint32() % (1 << 53);
+		const frac = Math.sqrt(r / (1 << 53));
 		let i = (frac*max)|0;
 		// just in case rounding up to 1 occurs after sqrt
 		if (i == max)

@@ -29,8 +29,8 @@
  *     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-import {Wallet} from "./Wallet";
-import {BlockchainExplorer, RawDaemon_Transaction} from "./blockchain/BlockchainExplorer";
+import type {Wallet} from "./Wallet";
+import type {BlockchainExplorer, RawDaemon_Transaction} from "./blockchain/BlockchainExplorer";
 import {Transaction, TransactionData, Deposit} from "./Transaction";
 import {TransactionsExplorer} from "./TransactionsExplorer";
 import { config } from "../config";
@@ -74,7 +74,7 @@ class TxQueue {
   initWorker = (): Worker => {
     this.workerProcess = new Worker('./workers/ParseTransactionsEntrypoint.js');
     this.workerProcess.onmessage = (data: MessageEvent)  => {
-      let message: string | any = data.data;
+      const message: string | any = data.data;
       if (message === 'ready') {
         logDebugMsg('worker ready...');
         // post the wallet to the worker
@@ -88,8 +88,8 @@ class TxQueue {
           this.setIsReady(true);
         } else if (message.type === 'processed') {
           if (message.transactions.length > 0) {
-            for (let txData of message.transactions) {
-              let txDataObject = TransactionData.fromRaw(txData);
+            for (const txData of message.transactions) {
+              const txDataObject = TransactionData.fromRaw(txData);
 
               this.wallet.addNew(txDataObject.transaction);
               this.wallet.addDeposits(txDataObject.deposits);
@@ -129,7 +129,7 @@ class TxQueue {
       if (!this.isRunning) {      
         this.isRunning = true;
         // dequeue one item form the processing queue and check if its valid
-        let txQueueItem: ITxQueueItem | null = this.processingQueue.shift()!;
+        const txQueueItem: ITxQueueItem | null = this.processingQueue.shift()!;
 
         if (txQueueItem) {                  
           // increase the number of transactions we actually processed
@@ -162,7 +162,7 @@ class TxQueue {
   }
 
   addTransactions = (transactions: RawDaemon_Transaction[], maxBlockNum: number) => {
-    let txQueueItem: ITxQueueItem = {
+    const txQueueItem: ITxQueueItem = {
       transactions: transactions,
       maxBlockNum: maxBlockNum
     }
@@ -220,7 +220,7 @@ class BlockList {
   addBlockRange = (startBlock: number, endBlock: number, chainHeight: number) => {
     this.chainHeight = Math.max(this.chainHeight, chainHeight);
 
-    let rangeData: IBlockRange = {
+    const rangeData: IBlockRange = {
       startBlock: startBlock,
       endBlock: endBlock,
       finished: false,
@@ -232,7 +232,7 @@ class BlockList {
       for (var i = this.blocks.length - 1; i >= 0; i--) {
         if ((startBlock === this.blocks[i].startBlock) && (endBlock === this.blocks[i].endBlock)) {
           return;
-        } else if (endBlock > this.blocks[i].endBlock) {
+        }if (endBlock > this.blocks[i].endBlock) {
           if (i = this.blocks.length) {
             this.blocks.push(rangeData);
           } else {
@@ -260,7 +260,7 @@ class BlockList {
       // remove all finished block
       while (this.blocks.length > 0) {
         if (this.blocks[0].finished) {
-          let block = this.blocks.shift()!;
+          const block = this.blocks.shift()!;
           // add any transactions to the wallet
           this.txQueue.addTransactions(block.transactions, block.endBlock);
         } else {
@@ -284,7 +284,7 @@ class BlockList {
   getFirstIdleRange = (reset: boolean): IBlockRange | null => {
     for (let i = 0; i < this.blocks.length; ++i) {
       if (!this.blocks[i].finished) {
-        let timeDiff: number = new Date().getTime() - this.blocks[i].timestamp.getTime();
+        const timeDiff: number = new Date().getTime() - this.blocks[i].timestamp.getTime();
         if ((timeDiff / 1000) > 30) {
           if (reset) { this.blocks[i].timestamp = new Date(); }
           return this.blocks[i];
@@ -342,7 +342,7 @@ class ParseWorker {
   initWorker = (): Worker => {
     this.workerProcess = new Worker('./workers/TransferProcessingEntrypoint.js');
     this.workerProcess.onmessage = (data: MessageEvent)  => {
-      let message: string | any = data.data;
+      const message: string | any = data.data;
       if (message === 'ready') {
         logDebugMsg('worker ready...');
         // signal the wallet update
@@ -464,7 +464,7 @@ export class WalletWatchdog {
 
     // create parse workers
     for (let i = 0; i < this.maxCpuCores; ++i) {
-      let parseWorker: ParseWorker = new ParseWorker(this.wallet, this, this.blockList, this.processParseTransaction);
+      const parseWorker: ParseWorker = new ParseWorker(this.wallet, this, this.blockList, this.processParseTransaction);
       this.parseWorkers.push(parseWorker);
     }
 
@@ -566,8 +566,8 @@ export class WalletWatchdog {
     this.wallet.clearMemTx();
     this.explorer.getTransactionPool().then((pool: any) => {
       if (typeof pool !== 'undefined') {
-        for (let rawTx of pool) {
-          let txData = TransactionsExplorer.parse(rawTx, this.wallet);
+        for (const rawTx of pool) {
+          const txData = TransactionsExplorer.parse(rawTx, this.wallet);
 
           if ((txData !== null) && (txData.transaction !== null)) {
             this.wallet.addNewMemTx(txData.transaction);
@@ -585,11 +585,11 @@ export class WalletWatchdog {
 
   processParseTransaction = () => {
     if (this.transactionsToProcess.length > 0) {
-      let parseWorker = this.acquireWorker();
+      const parseWorker = this.acquireWorker();
 
       if (parseWorker) {
         // define the transactions we need to process
-        let transactionsToProcess: ITransacationQueue | null = this.transactionsToProcess.shift()!;
+        const transactionsToProcess: ITransacationQueue | null = this.transactionsToProcess.shift()!;
 
         if (transactionsToProcess) {          
           parseWorker.setIsWorking(true);
@@ -608,7 +608,7 @@ export class WalletWatchdog {
   }
 
   processTransactions(transactions: RawDaemon_Transaction[], lastBlock: number) {
-    let txList: ITransacationQueue = {
+    const txList: ITransacationQueue = {
       transactions: transactions,
       lastBlock: lastBlock,
     }    
@@ -655,7 +655,7 @@ export class WalletWatchdog {
   }
 
   startSyncLoop = async () => {
-    (async function(self) {
+    (async (self) => {
       while (!self.stopped) {
         try {
           if (self.lastBlockLoading === -1) {
@@ -670,7 +670,7 @@ export class WalletWatchdog {
           }
 
           // get the current height of the chain
-          let height = await self.explorer.getHeight();
+          const height = await self.explorer.getHeight();
 
           // make sure we are not ahead of chain
           if (self.lastBlockLoading > height) {
@@ -687,11 +687,11 @@ export class WalletWatchdog {
           }
 
           // get a free worker and check if we have idle blocks first
-          let freeWorker: SyncWorker | null = self.getFreeWorker();
+          const freeWorker: SyncWorker | null = self.getFreeWorker();
 
           if (freeWorker) {
             // first check if we have any stale ranges available
-            let idleRange = self.blockList.getFirstIdleRange(true);
+            const idleRange = self.blockList.getFirstIdleRange(true);
             let startBlock: number = 0;
             let endBlock: number = 0;
             

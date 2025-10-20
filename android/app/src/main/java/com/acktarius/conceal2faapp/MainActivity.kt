@@ -1,4 +1,4 @@
-package com.acktarius.blockchain2faapp
+package com.acktarius.conceal2faapp
 
 import android.os.Build
 import android.os.Bundle

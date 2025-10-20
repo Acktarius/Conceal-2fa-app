@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import type React from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { useColorScheme } from 'react-native';
 import { StorageService } from '../services/StorageService';
 
@@ -16,6 +17,7 @@ export interface Theme {
     accent: string;
     success: string;
     warning: string;
+    status: string;
     error: string;
     border: string;
     tabBar: string;
@@ -27,6 +29,9 @@ export interface Theme {
     switchTrackFalse: string;
     switchThumbColor: string;
     pulseColor: string;
+    buttonText: string;
+    bannerBkg: string;
+    bannerBorder: string;
   };
 }
 
@@ -44,6 +49,7 @@ const lightTheme: Theme = {
     accent: '#06B6D4',
     success: '#10B981',
     warning: '#F59E0B',
+    status: '#34D399',
     error: '#EF4444',
     border: '#E2E8F0',
     tabBar: '#FFFFFF',
@@ -55,6 +61,9 @@ const lightTheme: Theme = {
     switchTrackFalse: '#CBD5E1', // Light grey when OFF
     switchThumbColor: '#F8FAFC', // Light color
     pulseColor: '#10B981', // Green pulse
+    buttonText: '#FFFFFF', // White text on primary buttons
+    bannerBkg: 'rgba(245, 158, 11, 0.05)', // Light warning background
+    bannerBorder: 'rgba(245, 158, 11, 0.1)', // Light warning border
   },
 };
 
@@ -71,7 +80,8 @@ const darkTheme: Theme = {
     primaryLight: '#1E293B',
     accent: '#22D3EE',
     success: '#34D399',
-    warning: '#FBBF24',
+    warning: '#F23333', // trashcan
+    status: '#34D399',
     error: '#F87171',
     border: '#475569',
     tabBar: '#1E293B',
@@ -83,6 +93,9 @@ const darkTheme: Theme = {
     switchTrackFalse: '#475569', // Grey when OFF
     switchThumbColor: '#0F172A', // Same as background
     pulseColor: '#10B981', // Green pulse
+    buttonText: '#0F172A', // Dark text on light primary buttons
+    bannerBkg: 'rgba(242, 51, 51, 0.1)', // Dark warning background (trashcan color)
+    bannerBorder: 'rgba(242, 51, 51, 0.2)', // Dark warning border
   },
 };
 
@@ -99,7 +112,8 @@ const orangeTheme: Theme = {
     primaryLight: '#262626',
     accent: '#FF6B35',
     success: '#00FF7F',
-    warning: '#FFD700',
+    warning: '#F07B78',
+    status: '#34D399',
     error: '#FF4444',
     border: '#333333',
     tabBar: '#1A1A1A',
@@ -111,6 +125,9 @@ const orangeTheme: Theme = {
     switchTrackFalse: '#333333',
     switchThumbColor: '#0D0D0D',
     pulseColor: '#FF8C00', // Orange pulse
+    buttonText: '#0D0D0D', // Black text on orange buttons
+    bannerBkg: 'rgba(240, 123, 120, 0.1)', // Orange warning background
+    bannerBorder: 'rgba(240, 123, 120, 0.2)', // Orange warning border
   },
 };
 
@@ -127,7 +144,8 @@ const velvetTheme: Theme = {
     primaryLight: '#2A1F2A',
     accent: '#B380E6',
     success: '#98FB98',
-    warning: '#FFB6C1',
+    warning: '#D786F1', //trashcan
+    status: '#34D399',
     error: '#FF69B4',
     border: '#3A3A3A',
     tabBar: '#1A0F1A',
@@ -139,6 +157,9 @@ const velvetTheme: Theme = {
     switchTrackFalse: '#3A3A3A',
     switchThumbColor: '#0F0A0F',
     pulseColor: '#8852d2', // Velvet pulse
+    buttonText: '#FAFAFA', // White text on purple buttons
+    bannerBkg: 'rgba(240, 123, 120, 0.1)', // Velvet warning background (trashcan color)
+    bannerBorder: 'rgba(240, 123, 120, 0.2)', // Velvet warning border
   },
 };
 
@@ -177,7 +198,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const toggleTheme = async () => {
     const newThemeId = currentThemeId === 'light' ? 'dark' : 'light';
     setCurrentThemeId(newThemeId);
-    
+
     try {
       const settings = await StorageService.getSettings();
       await StorageService.saveSettings({ ...settings, themeId: newThemeId });
@@ -188,7 +209,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const setTheme = async (themeId: string) => {
     setCurrentThemeId(themeId);
-    
+
     try {
       const settings = await StorageService.getSettings();
       await StorageService.saveSettings({ ...settings, themeId });
@@ -199,11 +220,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const getTheme = (themeId: string): Theme => {
     switch (themeId) {
-      case 'light': return lightTheme;
-      case 'dark': return darkTheme;
-      case 'orange': return orangeTheme;
-      case 'velvet': return velvetTheme;
-      default: return darkTheme;
+      case 'light':
+        return lightTheme;
+      case 'dark':
+        return darkTheme;
+      case 'orange':
+        return orangeTheme;
+      case 'velvet':
+        return velvetTheme;
+      default:
+        return darkTheme;
     }
   };
 

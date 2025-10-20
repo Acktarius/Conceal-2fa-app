@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import type React from 'react';
+import { createContext, type ReactNode, useContext, useState } from 'react';
 import { SeedInputModal } from '../components/SeedInputModal';
 
 interface SeedInputContextType {
@@ -21,10 +22,15 @@ interface SeedInputProviderProps {
 
 export const SeedInputProvider: React.FC<SeedInputProviderProps> = ({ children }) => {
   const [showModal, setShowModal] = useState(false);
-  const [onImportCallback, setOnImportCallback] = useState<((seedPhrase: string, creationHeight?: number) => void) | null>(null);
+  const [onImportCallback, setOnImportCallback] = useState<
+    ((seedPhrase: string, creationHeight?: number) => void) | null
+  >(null);
   const [onCancelCallback, setOnCancelCallback] = useState<(() => void) | null>(null);
 
-  const showSeedInputModal = (onImport: (seedPhrase: string, creationHeight?: number) => void, onCancel: () => void) => {
+  const showSeedInputModal = (
+    onImport: (seedPhrase: string, creationHeight?: number) => void,
+    onCancel: () => void
+  ) => {
     console.log('SEED INPUT CONTEXT: showSeedInputModal called');
     setOnImportCallback(() => onImport);
     setOnCancelCallback(() => onCancel);
@@ -59,11 +65,7 @@ export const SeedInputProvider: React.FC<SeedInputProviderProps> = ({ children }
   return (
     <SeedInputContext.Provider value={contextValue}>
       {children}
-      <SeedInputModal
-        visible={showModal}
-        onImport={handleImport}
-        onCancel={handleCancel}
-      />
+      <SeedInputModal visible={showModal} onImport={handleImport} onCancel={handleCancel} />
     </SeedInputContext.Provider>
   );
 };

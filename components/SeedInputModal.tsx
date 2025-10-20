@@ -1,17 +1,18 @@
-import React, { useState } from 'react';
+import * as Clipboard from 'expo-clipboard';
+import type React from 'react';
+import { useState } from 'react';
 import {
-  View,
+  Alert,
+  Dimensions,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  Modal,
-  Dimensions,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
+  View,
 } from 'react-native';
-import * as Clipboard from 'expo-clipboard';
 
 const { width, height } = Dimensions.get('window');
 
@@ -21,11 +22,7 @@ export interface SeedInputModalProps {
   onImport: (seedPhrase: string, creationHeight?: number) => void;
 }
 
-export const SeedInputModal: React.FC<SeedInputModalProps> = ({
-  visible,
-  onCancel,
-  onImport,
-}) => {
+export const SeedInputModal: React.FC<SeedInputModalProps> = ({ visible, onCancel, onImport }) => {
   const [seedPhrase, setSeedPhrase] = useState('');
   const [creationHeight, setCreationHeight] = useState('');
   const [isValidating, setIsValidating] = useState(false);
@@ -78,24 +75,19 @@ export const SeedInputModal: React.FC<SeedInputModalProps> = ({
     onCancel();
   };
 
-  const wordCount = seedPhrase.trim().split(/\s+/).filter(word => word.length > 0).length;
+  const wordCount = seedPhrase
+    .trim()
+    .split(/\s+/)
+    .filter((word) => word.length > 0).length;
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={handleCancel}
-    >
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleCancel}>
+      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={styles.blurContainer}>
           <View style={styles.modalContainer}>
             <Text style={styles.title}>Import Wallet</Text>
             <Text style={styles.subtitle}>Enter your 25-word seed phrase</Text>
-            
+
             <View style={styles.inputContainer}>
               <View style={styles.inputHeader}>
                 <Text style={styles.inputLabel}>Seed Phrase</Text>
@@ -103,7 +95,7 @@ export const SeedInputModal: React.FC<SeedInputModalProps> = ({
                   <Text style={styles.pasteButtonText}>📋 Paste</Text>
                 </TouchableOpacity>
               </View>
-              
+
               <TextInput
                 style={styles.textInput}
                 value={seedPhrase}
@@ -116,17 +108,12 @@ export const SeedInputModal: React.FC<SeedInputModalProps> = ({
                 autoCorrect={false}
                 secureTextEntry={false}
               />
-              
+
               <View style={styles.wordCountContainer}>
-                <Text style={[
-                  styles.wordCount,
-                  wordCount === 25 ? styles.wordCountValid : styles.wordCountInvalid
-                ]}>
+                <Text style={[styles.wordCount, wordCount === 25 ? styles.wordCountValid : styles.wordCountInvalid]}>
                   {wordCount}/25 words
                 </Text>
-                {wordCount === 25 && (
-                  <Text style={styles.validIndicator}>✓ Valid</Text>
-                )}
+                {wordCount === 25 && <Text style={styles.validIndicator}>✓ Valid</Text>}
               </View>
             </View>
 
@@ -141,11 +128,9 @@ export const SeedInputModal: React.FC<SeedInputModalProps> = ({
                 autoCapitalize="none"
                 autoCorrect={false}
               />
-              <Text style={styles.heightHint}>
-                Enter the blockchain height when your wallet was created
-              </Text>
+              <Text style={styles.heightHint}>Enter the blockchain height when your wallet was created</Text>
             </View>
-            
+
             <View style={styles.buttonContainer}>
               <TouchableOpacity
                 style={[styles.button, styles.cancelButton]}
@@ -154,20 +139,13 @@ export const SeedInputModal: React.FC<SeedInputModalProps> = ({
               >
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
-                style={[
-                  styles.button, 
-                  styles.importButton,
-                  wordCount !== 25 && styles.importButtonDisabled
-                ]}
+                style={[styles.button, styles.importButton, wordCount !== 25 && styles.importButtonDisabled]}
                 onPress={handleImport}
                 disabled={isValidating || wordCount !== 25}
               >
-                <Text style={[
-                  styles.importButtonText,
-                  wordCount !== 25 && styles.importButtonTextDisabled
-                ]}>
+                <Text style={[styles.importButtonText, wordCount !== 25 && styles.importButtonTextDisabled]}>
                   {isValidating ? 'Importing...' : 'Import'}
                 </Text>
               </TouchableOpacity>

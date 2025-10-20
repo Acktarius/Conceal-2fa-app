@@ -13,6 +13,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
+  ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -44,6 +45,7 @@ export default function WalletScreen() {
   const [showQRScanner, setShowQRScanner] = useState<boolean>(false);
   const [keyboardHeight, setKeyboardHeight] = useState<number>(0);
   const [showBlockchainSyncInfo, setShowBlockchainSyncInfo] = useState<boolean>(true);
+  const [isProcessingTransaction, setIsProcessingTransaction] = useState<boolean>(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
 
@@ -83,9 +85,8 @@ export default function WalletScreen() {
       const interval = setInterval(updateSyncStatus, 5000);
       
       return () => clearInterval(interval);
-    } else {
-      setSyncStatus(null);
     }
+      setSyncStatus(null);
   }, [wallet, refreshCounter]);
 
   // Register balance refresh callback for automatic updates
@@ -236,25 +237,15 @@ export default function WalletScreen() {
     }
 
     try {
-      // Show processing alert but collapse Send CCX section immediately
-      Alert.alert('Processing', 'Sending transaction...', [
-        { text: 'OK', onPress: () => {
-          setSendAddress('');
-          setSendAmount('');
-          setIsSendExpanded(false);
-        }}
-      ], {
-        onDismiss: () => {
-          // Collapse Send CCX section when alert is dismissed
-          setSendAddress('');
-          setSendAmount('');
-          setIsSendExpanded(false);
-        }
-      });
+      // Show spinner and immediately collapse Send CCX section
+      setIsProcessingTransaction(true);
+      setSendAddress('');
+      setSendAmount('');
+      setIsSendExpanded(false);
 
       // Convert user input (CCX) to atomic units (smallest blockchain unit)
       // CCX has 6 decimal places, so 1 CCX = 1,000,000 atomic units
-      const amountInAtoms = Math.floor(amount * Math.pow(10, config.coinUnitPlaces));
+      const amountInAtoms = Math.floor(amount * 10 ** config.coinUnitPlaces);
       /*
       console.log('WalletScreen: Converting user input to atomic units', {
         userInputHuman: amount.toFixed(6) + ' CCX',
@@ -270,21 +261,21 @@ export default function WalletScreen() {
         '' // message
       );
 
+      // Hide spinner
+      setIsProcessingTransaction(false);
+
       // Success
       Alert.alert(
         'Transaction Sent', 
         `Successfully sent ${amount} CCX to ${sendAddress.substring(0, 10)}...\n\nTransaction Hash: ${txHash.substring(0, 16)}...`
       );
-      
-      // Reset form
-      setSendAddress('');
-      setSendAmount('');
-      setIsSendExpanded(false);
 
       // Refresh wallet balance (don't resync entire wallet)
       await refreshBalance();
 
     } catch (error) {
+      // Hide spinner on error
+      setIsProcessingTransaction(false);
       console.error('Send transaction error:', error);
       Alert.alert('Error', `Failed to send transaction: ${error.message}`);
     }
@@ -341,6 +332,17 @@ export default function WalletScreen() {
     <GestureNavigator>
       <View className="flex-1" style={{ backgroundColor: theme.colors.background }}>
         <Header title="Wallet" />
+        
+        {/* Transaction Processing Spinner - Top Right Corner */}
+        {isProcessingTransaction && (
+          <View 
+            className="absolute top-[50px] right-4 z-[1000] rounded-full p-2 shadow-lg"
+            style={{ backgroundColor: 'rgba(0, 0, 0, 0.1)' }}
+          >
+            <ActivityIndicator size="small" color={theme.colors.primary} />
+          </View>
+        )}
+        
         <ScrollView 
           ref={scrollViewRef}
           className="flex-1 px-4" 
@@ -676,5 +678,3 @@ export default function WalletScreen() {
     </GestureNavigator>
   );
 }
-
-// Styles are now handled by Tailwind CSS classes

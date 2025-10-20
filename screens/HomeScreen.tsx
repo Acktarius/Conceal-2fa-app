@@ -26,6 +26,7 @@ import { SharedKey } from '../model/Transaction';
 import { useWallet } from '../contexts/WalletContext';
 import { useTheme } from '../contexts/ThemeContext';
 import GestureNavigator from '../components/GestureNavigator';
+import { getGlobalWorkletLogging } from '../services/interfaces/IWorkletLogging';
 
 export default function HomeScreen() {
   const [sharedKeys, setSharedKeys] = useState<SharedKey[]>([]);
@@ -65,7 +66,7 @@ export default function HomeScreen() {
       }));
       setSharedKeys(sharedKeysWithCodes);
     } catch (error) {
-      console.error('Error loading shared keys:', error);
+      getGlobalWorkletLogging().logging2string('Error loading shared keys:', String(error));
     }
   };
 
@@ -74,9 +75,9 @@ export default function HomeScreen() {
       const settings = await StorageService.getSettings();
       const syncEnabled = settings.blockchainSync || false;
       setBlockchainSyncEnabled(syncEnabled);
-      console.log('HomeScreen: Loaded blockchain sync setting:', syncEnabled);
+      getGlobalWorkletLogging().logging2string('HomeScreen: Loaded blockchain sync setting:', String(syncEnabled));
     } catch (error) {
-      console.error('Error loading blockchain sync setting:', error);
+      getGlobalWorkletLogging().logging2string('Error loading blockchain sync setting:', String(error));
     }
   };
 
@@ -104,7 +105,7 @@ export default function HomeScreen() {
 
   const handleAddService = async (serviceData: any) => {
     try {
-     console.log('Adding service with data:', serviceData);
+     getGlobalWorkletLogging().logging2string('Adding service with data:', JSON.stringify(serviceData));
      
       const newSharedKey = SharedKey.fromRaw({
         name: serviceData.name,
@@ -112,11 +113,11 @@ export default function HomeScreen() {
         secret: serviceData.secret
       });
       
-     console.log('Created SharedKey:', {
+     getGlobalWorkletLogging().logging2string('Created SharedKey:', JSON.stringify({
        name: newSharedKey.name,
        issuer: newSharedKey.issuer,
        secret: newSharedKey.secret ? 'present' : 'missing'
-     });
+     }));
      
       newSharedKey.code = await TOTPService.generateTOTP(serviceData.secret);
       newSharedKey.timeRemaining = TOTPService.getTimeRemaining();
@@ -132,13 +133,13 @@ export default function HomeScreen() {
         newSharedKey.toBePush = false;
       }
       
-      console.log('Creating new SharedKey:', {
+      getGlobalWorkletLogging().logging2string('Creating new SharedKey:', JSON.stringify({
         name: newSharedKey.name,
         hash: newSharedKey.hash,
         isLocal: newSharedKey.isLocal,
         revokeInQueue: newSharedKey.revokeInQueue,
         toBePush: newSharedKey.toBePush
-      });
+      }));
 
       const updatedSharedKeys = [...sharedKeys, newSharedKey];
       setSharedKeys(updatedSharedKeys);
@@ -151,16 +152,16 @@ export default function HomeScreen() {
         
         // Force CronBuddy to check immediately for the new key
         try {
-          console.log('DEBUG: New service with toBePush=true, triggering CronBuddy check');
+          getGlobalWorkletLogging().logging1string('DEBUG: New service with toBePush=true, triggering CronBuddy check');
           await CronBuddy.forceCheck();
         } catch (error) {
-          console.error('DEBUG: Error triggering CronBuddy for new service:', error);
+          getGlobalWorkletLogging().logging2string('DEBUG: Error triggering CronBuddy for new service:', String(error));
         }
       } else {
         Alert.alert('Success', 'Service added locally! Enable blockchain sync or use individual save buttons to sync to blockchain.');
       }
     } catch (error) {
-      console.error('Error adding service:', error);
+      getGlobalWorkletLogging().logging2string('Error adding service:', String(error));
       Alert.alert('Error', 'Failed to add service. Please try again.');
     }
   };
@@ -220,7 +221,7 @@ export default function HomeScreen() {
 
       // Set toBePush flag to true - CronBuddy will handle the rest
       sharedKey.toBePush = true;
-      console.log('DEBUG: Set toBePush=true for sharedKey:', sharedKey.name, 'toBePush:', sharedKey.toBePush);
+      getGlobalWorkletLogging().logging2string('DEBUG: Set toBePush=true for sharedKey:', `${sharedKey.name}, toBePush: ${sharedKey.toBePush}`);
       
       const updatedSharedKeys = sharedKeys.map(sk => 
         sk === sharedKey ? sharedKey : sk
@@ -228,39 +229,39 @@ export default function HomeScreen() {
       
       setSharedKeys(updatedSharedKeys);
       await StorageService.saveSharedKeys(updatedSharedKeys);
-      console.log('DEBUG: Saved sharedKeys to storage, toBePush flag should be persisted');
+      getGlobalWorkletLogging().logging1string('DEBUG: Saved sharedKeys to storage, toBePush flag should be persisted');
       
       // Verify the flag was saved
       const savedKeys = await StorageService.getSharedKeys();
       const savedKey = savedKeys.find(sk => sk.name === sharedKey.name);
-      console.log('DEBUG: Verified saved key toBePush flag:', savedKey?.toBePush);
+      getGlobalWorkletLogging().logging2string('DEBUG: Verified saved key toBePush flag:', String(savedKey?.toBePush));
       
       // Ensure CronBuddy is running
       if (!CronBuddy.isActive()) {
-        console.log('DEBUG: CronBuddy not active, starting it...');
+        getGlobalWorkletLogging().logging1string('DEBUG: CronBuddy not active, starting it...');
         CronBuddy.start();
-        console.log('DEBUG: CronBuddy started, is now active:', CronBuddy.isActive());
+        getGlobalWorkletLogging().logging2string('DEBUG: CronBuddy started, is now active:', String(CronBuddy.isActive()));
       } else {
-        console.log('DEBUG: CronBuddy already active');
+        getGlobalWorkletLogging().logging1string('DEBUG: CronBuddy already active');
       }
       
       Alert.alert('Success', 'Service will be saved to blockchain automatically. CronBuddy will process this in the background.');
       
       // Debug: Check CronBuddy status and force a check
-      console.log('DEBUG: CronBuddy is active:', CronBuddy.isActive());
-      console.log('DEBUG: Wallet is local:', wallet?.isLocal());
-      console.log('DEBUG: Wallet sync status:', WalletService.getWalletSyncStatus());
+      getGlobalWorkletLogging().logging2string('DEBUG: CronBuddy is active:', String(CronBuddy.isActive()));
+      getGlobalWorkletLogging().logging2string('DEBUG: Wallet is local:', String(wallet?.isLocal()));
+      getGlobalWorkletLogging().logging2string('DEBUG: Wallet sync status:', JSON.stringify(WalletService.getWalletSyncStatus()));
       
       // Force CronBuddy to check immediately
       try {
         await CronBuddy.forceCheck();
-        console.log('DEBUG: CronBuddy force check completed');
+        getGlobalWorkletLogging().logging1string('DEBUG: CronBuddy force check completed');
       } catch (error) {
-        console.error('DEBUG: CronBuddy force check failed:', error);
+        getGlobalWorkletLogging().logging2string('DEBUG: CronBuddy force check failed:', String(error));
       }
       
     } catch (error) {
-      console.error('Error saving to blockchain:', error);
+      getGlobalWorkletLogging().logging2string('Error saving to blockchain:', String(error));
       Alert.alert('Error', 'Failed to save key to blockchain.');
     }
   };
@@ -305,7 +306,7 @@ export default function HomeScreen() {
         setSelectedServiceId(null);
       }
     } catch (error) {
-      console.error('Error deleting SharedKey:', error);
+      getGlobalWorkletLogging().logging2string('Error deleting SharedKey:', String(error));
     }
   };
 
@@ -328,7 +329,7 @@ export default function HomeScreen() {
     */
     // PRIMARY RULE: Don't display if revoked (either in queue OR confirmed revoked)
     if (sharedKey.revokeInQueue || sharedKey.timeStampSharedKeyRevoke > 0) {
-      console.log('Hidden: Service is revoked (revokeInQueue or timeStampSharedKeyRevoke)');
+      // getGlobalWorkletLogging().logging1string('Hidden: Service is revoked (revokeInQueue or timeStampSharedKeyRevoke)');
       return false;
     }
    
@@ -417,7 +418,7 @@ export default function HomeScreen() {
             }
           }}
         >
-          <Ionicons name="add" size={24} color={theme.colors.background} />
+          <Ionicons name="add" size={24} color={theme.colors.buttonText || '#FFFFFF'} />
         </TouchableOpacity>
       </>
     );

@@ -1,13 +1,19 @@
 {
   "name": "conceal-2fa-app",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
     "dev": "export REACT_NATIVE_PACKAGER_HOSTNAME=192.168.1.19 && expo start",
-    "build": "expo export"
+    "build": "expo export",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "format": "biome format .",
+    "format:fix": "biome format --write .",
+    "check": "biome check .",
+    "check:fix": "biome check --write ."
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
@@ -31,8 +37,10 @@
     "react": "19.1.0",
     "react-native": "0.81.4",
     "react-native-camera": "^4.2.1",
+    "react-native-conceal-crypto": "file:../react-native-conceal-crypto/react-native-conceal-crypto-0.1.0.tgz",
     "react-native-gesture-handler": "~2.28.0",
     "react-native-multithreading": "^1.1.1",
+    "react-native-nitro-modules": "^0.30.2",
     "react-native-qrcode-svg": "^6.3.15",
     "react-native-reanimated": "~4.1.0",
     "react-native-safe-area-context": "~5.6.0",
@@ -43,9 +51,12 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
+    "@biomejs/biome": "2.2.6",
     "@react-native-community/cli": "^20.0.1",
     "@react-native/metro-config": "^0.81.4",
     "@types/react": "~19.1.10",
+    "babel-plugin-module-resolver": "^5.0.2",
+    "babel-preset-expo": "^54.0.4",
     "metro": "^0.83.1",
     "metro-babel-transformer": "^0.83.1",
     "metro-core": "^0.83.1",

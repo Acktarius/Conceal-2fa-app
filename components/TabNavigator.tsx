@@ -1,20 +1,25 @@
-import React from 'react';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { View, Platform } from 'react-native';
-
-import HomeScreen from '../screens/HomeScreen';
-import WalletScreen from '../screens/WalletScreen';
-import SettingsScreen from '../screens/SettingsScreen';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import React from 'react';
+import { Platform, View } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
+import HomeScreen from '../screens/HomeScreen';
+import SettingsScreen from '../screens/SettingsScreen';
+import WalletScreen from '../screens/WalletScreen';
 
 const Tab = createBottomTabNavigator();
 
 // Custom tab icon component with hover effect
-function TabIcon({ name, size, color, focused, theme }: { 
-  name: keyof typeof Ionicons.glyphMap; 
-  size: number; 
-  color: string; 
+function TabIcon({
+  name,
+  size,
+  color,
+  focused,
+  theme,
+}: {
+  name: keyof typeof Ionicons.glyphMap;
+  size: number;
+  color: string;
   focused: boolean;
   theme: any;
 }) {
@@ -45,7 +50,7 @@ function TabIcon({ name, size, color, focused, theme }: {
       </div>
     );
   }
-  
+
   return <Ionicons name={name} size={size} color={color} />;
 }
 
@@ -85,37 +90,37 @@ export default function TabNavigator() {
         })}
         initialRouteName="Home"
       >
-        <Tab.Screen 
-          name="Home" 
-          component={HomeScreen} 
-          options={{ 
+        <Tab.Screen
+          name="Home"
+          component={HomeScreen}
+          options={{
             title: 'Authenticator',
             tabBarLabelStyle: {
               fontFamily: 'Poppins-Light',
               fontSize: 11,
-            }
+            },
           }}
         />
-        <Tab.Screen 
-          name="Wallet" 
-          component={WalletScreen} 
-          options={{ 
+        <Tab.Screen
+          name="Wallet"
+          component={WalletScreen}
+          options={{
             title: 'Wallet',
             tabBarLabelStyle: {
               fontFamily: 'Poppins-Light',
               fontSize: 11,
-            }
+            },
           }}
         />
-        <Tab.Screen 
-          name="Settings" 
-          component={SettingsScreen} 
-          options={{ 
+        <Tab.Screen
+          name="Settings"
+          component={SettingsScreen}
+          options={{
             title: 'Settings',
             tabBarLabelStyle: {
               fontFamily: 'Poppins-Light',
-              fontSize: 11
-            }
+              fontSize: 11,
+            },
           }}
         />
       </Tab.Navigator>

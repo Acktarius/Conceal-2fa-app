@@ -27,7 +27,7 @@ export class Observable{
 	removeObserver(eventType:string, callback : Function){
 		if(!(eventType in this.observers)) return;
 
-		for(let i in this.observers[eventType]){
+		for(const i in this.observers[eventType]){
 			if(this.observers[eventType][i] == callback){
 				this.observers[eventType].splice(i, 1);
 				break;
@@ -42,13 +42,13 @@ export class Observable{
 			return;
 		}
 
-		let observers = [];
-		for(let i in this.observers[eventType]){
+		const observers = [];
+		for(const i in this.observers[eventType]){
 			observers.push(this.observers[eventType][i]);
 		}
 
 		//console.log('OBSERVABLE: Calling', observers.length, 'observers for event:', eventType);
-		for(let i in observers){
+		for(const i in observers){
 			observers[i](eventType, data);
 		}
 	}

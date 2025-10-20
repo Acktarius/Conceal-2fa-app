@@ -1,12 +1,7 @@
-import React, { useState } from 'react';
-import {
-  View,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  Text,
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import type React from 'react';
+import { useState } from 'react';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 interface PasswordInputProps {
   placeholder: string;
@@ -35,10 +30,7 @@ export const PasswordInput: React.FC<PasswordInputProps> = ({
     <View style={styles.container}>
       <View style={styles.inputContainer}>
         <TextInput
-          style={[
-            styles.input,
-            showValidation && isValid === false && styles.inputError,
-          ]}
+          style={[styles.input, showValidation && isValid === false && styles.inputError]}
           placeholder={placeholder}
           value={value}
           onChangeText={onChangeText}
@@ -46,21 +38,12 @@ export const PasswordInput: React.FC<PasswordInputProps> = ({
           autoCapitalize="none"
           autoCorrect={false}
         />
-        <TouchableOpacity
-          style={styles.eyeButton}
-          onPress={toggleVisibility}
-        >
-          <Ionicons
-            name={isVisible ? 'eye-off' : 'eye'}
-            size={20}
-            color="#666"
-          />
+        <TouchableOpacity style={styles.eyeButton} onPress={toggleVisibility}>
+          <Ionicons name={isVisible ? 'eye-off' : 'eye'} size={20} color="#666" />
         </TouchableOpacity>
       </View>
-      
-      {showValidation && errorMessage && (
-        <Text style={styles.errorText}>{errorMessage}</Text>
-      )}
+
+      {showValidation && errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
     </View>
   );
 };

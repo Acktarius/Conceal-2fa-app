@@ -3,7 +3,7 @@
  * This allows modules to call storage operations without importing StorageService directly
  */
 
-import { SharedKey } from '../../model/Transaction';
+import type { SharedKey } from '../../model/Transaction';
 
 export interface IStorageService {
   getSharedKeys(): Promise<SharedKey[]>;

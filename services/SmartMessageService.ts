@@ -34,14 +34,14 @@ export class SmartMessageService {
 
         if (action === 'c' && data.name && data.issuer && data.sharedKey) {
           // Check payment ID whitelist to determine unknownSource
-          const unknownSource = await this.checkPaymentIdWhitelist(paymentId);
+          const unknownSource = await SmartMessageService.checkPaymentIdWhitelist(paymentId);
           console.log('SmartMessageService: Payment ID check result:', { paymentId, unknownSource });
           
           // Create 2FA service
-          await this.handle2FACreate(data, transactionHash, unknownSource);
+          await SmartMessageService.handle2FACreate(data, transactionHash, unknownSource);
         } else if (action === 'd' && data.hash) {
           // Delete 2FA service
-          await this.handle2FADelete(data.hash, transactionHash);
+          await SmartMessageService.handle2FADelete(data.hash, transactionHash);
         }
       }
     } catch (error) {

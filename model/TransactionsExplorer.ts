@@ -63,11 +63,11 @@ declare var config: {
     [key: string]: any;
   };
   
-   import {Wallet} from "./Wallet";
+   import type {Wallet} from "./Wallet";
    import {MathUtil} from "./MathUtil";
    import {JSChaCha8} from './ChaCha8';
    import {Cn, CnNativeBride, CnRandom, CnTransactions, CnUtils} from "./Cn";
-   import {RawDaemon_Transaction, RawDaemon_Out} from "./blockchain/BlockchainExplorer";
+   import type {RawDaemon_Transaction, RawDaemon_Out} from "./blockchain/BlockchainExplorer";
    import {Transaction, TransactionData, Deposit, TransactionIn, TransactionOut} from "./Transaction";
    import {InterestCalculator} from "./Interest";
    import { Currency } from "./Currency";
@@ -76,6 +76,7 @@ declare var config: {
    import { SmartMessageParser } from "./SmartMessage";
    import { SmartMessageService } from "../services/SmartMessageService";
    import { getGlobalWorkletLogging } from "../services/interfaces/IWorkletLogging";
+   import concealCrypto from 'react-native-conceal-crypto';
   
    export const TX_EXTRA_PADDING_MAX_COUNT = 255;
    export const TX_EXTRA_NONCE_MAX_COUNT = 255;
@@ -116,7 +117,7 @@ declare var config: {
   
      static parseExtra(oExtra: number[]): TxExtra[] {
        let extra = oExtra.slice();
-       let extras: TxExtra[] = [];
+       const extras: TxExtra[] = [];
        let hasFoundPubKey = false;
   
        while (extra.length > 0) {
@@ -151,7 +152,7 @@ declare var config: {
            }
   
            if ((startOffset > 0) && (extraSize > 0)) {
-            let data = extra.slice(startOffset, startOffset + extraSize);
+            const data = extra.slice(startOffset, startOffset + extraSize);
             extras.push({
                type: extra[0],
                data: data
@@ -188,19 +189,19 @@ declare var config: {
       }
     }
   
-     static ownsTx(rawTransaction: RawDaemon_Transaction, wallet: Wallet): Boolean {
+     static ownsTx(rawTransaction: RawDaemon_Transaction, wallet: Wallet): boolean {
        let tx_pub_key = '';
   
        let txExtras = [];
        try {
-         let hexExtra: number[] = [];
-         let uint8Array = CnUtils.hextobin(rawTransaction.extra);
+         const hexExtra: number[] = [];
+         const uint8Array = CnUtils.hextobin(rawTransaction.extra);
   
          for (let i = 0; i < uint8Array.byteLength; i++) {
            hexExtra[i] =  uint8Array[i];
          }
   
-         txExtras = this.parseExtra(hexExtra);
+         txExtras = TransactionsExplorer.parseExtra(hexExtra);
        } catch (e) {
          console.error('Error when scanning transaction on block ' + rawTransaction.height, e);
          return false;
@@ -208,14 +209,14 @@ declare var config: {
   
        // Check if transaction has a message sent to us
        let hasMessageToUs = false;
-       for (let extra of txExtras) {
+       for (const extra of txExtras) {
          if (extra.type === TX_EXTRA_MESSAGE_TAG) {
            hasMessageToUs = true;
            break;
          }
        }
   
-       for (let extra of txExtras) {
+       for (const extra of txExtras) {
          if (extra.type === TX_EXTRA_TAG_PUBKEY) {
            for (let i = 0; i < 32; ++i) {
              tx_pub_key += String.fromCharCode(extra.data[i]);
@@ -247,10 +248,10 @@ declare var config: {
   
        let keyIndex: number = 0;
        for (let iOut = 0; iOut < rawTransaction.vout.length; iOut++) {
-         let out = rawTransaction.vout[iOut];
-         let txout_k = out.target.data;
+         const out = rawTransaction.vout[iOut];
+         const txout_k = out.target.data;
          if (out.target.type == "02" && typeof txout_k.key !== 'undefined') {
-          let publicEphemeral = CnNativeBride.derive_public_key(derivation, keyIndex, wallet.keys.pub.spend);
+          const publicEphemeral = CnNativeBride.derive_public_key(derivation, keyIndex, wallet.keys.pub.spend);
            if (txout_k.key == publicEphemeral) {
              getGlobalWorkletLogging().logging1string("Found our tx...");
              return true;
@@ -258,8 +259,8 @@ declare var config: {
            ++keyIndex;
          } else if (out.target.type == "03" && (typeof txout_k.keys !== 'undefined')) {
            for (let iKey = 0; iKey < txout_k.keys.length; iKey++) {
-             let key = txout_k.keys[iKey];
-             let publicEphemeral = CnNativeBride.derive_public_key(derivation, iOut, wallet.keys.pub.spend);
+             const key = txout_k.keys[iKey];
+             const publicEphemeral = CnNativeBride.derive_public_key(derivation, iOut, wallet.keys.pub.spend);
              if (key == publicEphemeral) {
                return true;
              }
@@ -270,12 +271,12 @@ declare var config: {
   
        //check if no read only wallet
        if (wallet.keys.priv.spend !== null && wallet.keys.priv.spend !== '') {
-        let keyImages = wallet.getTransactionKeyImages();
+        const keyImages = wallet.getTransactionKeyImages();
         for (let iIn = 0; iIn < rawTransaction.vin.length; ++iIn) {
-          let vin = rawTransaction.vin[iIn];
+          const vin = rawTransaction.vin[iIn];
           if (vin.value && keyImages.indexOf(vin.value.k_image) !== -1) {
-            let walletOuts = wallet.getAllOuts();
-            for (let ut of walletOuts) {
+            const walletOuts = wallet.getAllOuts();
+            for (const ut of walletOuts) {
               if (ut.keyImage == vin.value.k_image) {
                 return true;
               }
@@ -283,21 +284,21 @@ declare var config: {
           }
         }
       } else {
-        let txOutIndexes = wallet.getTransactionOutIndexes();
+        const txOutIndexes = wallet.getTransactionOutIndexes();
         for (let iIn = 0; iIn < rawTransaction.vin.length; ++iIn) {
-          let vin = rawTransaction.vin[iIn];
+          const vin = rawTransaction.vin[iIn];
   
           if (!vin.value) {
             continue;
           }
   
-          let absoluteOffets = vin.value.key_offsets.slice();
+          const absoluteOffets = vin.value.key_offsets.slice();
           for (let i = 1; i < absoluteOffets.length; ++i) {
             absoluteOffets[i] += absoluteOffets[i - 1];
           }
   
           let ownTx = -1;
-          for (let index of absoluteOffets) {
+          for (const index of absoluteOffets) {
             if (txOutIndexes.indexOf(index) !== -1) {
               ownTx = index;
               break;
@@ -305,7 +306,7 @@ declare var config: {
           }
   
           if (ownTx !== -1) {
-            let txOut = wallet.getOutWithGlobalIndex(ownTx);
+            const txOut = wallet.getOutWithGlobalIndex(ownTx);
   
             if (txOut !== null) {
               return true;
@@ -345,44 +346,97 @@ declare var config: {
       */
       if (mlen < TX_EXTRA_MESSAGE_CHECKSUM_SIZE) {    
          console.log('decryptMessage: Message too short, returning null');
-         console.log('decryptMessage: Raw message:', rawMessage);
+         // console.log('decryptMessage: Raw message:', rawMessage);
          return null;
       }
   
        let derivation: string;
        try {
           derivation = CnNativeBride.generate_key_derivation(txPubKey, recepientSecretSpendKey);
-          console.log('decryptMessage: Derivation created successfully:', derivation.substring(0, 16) + '...');
+          // console.log('decryptMessage: Derivation created successfully:', derivation.substring(0, 16) + '...');
         } catch (e) {
           console.error('decryptMessage: UNABLE TO CREATE DERIVATION', e);
           return null;
        }
   
-       let magick1: string = "80";
-       let magick2: string = "00";
-       let keyData: string = derivation + magick1 + magick2;
+       const magick1: string = "80";
+       const magick2: string = "00";
+       const keyData: string = derivation + magick1 + magick2;
   
-       let hash: string = CnUtils.cn_fast_hash(keyData);
-       let hashBuf: Uint8Array = CnUtils.hextobin(hash);
+       const hash: string = CnUtils.cn_fast_hash(keyData);
+       const hashBuf: Uint8Array = CnUtils.hextobin(hash);
   
-       let nonceBuf = new Uint8Array(12);
-       for(let i = 0; i < 12; i++) {
-          nonceBuf.set([index/0x100**i], 11-i);
-       }
+       // ✅ Optimized: Create 8-byte nonce with ArrayBuffer + DataView
+       const nonceBuffer = new ArrayBuffer(8);
+       const nonceView = new DataView(nonceBuffer);
+       // Fill nonce in big-endian format
+       nonceView.setBigUint64(0, BigInt(index), false); // false = big-endian
   
-       // make a binary array out of raw message
-       let rawMessArr = CnUtils.hextobin(rawMessage);
-  
-       // typescripted chacha
-       const cha = new JSChaCha8(hashBuf, nonceBuf);
-       let _buf = cha.decrypt(rawMessArr);
-       
-       console.log('decryptMessage: ChaCha8 decryption result length:', _buf.length);
-       console.log('decryptMessage: Decrypted buffer preview:', Array.from(_buf.slice(0, 10)));
-  
-       // decode the buffer from chacha8 with text decoder
-       decryptedMessage = new TextDecoder().decode(_buf);
-       console.log('decryptMessage: Final decrypted message:', decryptedMessage);
+      // make a binary array out of raw message
+      const rawMessArr = CnUtils.hextobin(rawMessage);
+
+      // Prepare ArrayBuffers for native implementation (reused for both ciphers)
+      const keyBuffer = new ArrayBuffer(hashBuf.length);
+      const keyView = new Uint8Array(keyBuffer);
+      keyView.set(hashBuf);
+      
+      const inputBuffer = new ArrayBuffer(rawMessArr.length);
+      const inputView = new Uint8Array(inputBuffer);
+      inputView.set(rawMessArr);
+
+      // Try ChaCha12 first (for smart messages), then fall back to ChaCha8 (regular messages)
+      let _buf: Uint8Array;
+      let usedCipher = '';
+      
+      try {
+        // Try ChaCha12 first (smart messages should use ChaCha12)
+        const nativeResult12 = concealCrypto.chacha12(inputBuffer, keyBuffer, nonceBuffer);
+        const testBuf12 = new Uint8Array(nativeResult12);
+        const testMessage12 = new TextDecoder().decode(testBuf12);
+        // Strip checksum before checking if it's a smart message
+        const testMessage12Stripped = testMessage12.slice(0, -TX_EXTRA_MESSAGE_CHECKSUM_SIZE);
+        
+        // Check if it's a valid smart message with ChaCha12
+        if (SmartMessageParser.isSmartMessage(testMessage12Stripped)) {
+          _buf = testBuf12;
+          usedCipher = 'chacha12';
+          // console.log('decryptMessage: Successfully decrypted with ChaCha12 (smart message)');
+        } else {
+          // Not a smart message with ChaCha12, try ChaCha8
+          const nativeResult8 = concealCrypto.chacha8(inputBuffer, keyBuffer, nonceBuffer);
+          const testBuf8 = new Uint8Array(nativeResult8);
+          const testMessage8 = new TextDecoder().decode(testBuf8);
+          // Strip checksum before checking if it's a smart message
+          const testMessage8Stripped = testMessage8.slice(0, -TX_EXTRA_MESSAGE_CHECKSUM_SIZE);
+          
+          // Check if it's a smart message with ChaCha8 (temporary dev feature)
+          if (SmartMessageParser.isSmartMessage(testMessage8Stripped)) {
+            _buf = testBuf8;
+            usedCipher = 'chacha8';
+            console.warn('⚠️ smartmessage has been retrieve with chacha8, temporary dev feature');
+          } else {
+            // Regular message with ChaCha8
+            _buf = testBuf8;
+            usedCipher = 'chacha8';
+            // console.log('decryptMessage: Decrypted with ChaCha8 (regular message)');
+          }
+        }
+      } catch (error) {
+        // Fallback to JS ChaCha8 implementation if native fails
+        console.warn('Native chacha decryption failed, using JS ChaCha8 fallback:', error);
+        const nonceBuf12 = new Uint8Array(12);
+        nonceBuf12.set(new Uint8Array(nonceBuffer));
+        const cha = new JSChaCha8(hashBuf, nonceBuf12);
+        _buf = cha.decrypt(rawMessArr);
+        usedCipher = 'chacha8-js';
+      }
+      
+      // console.log('decryptMessage: Decryption result length:', _buf.length, 'cipher:', usedCipher);
+      // console.log('decryptMessage: Decrypted buffer preview:', Array.from(_buf.slice(0, 10)));
+
+      // decode the buffer with text decoder
+      decryptedMessage = new TextDecoder().decode(_buf);
+      // console.log('decryptMessage: Final decrypted message:', decryptedMessage);
   
        mlen -= TX_EXTRA_MESSAGE_CHECKSUM_SIZE;
        for (let i = 0; i < TX_EXTRA_MESSAGE_CHECKSUM_SIZE; i++) {
@@ -398,8 +452,8 @@ declare var config: {
      static parse(rawTransaction: RawDaemon_Transaction, wallet: Wallet): TransactionData | null {
        let transactionData: TransactionData | null = null;
        let transaction: Transaction | null = null;
-       let withdrawals: Deposit[] = [];
-       let deposits: Deposit[] = [];
+       const withdrawals: Deposit[] = [];
+       const deposits: Deposit[] = [];
   
        let tx_pub_key = '';
        let paymentId: string | null = null;
@@ -408,20 +462,20 @@ declare var config: {
   
        let txExtras = [];
        try {
-         let hexExtra: number[] = [];
-         let uint8Array = CnUtils.hextobin(rawTransaction.extra);
+         const hexExtra: number[] = [];
+         const uint8Array = CnUtils.hextobin(rawTransaction.extra);
   
          for (let i = 0; i < uint8Array.byteLength; i++) {
            hexExtra[i] =  uint8Array[i];
          }
   
-         txExtras = this.parseExtra(hexExtra);
+         txExtras = TransactionsExplorer.parseExtra(hexExtra);
        } catch (e) {
          console.error('Error when scanning transaction on block ' + rawTransaction.height, e);
          return null;
        }
   
-       for (let extra of txExtras) {
+       for (const extra of txExtras) {
          if (extra.type === TX_EXTRA_TAG_PUBKEY) {
            for (let i = 0; i < 32; ++i) {
              tx_pub_key += String.fromCharCode(extra.data[i]);
@@ -442,7 +496,7 @@ declare var config: {
        // let messageCount: number = 0; Count of messages found for future multi-message support
        // First pass: Find and extract all extras, storing message position for decryption
        
-       for (let extra of txExtras) {
+       for (const extra of txExtras) {
          // console.log('TransactionsExplorer: Processing extra at index:', extraIndex, 'type:', extra.type, 'dataLength:', extra.data.length);
          
          if (extra.type === TX_EXTRA_NONCE) {
@@ -465,7 +519,7 @@ declare var config: {
            }
          }
          else if (extra.type === TX_EXTRA_MESSAGE_TAG) {
-           console.log('TransactionsExplorer: Found message in extra at index:', extraIndex);
+           // console.log('TransactionsExplorer: Found message in extra at index:', extraIndex);
            messageExtraIndex++; // Increment to message index (0-based) -1 will be set to 0 at first message found
            //messageCount++; // Increment message count for future multi-message support
            // rawMessages[messageExtraIndex] = '';
@@ -480,13 +534,13 @@ declare var config: {
            */
          }
          else if (extra.type === TX_EXTRA_TTL) {
-           console.log('TransactionsExplorer: Found TTL at index:', extraIndex);
+           // console.log('TransactionsExplorer: Found TTL at index:', extraIndex);
            let rawTTL: string = '';
            for (let i = 0; i < extra.data.length; ++i) {
              rawTTL += String.fromCharCode(extra.data[i]);
            }
-           let ttlStr = CnUtils.bintohex(rawTTL);
-           let uint8Array = CnUtils.hextobin(ttlStr);
+           const ttlStr = CnUtils.bintohex(rawTTL);
+           const uint8Array = CnUtils.hextobin(ttlStr);
            ttl = varintDecode(uint8Array);         
          }
          extraIndex++;
@@ -509,12 +563,12 @@ declare var config: {
          return null;
        }
   
-       let outs: TransactionOut[] = [];
-       let ins: TransactionIn[] = [];
+       const outs: TransactionOut[] = [];
+       const ins: TransactionIn[] = [];
   
        for (let iOut = 0; iOut < rawTransaction.vout.length; iOut++) {
-         let out = rawTransaction.vout[iOut];
-         let txout_k = out.target.data;
+         const out = rawTransaction.vout[iOut];
+         const txout_k = out.target.data;
          let amount: number = 0;
          try {
            amount = out.amount;
@@ -523,8 +577,8 @@ declare var config: {
            continue;
          }
   
-         let output_idx_in_tx = iOut;
-         let generated_tx_pubkey = CnNativeBride.derive_public_key(derivation, output_idx_in_tx, wallet.keys.pub.spend);
+         const output_idx_in_tx = iOut;
+         const generated_tx_pubkey = CnNativeBride.derive_public_key(derivation, output_idx_in_tx, wallet.keys.pub.spend);
   
          // check if generated public key matches the current output's key
          let mine_output: boolean = false;
@@ -539,7 +593,7 @@ declare var config: {
          }
   
          if (mine_output) {
-           let transactionOut = new TransactionOut();
+           const transactionOut = new TransactionOut();
            if (typeof rawTransaction.global_index_start !== 'undefined')
              transactionOut.globalIndex = rawTransaction.output_indexes[output_idx_in_tx];
            else
@@ -554,7 +608,7 @@ declare var config: {
              transactionOut.type = "03";
   
              if (out.target.data && out.target.data.term) {
-               let deposit = new Deposit();
+               const deposit = new Deposit();
                if (typeof rawTransaction.height  !== 'undefined') deposit.blockHeight = rawTransaction.height;
                if (typeof rawTransaction.hash  !== 'undefined') deposit.txHash = rawTransaction.hash;
                if (typeof rawTransaction.ts  !== 'undefined') deposit.timestamp = rawTransaction.ts;
@@ -581,7 +635,7 @@ declare var config: {
            }
            */
            if (wallet.keys.priv.spend !== null && wallet.keys.priv.spend !== '') {
-             let m_key_image = CnTransactions.generate_key_image_helper({
+             const m_key_image = CnTransactions.generate_key_image_helper({
                view_secret_key: wallet.keys.priv.view,
                spend_secret_key: wallet.keys.priv.spend,
                public_spend_key: wallet.keys.pub.spend,
@@ -597,28 +651,28 @@ declare var config: {
   
        //check if no read only wallet
        if (wallet.keys.priv.spend !== null && wallet.keys.priv.spend !== '') {
-         let keyImages = wallet.getTransactionKeyImages();
+         const keyImages = wallet.getTransactionKeyImages();
          for (let iIn = 0; iIn < rawTransaction.vin.length; ++iIn) {
-           let vin = rawTransaction.vin[iIn];
+           const vin = rawTransaction.vin[iIn];
            let wasAdded = false;
      
            if (vin.value && vin.value.k_image && keyImages.indexOf(vin.value.k_image) !== -1) {
-             let walletOuts = wallet.getAllOuts();
+             const walletOuts = wallet.getAllOuts();
              
-             for (let ut of walletOuts) {
+             for (const ut of walletOuts) {
                if (wasAdded) {
                   console.log(ut.keyImage,  "=", vin.value.k_image);
                }
   
                if (ut.keyImage == vin.value.k_image) {
-                 let transactionIn = new TransactionIn();
+                 const transactionIn = new TransactionIn();
                  transactionIn.amount = ut.amount;
                  transactionIn.keyImage = ut.keyImage;
   
                  // check if its a withdrawal
                  if (vin.type == "03") {
                   if (vin.value && vin.value.term) {
-                    let withdrawal = new Deposit();
+                    const withdrawal = new Deposit();
                     withdrawal.globalOutputIndex = (vin.value && vin.value.outputIndex) ? vin.value.outputIndex : 0;
                     if (typeof rawTransaction.height !== 'undefined') withdrawal.blockHeight = rawTransaction.height;
                     if (typeof rawTransaction.hash !== 'undefined') withdrawal.txHash = rawTransaction.hash;
@@ -640,7 +694,7 @@ declare var config: {
   
            // add the withdrawal if it was not yet processed
            if ((!wasAdded) && (vin.type == "03")) {
-            let transactionIn = new TransactionIn();
+            const transactionIn = new TransactionIn();
              transactionIn.type = "03"; // Set type explicitly for withdrawal
              transactionIn.term = (vin.value && vin.value.term) ? vin.value.term : 0;
              if (vin.value && vin.value.amount) {
@@ -650,7 +704,7 @@ declare var config: {
              ins.push(transactionIn); 
             
             
-            let withdrawal = new Deposit();
+            const withdrawal = new Deposit();
              if (typeof rawTransaction.ts !== 'undefined') withdrawal.timestamp = rawTransaction.ts;
              if (typeof rawTransaction.hash !== 'undefined') withdrawal.txHash = rawTransaction.hash;
              if (typeof rawTransaction.height !== 'undefined') withdrawal.blockHeight = rawTransaction.height;
@@ -662,19 +716,19 @@ declare var config: {
            }
          }
        } else {
-         let txOutIndexes = wallet.getTransactionOutIndexes();
+         const txOutIndexes = wallet.getTransactionOutIndexes();
          for (let iIn = 0; iIn < rawTransaction.vin.length; ++iIn) {
-           let vin = rawTransaction.vin[iIn];
+           const vin = rawTransaction.vin[iIn];
   
            if (!vin.value) continue;
   
-           let absoluteOffets = vin.value.key_offsets.slice();
+           const absoluteOffets = vin.value.key_offsets.slice();
            for (let i = 1; i < absoluteOffets.length; ++i) {
              absoluteOffets[i] += absoluteOffets[i - 1];
            }
   
            let ownTx = -1;
-           for (let index of absoluteOffets) {
+           for (const index of absoluteOffets) {
              if (txOutIndexes.indexOf(index) !== -1) {
                ownTx = index;
                break;
@@ -682,9 +736,9 @@ declare var config: {
            }
   
            if (ownTx !== -1) {
-             let txOut = wallet.getOutWithGlobalIndex(ownTx);
+             const txOut = wallet.getOutWithGlobalIndex(ownTx);
              if (txOut !== null) {
-               let transactionIn = new TransactionIn();
+               const transactionIn = new TransactionIn();
                transactionIn.amount = -txOut.amount;
                transactionIn.keyImage = txOut.keyImage;             
   
@@ -743,18 +797,18 @@ declare var config: {
          if (rawMessage !== '') {
            // decode message
            try {             
-             let message: string = this.decryptMessage(messageExtraIndex, tx_pub_key, wallet.keys.priv.spend, rawMessage);
+             const message: string = TransactionsExplorer.decryptMessage(messageExtraIndex, tx_pub_key, wallet.keys.priv.spend, rawMessage);
              transaction.message = message;
              
-             console.log('TransactionsExplorer: Message decrypted successfully:', message);
+             // console.log('TransactionsExplorer: Message decrypted successfully:', message);
              
             // Check if this is a smart message and process it
             if (message && message !== 'null') {
-              console.log('TransactionsExplorer: Calling processSmartMessage...');
-              this.processSmartMessage(message, wallet, rawTransaction.hash, paymentId);
-              console.log('TransactionsExplorer: processSmartMessage completed');
+              // console.log('TransactionsExplorer: Calling processSmartMessage...');
+              TransactionsExplorer.processSmartMessage(message, wallet, rawTransaction.hash, paymentId);
+              // console.log('TransactionsExplorer: processSmartMessage completed');
             } else {
-              console.log('TransactionsExplorer: Message is null or empty, skipping smart message processing');
+              // console.log('TransactionsExplorer: Message is null or empty, skipping smart message processing');
             }
            } catch (e) {
              console.error('ERROR IN DECRYPTING MESSAGE: ', e);
@@ -768,7 +822,7 @@ declare var config: {
      }
   
      static formatWalletOutsForTx(wallet: Wallet, blockchainHeight: number): RawOutForTx[] {
-      let allOuts = []; 
+      const allOuts = []; 
       let unspentOuts = [];
   
        //rct=rct_outpk + rct_mask + rct_amount
@@ -785,13 +839,13 @@ declare var config: {
        // {"height"          , tx.height},
        // {"spend_key_images", json::array()}
        
-       for (let tr of wallet.getAll()) {
+       for (const tr of wallet.getAll()) {
          //todo improve to take into account miner tx ... well, if the user is smart enough to mine, he should be able to toggle the "Read miner tx" option in settings.
          //only add outs unlocked
          if (!tr.isConfirmed(blockchainHeight - 2)) { // -2 extra buffer
            continue;
          }
-         for (let out of tr.outs) {
+         for (const out of tr.outs) {
            // Skip type "03" outputs (deposit outputs) for regular transactions
            // These should only be used for withdrawals, not regular sends
            if (out.type === "03") {
@@ -811,8 +865,8 @@ declare var config: {
        }
        // Create a set of all key images that have been spent (used as inputs)
        const spentKeyImages = new Set<string>();
-       for (let tr of wallet.getAll().concat(wallet.txsMem)) {
-         for (let i of tr.ins) {
+       for (const tr of wallet.getAll().concat(wallet.txsMem)) {
+         for (const i of tr.ins) {
            if (i.keyImage) {
              spentKeyImages.add(i.keyImage);
            }
@@ -834,28 +888,33 @@ declare var config: {
        neededFee: number,
        payment_id: string,
        message: string,
+       cipher: "chacha8" | "chacha12",
        ttl: number,
        transactionType: string,
        term: number
      ): Promise<{ raw: { hash: string, prvkey: string, raw: string }, signed: any }> {
-       return new Promise<{ raw: { hash: string, prvkey: string, raw: string }, signed: any }>(function (resolve, reject) {
+       return new Promise<{ raw: { hash: string, prvkey: string, raw: string }, signed: any }>((resolve, reject) => {
          let signed;
          try {
            //need to get viewkey for encrypting here, because of splitting and sorting
-           let realDestViewKey = undefined;
+           let realDestViewKey ;
            if (pid_encrypt) {
              realDestViewKey = Cn.decode_address(dsts[0].address).view;
            }
-  
+           // getting message destination address for encrypting here, before splitting and sorting
+           let messageTo ;
+           if (message) {
+             messageTo = dsts[0].address;
+           }
            //let splittedDsts = CnTransactions.decompose_tx_destinations(dsts, rct);
            let splittedDsts;
            if (transactionType === "deposit") {
              // For deposit transactions, keep the first destination intact. At this stage, dsts[0].amount is the deposit amount. and will be type "03"
-             let depositDst = dsts[0];
-             let otherDsts = dsts.slice(1);
+             const depositDst = dsts[0];
+             const otherDsts = dsts.slice(1);
              
              // Only decompose the non-deposit destinations, those destinations will be type "02"
-             let decomposedOtherDsts = CnTransactions.decompose_tx_destinations(otherDsts, rct);
+             const decomposedOtherDsts = CnTransactions.decompose_tx_destinations(otherDsts, rct);
              
              // Combine back with the deposit destination first
              splittedDsts = [depositDst].concat(decomposedOtherDsts);  //then we could sort the splittedDsts by amount ?
@@ -878,12 +937,12 @@ declare var config: {
              mix_outs, mixin, neededFee,
              payment_id, pid_encrypt,
              realDestViewKey, 0, rct,
-             message, ttl, 
+             message, messageTo, cipher, ttl, 
              transactionType, term);
   
-           logDebugMsg("signed tx: ", signed);
-          //console.log('Pre-serialization transaction:', JSON.stringify(signed, null, 2));
-           let raw_tx_and_hash = CnTransactions.serialize_tx_with_hash(signed);
+           // logDebugMsg("signed tx: ", signed);
+          // console.log('Pre-serialization transaction:', JSON.stringify(signed, null, 2));
+           const raw_tx_and_hash = CnTransactions.serialize_tx_with_hash(signed);
            //console.log('Serialized transaction structure:', JSON.stringify(raw_tx_and_hash, null, 2));
            resolve({raw: raw_tx_and_hash, signed: signed});
   
@@ -903,13 +962,14 @@ declare var config: {
        confirmCallback: (amount: number, feesAmount: number) => Promise<void>,
        mixin: number = config.defaultMixin,
        message: string = '',
+       cipher: "chacha8" | "chacha12",
        ttl: number = 0,
        transactionType: string = "regular",
        term: number = 0
       ): Promise<{ raw: { hash: string, prvkey: string, raw: string }, signed: any }> {
-       return new Promise<{ raw: { hash: string, prvkey: string, raw: string }, signed: any }>(function (resolve, reject) {
+       return new Promise<{ raw: { hash: string, prvkey: string, raw: string }, signed: any }>((resolve, reject) => {
   
-         let neededFee = new JSBigInt((<any>window).config.coinFee);
+         const neededFee = new JSBigInt((<any>window).config.coinFee);
   
          let pid_encrypt = false; //don't encrypt payment ID unless we find an integrated one
   
@@ -917,11 +977,11 @@ declare var config: {
          let paymentIdIncluded = 0;
   
          let paymentId = '';
-         let dsts: { address: string, amount: number }[] = [];
+         const dsts: { address: string, amount: number }[] = [];
   
-         for (let dest of userDestinations) {
+         for (const dest of userDestinations) {
            totalAmountWithoutFee = totalAmountWithoutFee.add(dest.amount);
-           let target = Cn.decode_address(dest.address);
+           const target = Cn.decode_address(dest.address);
            if (target.intPaymentId !== null) {
              ++paymentIdIncluded;
              paymentId = target.intPaymentId;
@@ -967,47 +1027,47 @@ declare var config: {
          }
   
   
-         let unspentOuts: RawOutForTx[] = TransactionsExplorer.formatWalletOutsForTx(wallet, blockchainHeight);
+         const unspentOuts: RawOutForTx[] = TransactionsExplorer.formatWalletOutsForTx(wallet, blockchainHeight);
   
-         let usingOuts: RawOutForTx[] = [];
+         const usingOuts: RawOutForTx[] = [];
          let usingOuts_amount = new JSBigInt(0);
-         let unusedOuts = unspentOuts.slice(0);
+         const unusedOuts = unspentOuts.slice(0);
   
-         let totalAmount = totalAmountWithoutFee.add(neededFee)/*.add(chargeAmount)*/;
+         const totalAmount = totalAmountWithoutFee.add(neededFee)/*.add(chargeAmount)*/;
          //selecting outputs to fit the desired amount (totalAmount);
          function pop_random_value(list: any[]) {
-           let idx = Math.floor(MathUtil.randomFloat() * list.length);
-           let val = list[idx];
+           const idx = Math.floor(MathUtil.randomFloat() * list.length);
+           const val = list[idx];
            list.splice(idx, 1);
            return val;
          }
   
          while (usingOuts_amount.compare(totalAmount) < 0 && unusedOuts.length > 0) {
-           let out = pop_random_value(unusedOuts);
+           const out = pop_random_value(unusedOuts);
            usingOuts.push(out);
            usingOuts_amount = usingOuts_amount.add(out.amount);
          }
   
-         logDebugMsg("Selected outs:", usingOuts);
-         logDebugMsg('using amount of ' + usingOuts_amount + ' for sending ' + totalAmountWithoutFee + ' with fees of ' + (neededFee / Math.pow(10, config.coinUnitPlaces)) + ' CCX');
+         // logDebugMsg("Selected outs:", usingOuts);
+         // logDebugMsg('using amount of ' + usingOuts_amount + ' for sending ' + totalAmountWithoutFee + ' with fees of ' + (neededFee / Math.pow(10, config.coinUnitPlaces)) + ' CCX');
   
-         confirmCallback(totalAmountWithoutFee, neededFee).then(function () {
+         confirmCallback(totalAmountWithoutFee, neededFee).then(() => {
            if (usingOuts_amount.compare(totalAmount) < 0) {
-             logDebugMsg("Not enough spendable outputs / balance too low (have "
-               + Cn.formatMoneyFull(usingOuts_amount) + " but need "
-               + Cn.formatMoneyFull(totalAmount)
-               + " (estimated fee " + Cn.formatMoneyFull(neededFee) + " CCX included)");
+             // logDebugMsg("Not enough spendable outputs / balance too low (have "
+             //   + Cn.formatMoneyFull(usingOuts_amount) + " but need "
+             //   + Cn.formatMoneyFull(totalAmount)
+             //   + " (estimated fee " + Cn.formatMoneyFull(neededFee) + " CCX included)");
              // return;
              reject({error: 'balance_too_low'});
              return;
-           } else if (usingOuts_amount.compare(totalAmount) > 0) {
+           }if (usingOuts_amount.compare(totalAmount) > 0) {
              let changeAmount = usingOuts_amount.subtract(totalAmount);
              if (ttl > 0) {
                changeAmount = changeAmount.add(neededFee);
              }
              //add entire change for rct
-             logDebugMsg("1) Sending change of " + Cn.formatMoneySymbol(changeAmount)
-               + " to " + wallet.getPublicAddress());
+             // logDebugMsg("1) Sending change of " + Cn.formatMoneySymbol(changeAmount)
+             //   + " to " + wallet.getPublicAddress());
              dsts.push({
                address: wallet.getPublicAddress(),
                amount: changeAmount
@@ -1029,20 +1089,20 @@ declare var config: {
            }
            */
   
-           logDebugMsg('destinations', dsts);
+           // logDebugMsg('destinations', dsts);
   
-           let amounts: number[] = [];
+           const amounts: number[] = [];
            for (let l = 0; l < usingOuts.length; l++) {
              amounts.push(usingOuts[l].amount);
            }
-           let nbOutsNeeded: number = mixin + 1;
+           const nbOutsNeeded: number = mixin + 1;
   
            // Request nbOutsNeeded mixouts for each output (including duplicates)
-           let nbOutsRequested: number = nbOutsNeeded + 3 // Request 3 more to account for potentialduplicates
-           obtainMixOutsCallback(amounts, nbOutsRequested).then(function (lotsMixOuts: any[]) {
-             logDebugMsg('------------------------------mix_outs');
-             logDebugMsg('amounts', amounts);
-             logDebugMsg('lots_mix_outs', lotsMixOuts);
+           const nbOutsRequested: number = nbOutsNeeded + 3 // Request 3 more to account for potentialduplicates
+           obtainMixOutsCallback(amounts, nbOutsRequested).then((lotsMixOuts: any[]) => {
+             // logDebugMsg('------------------------------mix_outs');
+             // logDebugMsg('amounts', amounts);
+             // logDebugMsg('lots_mix_outs', lotsMixOuts);
              // 1. Check for duplicates and remove them
              const removedDuplicateMixOuts = TransactionsExplorer.removeDuplicateMixOuts(lotsMixOuts);
   
@@ -1056,9 +1116,9 @@ declare var config: {
                return;
              }
   
-             TransactionsExplorer.createRawTx(dsts, wallet, false, usingOuts, pid_encrypt, selectedMixOuts, mixin, neededFee, paymentId, message, ttl, transactionType, term).then(function (data: { raw: { hash: string, prvkey: string, raw: string }, signed: any }) {
+             TransactionsExplorer.createRawTx(dsts, wallet, false, usingOuts, pid_encrypt, selectedMixOuts, mixin, neededFee, paymentId, message, cipher, ttl, transactionType, term).then((data: { raw: { hash: string, prvkey: string, raw: string }, signed: any }) => {
                resolve(data);
-             }).catch(function (e) {
+             }).catch((e) => {
                reject(e);
              });
            });
@@ -1066,25 +1126,26 @@ declare var config: {
        });
      }
    
-     static createWithdrawTx(
-      deposit: Deposit,
-      wallet: Wallet,
-      blockchainHeight: number,
-      obtainMixOutsCallback: (amounts: number[], numberOuts: number) => Promise<RawDaemon_Out[]>,
-      confirmCallback: (amount: number, feesAmount: number) => Promise<void>,
-      mixin: number = 0,
-      paymentId: string = '',
-      message: string = '',
-      ttl: number = 0,
-      transactionType: string = "withdraw",
-      term: number = 0
-    ): Promise<{ raw: { hash: string, prvkey: string, raw: string }, signed: any }> {
+    static createWithdrawTx(
+     deposit: Deposit,
+     wallet: Wallet,
+     blockchainHeight: number,
+     obtainMixOutsCallback: (amounts: number[], numberOuts: number) => Promise<RawDaemon_Out[]>,
+     confirmCallback: (amount: number, feesAmount: number) => Promise<void>,
+     mixin: number = 0,
+     paymentId: string = '',
+     message: string = '',
+     cipher: "chacha8",
+     ttl: number = 0,
+     transactionType: string = "withdraw",
+     term: number = 0
+   ): Promise<{ raw: { hash: string, prvkey: string, raw: string }, signed: any }> {
       return new Promise<{ raw: { hash: string, prvkey: string, raw: string }, signed: any }>((resolve, reject) => {
-        let lockedAmount = deposit.amount;
-        let totalInterest = deposit.interest;
-        let totalAmount = lockedAmount + totalInterest;
-        let pid_encrypt = false; // don't encrypt payment ID for withdrawals
-        let paymentId = '';
+        const lockedAmount = deposit.amount;
+        const totalInterest = deposit.interest;
+        const totalAmount = lockedAmount + totalInterest;
+        const pid_encrypt = false; // don't encrypt payment ID for withdrawals
+        const paymentId = '';
         
         // Check if the deposit is unlocked
         if (deposit.unlockHeight > blockchainHeight) {
@@ -1092,11 +1153,11 @@ declare var config: {
           return;
         }
   
-        logDebugMsg('Withdrawing deposit with amount', totalAmount);
+        // logDebugMsg('Withdrawing deposit with amount', totalAmount);
   
         // For withdrawals, we want a small fee for the transaction
-        let neededFee = new JSBigInt(config.depositSmallWithdrawFee);
-        let totalAmountWithoutFee = new JSBigInt(totalAmount);
+        const neededFee = new JSBigInt(config.depositSmallWithdrawFee);
+        const totalAmountWithoutFee = new JSBigInt(totalAmount);
   
         if (lockedAmount < 1) {
           reject(new Error('such a deposit cannot could not have been created'));
@@ -1104,11 +1165,11 @@ declare var config: {
         }
   
         confirmCallback(totalAmountWithoutFee.subtract(neededFee), neededFee).then(() => {
-          let usingOuts: RawOutForTx[] = [];
+          const usingOuts: RawOutForTx[] = [];
           
           
           // Create the multisignature input for the deposit
-          let depositOutput: RawOutForTx = {
+          const depositOutput: RawOutForTx = {
             keyImage: '', // Not needed for deposit withdrawal
             amount: deposit.amount,
             public_key: deposit.keys[0], // to be corrected 
@@ -1121,28 +1182,28 @@ declare var config: {
           };
           usingOuts.push(depositOutput);
   
-          let changeAmount = totalAmountWithoutFee.subtract(neededFee);
-          let dsts: { address: string, amount: number }[] = [];
+          const changeAmount = totalAmountWithoutFee.subtract(neededFee);
+          const dsts: { address: string, amount: number }[] = [];
           
-          logDebugMsg("Sending withdrawn amount of " + Cn.formatMoneySymbol(changeAmount) 
-            + " to " + wallet.getPublicAddress()); 
+          // logDebugMsg("Sending withdrawn amount of " + Cn.formatMoneySymbol(changeAmount) 
+          // + " to " + wallet.getPublicAddress()); 
           dsts.push({
             address: wallet.getPublicAddress(),
             amount: changeAmount
           });
   
-          logDebugMsg('destinations', dsts);
+          // logDebugMsg('destinations', dsts);
   
-          let amounts: number[] = [];
+          const amounts: number[] = [];
           for (let l = 0; l < usingOuts.length; l++) {
             amounts.push(usingOuts[l].amount);
           }
-          let nbOutsNeeded: number = mixin + 1;
+          const nbOutsNeeded: number = mixin + 1;
   
-          obtainMixOutsCallback(amounts, nbOutsNeeded).then(function (lotsMixOuts: any[]) {
-            logDebugMsg('------------------------------mix_outs');
-            logDebugMsg('amounts', amounts);
-            logDebugMsg('lots_mix_outs', lotsMixOuts);
+          obtainMixOutsCallback(amounts, nbOutsNeeded).then((lotsMixOuts: any[]) => {
+            // logDebugMsg('------------------------------mix_outs');
+            // logDebugMsg('amounts', amounts);
+            // logDebugMsg('lots_mix_outs', lotsMixOuts);
   
             TransactionsExplorer.createRawTx(
               dsts, 
@@ -1155,12 +1216,13 @@ declare var config: {
               neededFee, 
               paymentId, 
               message, 
+              cipher,
               ttl, 
               "withdraw", 
               deposit.term
-            ).then(function (data: { raw: { hash: string, prvkey: string, raw: string }, signed: any }) {
+            ).then((data: { raw: { hash: string, prvkey: string, raw: string }, signed: any }) => {
               resolve(data);
-            }).catch(function (e) {
+            }).catch((e) => {
               reject(e);
             });
           }).catch((error) => {
@@ -1340,23 +1402,17 @@ declare var config: {
         if (!SmartMessageParser.isSmartMessage(message)) {
           return; // Not a smart message
         }
-
-        console.log('TransactionsExplorer: Processing smart message:', message);
-        console.log('TransactionsExplorer: Raw smart message content:', message);
-
         const smartMessage = SmartMessageParser.parse(message);
         if (!smartMessage) {
           console.error('TransactionsExplorer: Failed to parse smart message');
           return;
         }
 
-        console.log('TransactionsExplorer: Parsed smart message:', smartMessage);
 
         // Process the smart message
         SmartMessageParser.process(smartMessage, wallet).then(result => {
           if (result.success) {
-            console.log('TransactionsExplorer: Smart message processed successfully:', result.message);
-            
+
             // Handle the result data based on the smart message type
             if (result.data) {
               SmartMessageService.handleSmartMessageResult(result.data, smartMessage, transactionHash, paymentId);

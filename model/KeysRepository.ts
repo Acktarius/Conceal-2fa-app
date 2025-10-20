@@ -31,8 +31,8 @@ export type UserKeys = {
 export class KeysRepository{
 
 	static fromPriv(spend : string, view : string) : UserKeys{
-		let pubView = CnUtils.sec_key_to_pub(view);
-		let pubSpend = CnUtils.sec_key_to_pub(spend);
+		const pubView = CnUtils.sec_key_to_pub(view);
+		const pubSpend = CnUtils.sec_key_to_pub(spend);
 		return {
 			pub:{
 				view:pubView,

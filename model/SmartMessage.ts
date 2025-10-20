@@ -34,8 +34,8 @@ export class SmartMessageParser {
     }
     
     const trimmed = message.trim();
-    return trimmed.startsWith(this.SMART_MESSAGE_PREFIX) && 
-           trimmed.endsWith(this.SMART_MESSAGE_SUFFIX);
+    return trimmed.startsWith(SmartMessageParser.SMART_MESSAGE_PREFIX) && 
+           trimmed.endsWith(SmartMessageParser.SMART_MESSAGE_SUFFIX);
   }
 
   /**
@@ -43,7 +43,7 @@ export class SmartMessageParser {
    */
   static parse(message: string): SmartMessage | null {
     try {
-      if (!this.isSmartMessage(message)) {
+      if (!SmartMessageParser.isSmartMessage(message)) {
         return null;
       }
 
@@ -51,7 +51,7 @@ export class SmartMessageParser {
       const command = message.trim().slice(1, -1); // Remove { and }
       
       return {
-        version: this.VERSION,
+        version: SmartMessageParser.VERSION,
         command: command,
         paymentId: undefined // Will be extracted from transaction context
       };
@@ -101,25 +101,25 @@ export class SmartMessageParser {
 
       switch (module) {
         case '2FA':
-          return await this.process2FA(action, data, wallet);
+          return await SmartMessageParser.process2FA(action, data, wallet);
         
         case 'vault':
-          return await this.processVault(action, data, wallet);
+          return await SmartMessageParser.processVault(action, data, wallet);
         
         case 'to-do':
-          return await this.processToDo(action, data, wallet);
+          return await SmartMessageParser.processToDo(action, data, wallet);
         
         case 'medical':
-          return await this.processMedical(action, data, wallet);
+          return await SmartMessageParser.processMedical(action, data, wallet);
         
         case 'agent':
-          return await this.processAgent(action, data, wallet);
+          return await SmartMessageParser.processAgent(action, data, wallet);
         
         case 'trust':
-          return await this.processTrust(action, data, wallet);
+          return await SmartMessageParser.processTrust(action, data, wallet);
         
         case 'contact':
-          return await this.processContact(action, data, wallet);
+          return await SmartMessageParser.processContact(action, data, wallet);
         
         default:
           return { success: false, message: `Unknown module: ${module}` };
@@ -137,26 +137,29 @@ export class SmartMessageParser {
   private static async process2FA(action: string, data: string[], wallet: any): Promise<SmartMessageResult> {
     try {
       switch (action) {
-        case 'c': // create
+        case 'c': { // create
           if (data.length < 3) {
             return { success: false, message: 'Invalid 2FA create command' };
           }
           const [name, issuer, sharedKey] = data;
-          return await this.parse2FA('c', wallet, name, issuer, sharedKey);
+          return await SmartMessageParser.parse2FA('c', wallet, name, issuer, sharedKey);
+        }
         
-        case 'u': // update
+        case 'u': { // update
           if (data.length < 2) {
             return { success: false, message: 'Invalid 2FA update command' };
           }
           const [hash, updateData] = data;
-          return await this.update2FA(hash, updateData, wallet);
+          return await SmartMessageParser.update2FA(hash, updateData, wallet);
+        }
         
-        case 'd': // delete
+        case 'd': { // delete
           if (data.length < 1) {
             return { success: false, message: 'Invalid 2FA delete command' };
           }
           const [deleteHash] = data;
-          return await this.parse2FA('d', wallet, deleteHash);
+          return await SmartMessageParser.parse2FA('d', wallet, deleteHash);
+        }
         
         default:
           return { success: false, message: `Unknown 2FA action: ${action}` };
@@ -182,13 +185,13 @@ export class SmartMessageParser {
         const [name, issuer, sharedKey] = data;
         console.log('2FA ENCODE CREATE:', { name, issuer, sharedKey: sharedKey.substring(0, 10) + '...' });
         
-        const encodedMessage = this.encode('2FA', 'create', name, issuer, sharedKey);
+        const encodedMessage = SmartMessageParser.encode('2FA', 'create', name, issuer, sharedKey);
         return { 
           success: true, 
           message: `2FA create command encoded successfully`,
           data: encodedMessage
         };
-      } else if (action === 'd') {
+      }if (action === 'd') {
         // Delete command: requires 1 field
         if (data.length < 1) {
           return { success: false, message: 'Delete command requires hash' };
@@ -196,15 +199,14 @@ export class SmartMessageParser {
         const [hash] = data;
         console.log('2FA ENCODE DELETE:', { hash });
         
-        const encodedMessage = this.encode('2FA', 'delete', hash);
+        const encodedMessage = SmartMessageParser.encode('2FA', 'delete', hash);
         return { 
           success: true, 
           message: `2FA delete command encoded successfully`,
           data: encodedMessage
         };
-      } else {
-        return { success: false, message: `Invalid action: ${action}. Use 'c' for create or 'd' for delete` };
       }
+        return { success: false, message: `Invalid action: ${action}. Use 'c' for create or 'd' for delete` };
     } catch (error) {
       return { success: false, message: error.message };
     }
@@ -260,7 +262,7 @@ export class SmartMessageParser {
           message: `2FA service ${name} imported successfully`,
           data: { name, issuer, sharedKey }
         };
-      } else if (action === 'd') {
+      }if (action === 'd') {
         // Delete command: requires 1 field
         if (data.length < 1) {
           return { success: false, message: 'Delete command requires hash' };
@@ -278,9 +280,8 @@ export class SmartMessageParser {
           message: `2FA service deleted successfully`,
           data: { hash }
         };
-      } else {
-        return { success: false, message: `Invalid action: ${action}. Use 'c' for create or 'd' for delete` };
       }
+        return { success: false, message: `Invalid action: ${action}. Use 'c' for create or 'd' for delete` };
     } catch (error) {
       return { success: false, message: error.message };
     }
@@ -512,26 +513,29 @@ export class SmartMessageParser {
   private static async processContact(action: string, data: string[], wallet: any): Promise<SmartMessageResult> {
     try {
       switch (action) {
-        case 'c': // create
+        case 'c': { // create
           if (data.length < 4) {
             return { success: false, message: 'Invalid contact create command - requires name, email, ccx_address, paymentId' };
           }
           const [name, email, ccxAddress, paymentId] = data;
-          return await this.createContact(name, email, ccxAddress, paymentId, wallet);
+          return await SmartMessageParser.createContact(name, email, ccxAddress, paymentId, wallet);
+        }
         
-        case 'u': // update
+        case 'u': { // update
           if (data.length < 2) {
             return { success: false, message: 'Invalid contact update command - requires hash and updateData' };
           }
           const [hash, updateData] = data;
-          return await this.updateContact(hash, updateData, wallet);
+          return await SmartMessageParser.updateContact(hash, updateData, wallet);
+        }
         
-        case 'd': // delete
+        case 'd': { // delete
           if (data.length < 1) {
             return { success: false, message: 'Invalid contact delete command - requires hash' };
           }
           const [deleteHash] = data;
-          return await this.deleteContact(deleteHash, wallet);
+          return await SmartMessageParser.deleteContact(deleteHash, wallet);
+        }
         
         default:
           return { success: false, message: `Unknown contact action: ${action}` };
@@ -634,15 +638,15 @@ export class TrustManager {
     // 3. Check if trust relationship is expired
     // 4. Return validation result
     
-    if (!this.isTrustedPaymentId(paymentId)) {
+    if (!TrustManager.isTrustedPaymentId(paymentId)) {
       return { valid: false, reason: "Untrusted paymentId" };
     }
     
-    if (!this.hasPermission(paymentId, message.command)) {
+    if (!TrustManager.hasPermission(paymentId, message.command)) {
       return { valid: false, reason: "Insufficient permissions" };
     }
     
-    if (this.isTrustExpired(paymentId)) {
+    if (TrustManager.isTrustExpired(paymentId)) {
       return { valid: false, reason: "Trust relationship expired" };
     }
     
@@ -654,7 +658,7 @@ export class TrustManager {
    */
   private static isTrustedPaymentId(paymentId: string): boolean {
     // Blue-Print: Implement trusted paymentId check
-    return this.trustedPaymentIds.has(paymentId);
+    return TrustManager.trustedPaymentIds.has(paymentId);
   }
 
   /**
@@ -681,7 +685,7 @@ export class TrustManager {
    */
   static registerTrustedPaymentId(paymentId: string, permissions: string[], expiration?: Date): void {
     // Blue-Print: Implement trust registration
-    this.trustedPaymentIds.add(paymentId);
+    TrustManager.trustedPaymentIds.add(paymentId);
     console.log('Trusted paymentId registered:', paymentId);
   }
 
@@ -690,7 +694,7 @@ export class TrustManager {
    */
   static revokeTrust(paymentId: string): void {
     // Blue-Print: Implement trust revocation
-    this.trustedPaymentIds.delete(paymentId);
+    TrustManager.trustedPaymentIds.delete(paymentId);
     console.log('Trust revoked for paymentId:', paymentId);
   }
 }

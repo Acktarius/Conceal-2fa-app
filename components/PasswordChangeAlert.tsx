@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { CustomAlert, CustomAlertProps } from './CustomAlert';
+import type React from 'react';
+import { useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import { getPasswordStrengthText, validatePassword, validatePasswordMatch } from '../utils/passwordValidation';
+import { CustomAlert, type CustomAlertProps } from './CustomAlert';
 import { PasswordInput } from './PasswordInput';
-import { validatePassword, validatePasswordMatch, getPasswordStrengthText } from '../utils/passwordValidation';
 
 interface PasswordChangeAlertProps extends Omit<CustomAlertProps, 'children' | 'onConfirm'> {
   onConfirm: (oldPassword: string, newPassword: string) => Promise<void>;
@@ -77,7 +78,7 @@ export const PasswordChangeAlert: React.FC<PasswordChangeAlertProps> = ({
           onChangeText={setOldPassword}
           showValidation={false}
         />
-        
+
         <PasswordInput
           placeholder="Enter new password"
           value={newPassword}
@@ -85,29 +86,35 @@ export const PasswordChangeAlert: React.FC<PasswordChangeAlertProps> = ({
           isValid={passwordValidation.isValid}
           showValidation={showValidation}
         />
-        
+
         <PasswordInput
           placeholder="Confirm new password"
           value={confirmPassword}
           onChangeText={handleConfirmPasswordChange}
           isValid={passwordsMatch}
-          errorMessage={showValidation && !passwordsMatch && confirmPassword.length > 0 ? 'Passwords do not match' : undefined}
+          errorMessage={
+            showValidation && !passwordsMatch && confirmPassword.length > 0 ? 'Passwords do not match' : undefined
+          }
           showValidation={showValidation}
         />
-        
+
         {showValidation && newPassword.length > 0 && (
           <View style={styles.validationContainer}>
-            <Text style={[
-              styles.validationText,
-              passwordValidation.isValid ? styles.validationSuccess : styles.validationError
-            ]}>
+            <Text
+              style={[
+                styles.validationText,
+                passwordValidation.isValid ? styles.validationSuccess : styles.validationError,
+              ]}
+            >
               {getPasswordStrengthText(passwordValidation)}
             </Text>
-            
+
             {passwordValidation.errors.length > 0 && (
               <View style={styles.errorList}>
                 {passwordValidation.errors.map((error, index) => (
-                  <Text key={index} style={styles.errorItem}>• {error}</Text>
+                  <Text key={index} style={styles.errorItem}>
+                    • {error}
+                  </Text>
                 ))}
               </View>
             )}

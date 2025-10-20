@@ -22,7 +22,6 @@ export class Router {
 	urlPrefix = '!';
 
 	constructor(routerBaseHtmlRelativity  : string = './', routerBaseRelativity : string = '../') {
-		let self = this;
 		this.routerBaseHtmlRelativity = routerBaseHtmlRelativity;
 		this.routerBaseJsRelativity = routerBaseRelativity;
 		
@@ -53,7 +52,6 @@ export class Router {
 	 * @param {string} completeNewPageName
 	 */
 	async changePage(completeNewPageName: string, replaceState: boolean = false) {
-		let self = this;
 		
 		// Extract the base page name without query parameters
 		let newPageName = completeNewPageName;
@@ -101,10 +99,10 @@ export class Router {
 		}
 
 		//we wait the promise of destruction in case of something that could take time
-		promiseDestruct.then(function () {
-			self.currentPage = completeNewPageName;
+		promiseDestruct.then(() => {
+			this.currentPage = completeNewPageName;
 
-			Logger.debug(self, 'Changing to page '+self.currentPage);
+			Logger.debug(this, 'Changing to page '+this.currentPage);
 
 			// If it's an allowed exception, use the decoded page name for loading content
 			let pageToLoad = newPageName;
@@ -113,13 +111,13 @@ export class Router {
 				pageToLoad = decodedHash.split('?')[0].replace('#', '');
 			}
 
-			let promiseContent = self.loadContent(self.routerBaseHtmlRelativity+'pages/' + pageToLoad + '.html');
-			let jsContentPath = self.routerBaseJsRelativity+'pages/' + pageToLoad + '.js';
+			const promiseContent = this.loadContent(this.routerBaseHtmlRelativity+'pages/' + pageToLoad + '.html');
+			const jsContentPath = this.routerBaseJsRelativity+'pages/' + pageToLoad + '.js';
 
-			Promise.all([promiseContent]).then(function (data: string[]) {
-				let content = data[0];
-				self.injectNewPage(content, jsContentPath);
-			}).catch(function (error) {
+			Promise.all([promiseContent]).then((data: string[]) => {
+				const content = data[0];
+				this.injectNewPage(content, jsContentPath);
+			}).catch((error) => {
 				$('#pageLoading').hide();
 			});
 		});
@@ -139,7 +137,7 @@ export class Router {
 					page: pageName
 				});
 				return;
-			} else if (isAllowedException(window.location.hash)) {
+			}if (isAllowedException(window.location.hash)) {
 				// For allowed exceptions, decode the URL but keep the query parameters
 				const decodedHash = decodeURIComponent(window.location.hash);
 				const actualPageName = decodedHash.split('?')[0].replace('#', '');
@@ -153,10 +151,10 @@ export class Router {
 		if (jsContentPath !== null) {
 			this.unloadRequirejs(jsContentPath);
 			this.unloadRequirejs(jsContentPath.replace(this.routerBaseJsRelativity, ''));
-			requirejs([jsContentPath], function (App) {
+			requirejs([jsContentPath], (App) => {
 				$('#page').show();
 				$('#pageLoading').hide();
-			}, function (err) {
+			}, (err) => {
 				$('#page').show();
 				$('#pageLoading').hide();
 			});
@@ -169,13 +167,13 @@ export class Router {
 	 * @returns {Promise<string>}
 	 */
 	loadContent(url: string): Promise<string> {
-		return new Promise<string>(function (resolve, reject) {
+		return new Promise<string>((resolve, reject) => {
 			$.ajax({
 				url: url,
 				dataType: 'text',
-			}).done(function (html: string) {
+			}).done((html: string) => {
 				resolve(html);
-			}).fail(function () {
+			}).fail(() => {
 				reject();
 			});
 		});
@@ -188,7 +186,7 @@ export class Router {
 	 */
 	unloadRequirejs(moduleName: string) {
 		//console.log('unload '+moduleName);
-		let context = Context.getGlobalContext()['requirejs'].s.contexts['_'];
+		const context = Context.getGlobalContext()['requirejs'].s.contexts['_'];
 
 		//console.log('unload', moduleName, context.defined[moduleName], context.defined);
 		if (typeof context.defined[moduleName] !== 'undefined') {
@@ -197,9 +195,9 @@ export class Router {
 		if (typeof context.urlFetched[moduleName] !== 'undefined') {
 			delete context.urlFetched[moduleName];
 		}
-		let scripts = document.getElementsByTagName('script');
+		const scripts = document.getElementsByTagName('script');
 		for (let i = scripts.length - 1; i >= 0; i--) {
-			let script = scripts[i];
+			const script = scripts[i];
 			if (script.getAttribute('data-requiremodule') === moduleName) {
 				if (script.parentNode !== null) {
 					script.parentNode.removeChild(script);

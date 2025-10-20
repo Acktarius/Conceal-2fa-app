@@ -32,8 +32,8 @@
 
 import { scheduleOnRuntime, createWorkletRuntime } from 'react-native-worklets';
 
-import {Wallet} from "./Wallet";
-import {BlockchainExplorer, RawDaemon_Transaction} from "./blockchain/BlockchainExplorer";
+import type {Wallet} from "./Wallet";
+import type {BlockchainExplorer, RawDaemon_Transaction} from "./blockchain/BlockchainExplorer";
 import {Transaction, TransactionData, Deposit} from "./Transaction";
 import {TransactionsExplorer} from "./TransactionsExplorer";
 import { config } from "../config";
@@ -150,8 +150,8 @@ class TxQueueRN {
         this.setIsReady(true);
       } else if (message.type === 'processed') {
         if (message.transactions.length > 0) {
-          for (let txData of message.transactions) {
-            let txDataObject = TransactionData.fromRaw(txData);
+          for (const txData of message.transactions) {
+            const txDataObject = TransactionData.fromRaw(txData);
 
             this.wallet.addNew(txDataObject.transaction);
             this.wallet.addDeposits(txDataObject.deposits);
@@ -197,7 +197,7 @@ class TxQueueRN {
       if (!this.isRunning) {
         this.isRunning = true;
         // Dequeue one item from the processing queue and check if it's valid
-        let txQueueItem: ITxQueueItem | null = this.processingQueue.shift()!;
+        const txQueueItem: ITxQueueItem | null = this.processingQueue.shift()!;
 
         if (txQueueItem) {
           // Increase the number of transactions we actually processed
@@ -263,7 +263,7 @@ class TxQueueRN {
   }
 
   addTransactions = (transactions: RawDaemon_Transaction[], maxBlockNum: number) => {
-    let txQueueItem: ITxQueueItem = {
+    const txQueueItem: ITxQueueItem = {
       transactions: transactions,
       maxBlockNum: maxBlockNum
     }
@@ -350,7 +350,7 @@ class BlockListRN {
   addBlockRange = (startBlock: number, endBlock: number, chainHeight: number) => {
     this.chainHeight = Math.max(this.chainHeight, chainHeight);
 
-    let rangeData: IBlockRange = {
+    const rangeData: IBlockRange = {
       startBlock: startBlock,
       endBlock: endBlock,
       finished: false,
@@ -362,7 +362,7 @@ class BlockListRN {
       for (var i = this.blocks.length - 1; i >= 0; i--) {
         if ((startBlock === this.blocks[i].startBlock) && (endBlock === this.blocks[i].endBlock)) {
           return;
-        } else if (endBlock > this.blocks[i].endBlock) {
+        }if (endBlock > this.blocks[i].endBlock) {
           if (i === this.blocks.length) {
             this.blocks.push(rangeData);
           } else {
@@ -389,7 +389,7 @@ class BlockListRN {
       // Remove all finished blocks
       while (this.blocks.length > 0) {
         if (this.blocks[0].finished) {
-          let block = this.blocks.shift()!;
+          const block = this.blocks.shift()!;
           // Add any transactions to the wallet
           this.txQueue.addTransactions(block.transactions, block.endBlock);
         } else {
@@ -412,7 +412,7 @@ class BlockListRN {
   getFirstIdleRange = (reset: boolean): IBlockRange | null => {
     for (let i = 0; i < this.blocks.length; ++i) {
       if (!this.blocks[i].finished) {
-        let timeDiff: number = new Date().getTime() - this.blocks[i].timestamp.getTime();
+        const timeDiff: number = new Date().getTime() - this.blocks[i].timestamp.getTime();
         if ((timeDiff / 1000) > 30) {
           if (reset) { this.blocks[i].timestamp = new Date(); }
           return this.blocks[i];
@@ -644,7 +644,7 @@ export class WalletWatchdogRN {
 
     // Create parse workers
     for (let i = 0; i < this.maxCpuCores; ++i) {
-      let parseWorker: ParseWorkerRN = new ParseWorkerRN(this.wallet, this, this.blockList, this.processParseTransaction);
+      const parseWorker: ParseWorkerRN = new ParseWorkerRN(this.wallet, this, this.blockList, this.processParseTransaction);
       this.parseWorkers.push(parseWorker);
     }
 
@@ -779,8 +779,8 @@ export class WalletWatchdogRN {
     this.wallet.clearMemTx();
     this.explorer.getTransactionPool().then((pool: any) => {
       if (typeof pool !== 'undefined') {
-        for (let rawTx of pool) {
-          let txData = TransactionsExplorer.parse(rawTx, this.wallet);
+        for (const rawTx of pool) {
+          const txData = TransactionsExplorer.parse(rawTx, this.wallet);
 
           if ((txData !== null) && (txData.transaction !== null)) {
             this.wallet.addNewMemTx(txData.transaction);
@@ -798,11 +798,11 @@ export class WalletWatchdogRN {
 
   processParseTransaction = () => {
     if (this.transactionsToProcess.length > 0) {
-      let parseWorker = this.acquireWorker();
+      const parseWorker = this.acquireWorker();
 
       if (parseWorker) {
         // Define the transactions we need to process
-        let transactionsToProcess: ITransacationQueue | null = this.transactionsToProcess.shift()!;
+        const transactionsToProcess: ITransacationQueue | null = this.transactionsToProcess.shift()!;
 
         if (transactionsToProcess) {
           parseWorker.setIsWorking(true);
@@ -875,7 +875,7 @@ export class WalletWatchdogRN {
   }
 
   processTransactions(transactions: RawDaemon_Transaction[], lastBlock: number) {
-    let txList: ITransacationQueue = {
+    const txList: ITransacationQueue = {
       transactions: transactions,
       lastBlock: lastBlock,
     }
@@ -940,7 +940,7 @@ export class WalletWatchdogRN {
   }
 
   startSyncLoop = async () => {
-    (async function(self) {
+    (async (self) => {
       while (!self.stopped) {
         try {
           // Re-evaluate thread allocation every loop iteration
@@ -973,7 +973,7 @@ export class WalletWatchdogRN {
           }
 
           // Get the current height of the chain
-          let height = await self.explorer.getHeight();
+          const height = await self.explorer.getHeight();
           
           scheduleOnRuntime(getGlobalWorkletLogging().runtime, (height: number, walletLastHeight: number, lastMaximumHeight: number) => {
             console.log('WalletWatchdogRN: Sync loop - blockchain height:', height, 'wallet lastHeight:', walletLastHeight, 'lastMaximumHeight:', lastMaximumHeight);
@@ -1031,13 +1031,12 @@ export class WalletWatchdogRN {
               }
               await new Promise(r => setTimeout(r, 1000));
               continue;
-            } else {
-              self.blockCounter = 0; // Reset counter for small sync jobs
             }
+              self.blockCounter = 0; // Reset counter for small sync jobs
           }
 
           // Get a free worker and check if we have idle blocks first
-          let freeWorker: SyncWorkerRN | null = self.getFreeWorker();
+          const freeWorker: SyncWorkerRN | null = self.getFreeWorker();
           
           scheduleOnRuntime(getGlobalWorkletLogging().runtime, (freeWorker: SyncWorkerRN | null) => {
             console.log('WalletWatchdogRN: Free worker available:', freeWorker !== null);
@@ -1046,7 +1045,7 @@ export class WalletWatchdogRN {
 
           if (freeWorker) {
             // First check if we have any stale ranges available
-            let idleRange = self.blockList.getFirstIdleRange(true);
+            const idleRange = self.blockList.getFirstIdleRange(true);
             let startBlock: number = 0;
             let endBlock: number = 0;
 

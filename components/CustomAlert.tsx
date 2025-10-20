@@ -1,16 +1,15 @@
-import React from 'react';
+import type React from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Modal,
-  TextInput,
   Dimensions,
   KeyboardAvoidingView,
+  Modal,
   Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-
 
 const { width, height } = Dimensions.get('window');
 
@@ -36,35 +35,21 @@ export const CustomAlert: React.FC<CustomAlertProps> = ({
   children,
 }) => {
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onCancel}
-    >
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={styles.blurContainer}>
           <View style={styles.alertContainer}>
             <Text style={styles.title}>{title}</Text>
             {message && <Text style={styles.message}>{message}</Text>}
-            
+
             {children}
-            
+
             <View style={styles.buttonContainer}>
-              <TouchableOpacity
-                style={[styles.button, styles.cancelButton]}
-                onPress={onCancel}
-              >
+              <TouchableOpacity style={[styles.button, styles.cancelButton]} onPress={onCancel}>
                 <Text style={styles.cancelButtonText}>{cancelText}</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[styles.button, styles.confirmButton]}
-                onPress={() => onConfirm()}
-              >
+
+              <TouchableOpacity style={[styles.button, styles.confirmButton]} onPress={() => onConfirm()}>
                 <Text style={styles.confirmButtonText}>{confirmText}</Text>
               </TouchableOpacity>
             </View>

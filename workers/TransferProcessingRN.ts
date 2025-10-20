@@ -3,7 +3,7 @@ import {Wallet, WalletOptions} from "../model/Wallet";
 import {Mnemonic} from "../model/Mnemonic";
 import {Transaction} from "../model/Transaction";
 import {Constants} from "../model/Constants";
-import {RawDaemon_Transaction} from "../model/blockchain/BlockchainExplorer";
+import type {RawDaemon_Transaction} from "../model/blockchain/BlockchainExplorer";
 
 // React Native thread worker for transfer processing
 // Adapted from TransferProcessing.ts for react-native-threads

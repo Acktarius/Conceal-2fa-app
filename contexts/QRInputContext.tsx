@@ -1,11 +1,9 @@
-import React, { createContext, useContext, useState } from 'react';
+import type React from 'react';
+import { createContext, useContext, useState } from 'react';
 import QRScannerModal from '../components/QRScannerModal';
 
 export interface QRInputContextType {
-  showQRScannerModal: (
-    onScan: (qrData: string) => void,
-    onCancel: () => void
-  ) => void;
+  showQRScannerModal: (onScan: (qrData: string) => void, onCancel: () => void) => void;
 }
 
 const QRInputContext = createContext<QRInputContextType | undefined>(undefined);
@@ -15,10 +13,7 @@ export const QRInputProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [onScanCallback, setOnScanCallback] = useState<((qrData: string) => void) | null>(null);
   const [onCancelCallback, setOnCancelCallback] = useState<(() => void) | null>(null);
 
-  const showQRScannerModal = (
-    onScan: (qrData: string) => void,
-    onCancel: () => void
-  ) => {
+  const showQRScannerModal = (onScan: (qrData: string) => void, onCancel: () => void) => {
     setOnScanCallback(() => onScan);
     setOnCancelCallback(() => onCancel);
     setIsVisible(true);
@@ -47,11 +42,7 @@ export const QRInputProvider: React.FC<{ children: React.ReactNode }> = ({ child
   return (
     <QRInputContext.Provider value={{ showQRScannerModal }}>
       {children}
-      <QRScannerModal
-        visible={isVisible}
-        onClose={handleCancel}
-        onScan={handleScan}
-      />
+      <QRScannerModal visible={isVisible} onClose={handleCancel} onScan={handleScan} />
     </QRInputContext.Provider>
   );
 };

@@ -1,4 +1,5 @@
-package com.acktarius.blockchain2faapp
+package com.acktarius.conceal2faapp
+import com.margelo.nitro.concealcrypto.ConcealCryptoOnLoad
 
 import android.app.Application
 import android.content.res.Configuration
@@ -40,6 +41,7 @@ class MainApplication : Application(), ReactApplication {
 
   override fun onCreate() {
     super.onCreate()
+        ConcealCryptoOnLoad.initializeNative()
     DefaultNewArchitectureEntryPoint.releaseLevel = try {
       ReleaseLevel.valueOf(BuildConfig.REACT_NATIVE_RELEASE_LEVEL.uppercase())
     } catch (e: IllegalArgumentException) {
