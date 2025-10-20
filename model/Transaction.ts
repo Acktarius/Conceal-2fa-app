@@ -59,7 +59,7 @@ export class TransactionIn {
   term: number = 0;
 
   static fromRaw = (raw: any) => {
-    let nin = new TransactionIn();
+    const nin = new TransactionIn();
     nin.outputIndex = raw.outputIndex;
     nin.keyImage = raw.keyImage;
     nin.amount = raw.amount;
@@ -89,7 +89,7 @@ export class Transaction {
   ttl: number = 0;
 
   static fromRaw(raw: any) {
-    let tx = new Transaction();
+    const tx = new Transaction();
     tx.blockHeight = raw.blockHeight;
     tx.txPubKey = raw.txPubKey;
     tx.hash = raw.hash;
@@ -110,12 +110,12 @@ export class Transaction {
 
   getAmount = () => {
     let amount = 0;
-    for (let out of this.outs) {
+    for (const out of this.outs) {
       if (out.type !== "03") {
         amount += out.amount;
       }      
     }
-    for (let nin of this.ins) {
+    for (const nin of this.ins) {
       if (nin.type !== "03") {
         amount -= nin.amount;
       }      
@@ -130,9 +130,9 @@ export class Transaction {
   isConfirmed = (blockchainHeight: number) => {
     if (this.blockHeight === 0) {
       return false;
-    } else if (this.isCoinbase() && this.blockHeight + config.txCoinbaseMinConfirms < blockchainHeight) {
+    }if (this.isCoinbase() && this.blockHeight + config.txCoinbaseMinConfirms < blockchainHeight) {
       return true;
-    } else if (!this.isCoinbase() && this.blockHeight + config.txMinConfirms < blockchainHeight) {
+    }if (!this.isCoinbase() && this.blockHeight + config.txMinConfirms < blockchainHeight) {
       return true;
     }
     
@@ -143,23 +143,21 @@ export class Transaction {
     if (this.getAmount() === 0 || this.getAmount() === (-1 * config.minimumFee_V2)) {
       if (this.isFusion) {
         return true;
-      } else if (this.ttl > 0) {
+      }if (this.ttl > 0) {
         return true;
-      } else {
-        return false;
       }
-    } else {
-      for (let input of this.ins) {
+        return false;
+    }
+      for (const input of this.ins) {
         if (input.amount < 0) {
           return false;
         }
       }
       return true;
-    }
   }
 
   hasMessage = () => {
-    let txAmount = this.getAmount();
+    const txAmount = this.getAmount();
     return (this.message !== '') && (txAmount > 0) && (txAmount !== (1 * config.remoteNodeFee)) && (txAmount !== (10 * config.remoteNodeFee)); // no envelope for a suspectedremote node fee transaction
   }
 
@@ -174,8 +172,8 @@ export class Transaction {
   }
 
   get isFusion() {
-    let outputsCount = this.outs.length;
-    let inputsCount = this.ins.length;
+    const outputsCount = this.outs.length;
+    const inputsCount = this.ins.length;
     if (this.outs.some(out => out.type === "03") || this.ins.some(input => input.type === "03")) {
       return false;
     }
@@ -203,7 +201,7 @@ export class Transaction {
   }
 
   copy() {
-    let tx = new Transaction();
+    const tx = new Transaction();
     tx.blockHeight = this.blockHeight;
     tx.txPubKey = this.txPubKey;
     tx.hash = this.hash;
@@ -236,7 +234,7 @@ class BaseBanking {
   txPubKey: string = '';
 
   static fromRaw(raw: any) {
-    let deposit = new Deposit();
+    const deposit = new Deposit();
     deposit.term = raw.term;
     deposit.txHash = raw.txHash;
     deposit.amount = raw.amount;
@@ -267,7 +265,7 @@ class BaseBanking {
   }
 
   copy() { 
-    let aCopy = new Deposit();
+    const aCopy = new Deposit();
 
     aCopy.term = this.term;
     aCopy.txHash = this.txHash;
@@ -290,7 +288,7 @@ export class Deposit extends BaseBanking {
   withdrawPending: boolean = false;
   
   static fromRaw(raw: any) {
-    let deposit = new Deposit();
+    const deposit = new Deposit();
     deposit.term = raw.term;
     deposit.txHash = raw.txHash;
     deposit.amount = raw.amount;
@@ -316,7 +314,7 @@ export class Deposit extends BaseBanking {
   }
 
   copy = () => { 
-    let aCopy = super.copy();  
+    const aCopy = super.copy();  
     aCopy.spentTx = this.spentTx;
     aCopy.withdrawPending = this.withdrawPending;
     aCopy.keys = [...this.keys];
@@ -342,11 +340,10 @@ export class Deposit extends BaseBanking {
   getStatus(currentHeight: number): 'Locked' | 'Unlocked' | 'Spent' {
     if (this.isSpent()) {
       return 'Spent';
-    } else if (this.isUnlocked(currentHeight)) {
+    }if (this.isUnlocked(currentHeight)) {
       return 'Unlocked';
-    } else {
-      return 'Locked';
     }
+      return 'Locked';
   }
   
 }
@@ -359,17 +356,17 @@ export class TransactionData {
   deposits: Deposit[] = [];
 
   static fromRaw = (raw: any) =>  {
-    let txData = new TransactionData();
+    const txData = new TransactionData();
     txData.transaction = Transaction.fromRaw(raw.transaction);
 
     if (raw.withdrawals) {
-      for (let withdrawal of raw.withdrawals) {
+      for (const withdrawal of raw.withdrawals) {
         txData.withdrawals.push(Deposit.fromRaw(withdrawal));
       }
     }
 
     if (raw.deposits) {
-      for (let deposit  of raw.deposits) {
+      for (const deposit  of raw.deposits) {
         txData.deposits.push(Deposit.fromRaw(deposit));
       }
     }
@@ -378,22 +375,22 @@ export class TransactionData {
   }
 
   export = () => {
-    let txData: any = {};
-    let deposits: any[] = [];
-    let withdrawals: any[] = [];
+    const txData: any = {};
+    const deposits: any[] = [];
+    const withdrawals: any[] = [];
 
     if (this.transaction) {
       txData.transaction = this.transaction.export();
     }
 
     if (this.deposits.length > 0) {
-      for (let deposit of this.deposits) {
+      for (const deposit of this.deposits) {
         deposits.push(deposit.export());
       }
     }
 
     if (this.withdrawals.length > 0) {
-      for (let withdrawal of this.withdrawals) {
+      for (const withdrawal of this.withdrawals) {
         withdrawals.push(withdrawal.export());
       }
     }    
@@ -405,13 +402,13 @@ export class TransactionData {
   }
 
   copy = () => { 
-    let aCopy = new TransactionData();
+    const aCopy = new TransactionData();
     aCopy.transaction = this.transaction ? this.transaction.copy() : null;
 
-    for (let deposit of this.deposits) {
+    for (const deposit of this.deposits) {
       aCopy.deposits.push(deposit.copy());
     }
-    for (let withdrawal of this.withdrawals) {
+    for (const withdrawal of this.withdrawals) {
       aCopy.withdrawals.push(withdrawal.copy());
     }
 

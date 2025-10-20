@@ -2,7 +2,7 @@
 *     Copyright (c) 2025, Acktarius 
 */
 import { Alert } from 'react-native';
-import { Wallet } from '../model/Wallet';
+import type { Wallet } from '../model/Wallet';
 import { KeysRepository } from '../model/KeysRepository';
 import { Cn, CnUtils } from '../model/Cn';
 import { BlockchainExplorerRpcDaemon } from '../model/blockchain/BlockchainExplorerRPCDaemon';
@@ -18,9 +18,9 @@ export class ImportService {
   static async importWallet(): Promise<Wallet> {
     try {
       // First, initialize blockchain explorer if needed
-      if (!this.blockchainExplorer) {
-        this.blockchainExplorer = new BlockchainExplorerRpcDaemon();
-        await this.blockchainExplorer.initialize();
+      if (!ImportService.blockchainExplorer) {
+        ImportService.blockchainExplorer = new BlockchainExplorerRpcDaemon();
+        await ImportService.blockchainExplorer.initialize();
       }
 
       while (true) { // Loop to allow returning to method selection on cancel
@@ -54,10 +54,9 @@ export class ImportService {
           }
 
           if (importMethod === 'mnemonic') {
-            return await this.importFromMnemonic();
-          } else {
-            return await this.importFromQR();
+            return await ImportService.importFromMnemonic();
           }
+            return await ImportService.importFromQR();
         } catch (error) {
           if (error instanceof Error && error.message === 'USER_CANCELLED') {
             throw error; // Propagate cancel up to wallet creation
@@ -82,10 +81,10 @@ export class ImportService {
   private static async importFromMnemonic(): Promise<Wallet> {
     try {
       // Get current blockchain height
-      const currentHeight = await this.blockchainExplorer!.getHeight();
+      const currentHeight = await ImportService.blockchainExplorer!.getHeight();
       
       // Get mnemonic and creation height from user using our custom modal
-      const { mnemonicSeed, providedHeight } = await this.getMnemonicFromUser();
+      const { mnemonicSeed, providedHeight } = await ImportService.getMnemonicFromUser();
       
       // Detect language and decode mnemonic
       const detectedMnemonicLang = Mnemonic.detectLang(mnemonicSeed.trim());
@@ -144,7 +143,7 @@ export class ImportService {
       console.log('IMPORT: Wallet ready for caching with imported data');
 
       // Encrypt and save the upgraded wallet based on current authentication mode
-      await this.saveImportedWallet(existingWallet);
+      await ImportService.saveImportedWallet(existingWallet);
 
       return existingWallet;
     } catch (error) {
@@ -156,10 +155,10 @@ export class ImportService {
   private static async importFromQR(): Promise<Wallet> {
     try {
       // Get current blockchain height
-      const currentHeight = await this.blockchainExplorer!.getHeight();
+      const currentHeight = await ImportService.blockchainExplorer!.getHeight();
       console.log('IMPORT: Current height:', currentHeight);
       // Get QR data using our custom scanner
-      const qrResult = await this.getQRFromUser();
+      const qrResult = await ImportService.getQRFromUser();
       const txDetails = CoinUri.decodeWallet(qrResult);
       
       if (!txDetails || !txDetails.spendKey) {
@@ -236,7 +235,7 @@ export class ImportService {
       console.log('IMPORT: Wallet ready for caching with imported data');
 
       // Encrypt and save the upgraded wallet based on current authentication mode
-      await this.saveImportedWallet(existingWallet);
+      await ImportService.saveImportedWallet(existingWallet);
 
       return existingWallet;
     } catch (error) {

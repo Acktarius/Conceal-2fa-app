@@ -3,8 +3,8 @@
  * and break circular imports
  */
 
-import { IWalletOperations } from './interfaces/IWalletOperations';
-import { IStorageService } from './interfaces/IStorageService';
+import type { IWalletOperations } from './interfaces/IWalletOperations';
+import type { IStorageService } from './interfaces/IStorageService';
 
 class DependencyContainer {
   private walletOperations: IWalletOperations | null = null;

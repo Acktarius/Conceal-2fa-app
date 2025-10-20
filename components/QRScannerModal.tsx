@@ -1,15 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  TouchableOpacity,
-  Alert,
-  Platform,
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Camera, CameraView } from 'expo-camera';
+import React, { useEffect, useRef, useState } from 'react';
+import { Alert, Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface QRScannerModalProps {
   visible: boolean;
@@ -83,12 +75,7 @@ export default function QRScannerModal({ visible, onClose, onScan }: QRScannerMo
   }
 
   return (
-    <Modal 
-      visible={visible} 
-      animationType="slide"
-      presentationStyle="fullScreen"
-      onRequestClose={handleClose}
-    >
+    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={handleClose}>
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={handleClose} style={styles.headerButton}>
@@ -106,11 +93,11 @@ export default function QRScannerModal({ visible, onClose, onScan }: QRScannerMo
               onBarcodeScanned={cameraActive ? handleBarCodeScanned : undefined}
             />
           )}
-          
+
           <View style={styles.overlay}>
             {/* Top overlay */}
             <View style={styles.topOverlay} />
-            
+
             {/* Middle row with left overlay, scan area, and right overlay */}
             <View style={styles.middleRow}>
               <View style={styles.sideOverlay} />
@@ -122,21 +109,16 @@ export default function QRScannerModal({ visible, onClose, onScan }: QRScannerMo
               </View>
               <View style={styles.sideOverlay} />
             </View>
-            
+
             {/* Bottom overlay */}
             <View style={styles.bottomOverlay} />
           </View>
         </View>
 
         <View style={styles.instructions}>
-          <Text style={styles.instructionText}>
-            Position the QR code within the frame to scan
-          </Text>
+          <Text style={styles.instructionText}>Position the QR code within the frame to scan</Text>
           {scanned && (
-            <TouchableOpacity
-              style={styles.scanAgainButton}
-              onPress={() => setScanned(false)}
-            >
+            <TouchableOpacity style={styles.scanAgainButton} onPress={() => setScanned(false)}>
               <Text style={styles.scanAgainText}>Tap to scan again</Text>
             </TouchableOpacity>
           )}

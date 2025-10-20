@@ -1,13 +1,18 @@
-/**
-*     Copyright (c) 2025, Acktarius 
-*/
+/*
+ * Copyright (c) 2025 Acktarius, Conceal Devs
+ * 
+ * This file is part of Conceal-2FA-App
+ * 
+ * Distributed under the BSD 3-Clause License, see the accompanying
+ * file LICENSE or https://opensource.org/licenses/BSD-3-Clause.
+ */
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as Crypto from 'expo-crypto';
 import { Platform, Alert } from 'react-native';
 import { WalletRepository } from '../model/WalletRepository';
-import { Wallet } from '../model/Wallet';
+import type { Wallet } from '../model/Wallet';
 import { BiometricService } from './BiometricService';
 
 export class WalletStorageManager {
@@ -26,9 +31,9 @@ export class WalletStorageManager {
     try {
       const data = JSON.stringify(encryptedData);
       if (Platform.OS === 'web') {
-        localStorage.setItem(this.WALLET_KEY, data);
+        localStorage.setItem(WalletStorageManager.WALLET_KEY, data);
       } else {
-        await AsyncStorage.setItem(this.WALLET_KEY, data);
+        await AsyncStorage.setItem(WalletStorageManager.WALLET_KEY, data);
       }
     } catch (error) {
       console.error('Error saving encrypted wallet:', error);
@@ -40,9 +45,9 @@ export class WalletStorageManager {
     try {
       let data: string | null;
       if (Platform.OS === 'web') {
-        data = localStorage.getItem(this.WALLET_KEY);
+        data = localStorage.getItem(WalletStorageManager.WALLET_KEY);
       } else {
-        data = await AsyncStorage.getItem(this.WALLET_KEY);
+        data = await AsyncStorage.getItem(WalletStorageManager.WALLET_KEY);
       }
       
       if (!data) return null;
@@ -58,11 +63,10 @@ export class WalletStorageManager {
         
         if (isBiometricEnabled) {
           // Biometric mode: authenticate with biometric and decrypt with biometric key
-          return await this.authenticateWithBiometric();
-        } else {
-          // Password mode: prompt for password and decrypt with password
-          return await this.authenticateWithPassword();
+          return await WalletStorageManager.authenticateWithBiometric();
         }
+          // Password mode: prompt for password and decrypt with password
+          return await WalletStorageManager.authenticateWithPassword();
       }
       
       // Unencrypted data is not allowed - this is a security violation
@@ -70,7 +74,7 @@ export class WalletStorageManager {
       console.error('All wallet data must be encrypted at rest. Clearing unencrypted data.');
       
       // Clear the unencrypted data immediately
-      await this.clearWallet();
+      await WalletStorageManager.clearWallet();
       
       // Return null - user will need to create a new wallet
       return null;
@@ -85,10 +89,10 @@ export class WalletStorageManager {
       console.log('BIOMETRIC: Starting biometric authentication...');
       
       // Check if biometric salt exists
-      const biometricSalt = await this.getBiometricSalt();
+      const biometricSalt = await WalletStorageManager.getBiometricSalt();
       if (!biometricSalt) {
         console.log('BIOMETRIC: No biometric salt found, falling back to password');
-        return await this.authenticateWithPassword();
+        return await WalletStorageManager.authenticateWithPassword();
       }
       
       // Authenticate with biometric
@@ -100,18 +104,16 @@ export class WalletStorageManager {
       
       if (result.success) {
         console.log('BIOMETRIC: Authentication successful, decrypting wallet...');
-        const wallet = await this.getDecryptedWalletWithBiometric();
+        const wallet = await WalletStorageManager.getDecryptedWalletWithBiometric();
         if (wallet) {
           console.log('BIOMETRIC: Wallet decrypted successfully');
           return wallet;
-        } else {
+        }
           console.log('BIOMETRIC: Wallet decryption failed');
           return null;
-        }
-      } else {
+      }
         console.log('BIOMETRIC: Authentication failed');
         return null;
-      }
     } catch (error) {
       console.error('BIOMETRIC: Error in biometric authentication:', error);
       return null;
@@ -141,14 +143,14 @@ export class WalletStorageManager {
       console.log('PASSWORD: Password provided, verifying and decrypting wallet...');
       
       // First verify the password against stored hash and get the stored derived key
-      const storedDerivedKey = await this.verifyPasswordAndGetKey(password);
+      const storedDerivedKey = await WalletStorageManager.verifyPasswordAndGetKey(password);
       if (!storedDerivedKey) {
         console.log('PASSWORD: Password verification failed - invalid password');
         return null;
       }
       
       // Now decrypt the wallet using the stored derived key
-      const wallet = await this.getDecryptedWalletWithDerivedKey(storedDerivedKey);
+      const wallet = await WalletStorageManager.getDecryptedWalletWithDerivedKey(storedDerivedKey);
       if (wallet) {
         console.log('PASSWORD: Wallet decrypted successfully with stored derived key');
         console.log('PASSWORD: Wallet keys after decryption:', {
@@ -159,13 +161,12 @@ export class WalletStorageManager {
         });
         
         // Store the derived key for quiet saves during sync
-        this.setCurrentSessionPasswordKey(storedDerivedKey);
+        WalletStorageManager.setCurrentSessionPasswordKey(storedDerivedKey);
         
         return wallet;
-      } else {
+      }
         console.log('PASSWORD: Wallet decryption failed with stored derived key');
         return null;
-      }
     } catch (error) {
       console.error('PASSWORD: Error in password authentication:', error);
       return null;
@@ -175,19 +176,19 @@ export class WalletStorageManager {
   static async clearWallet(): Promise<void> {
     try {
       if (Platform.OS === 'web') {
-        localStorage.removeItem(this.WALLET_KEY);
-        localStorage.removeItem(this.ENCRYPTION_KEY);
-        localStorage.removeItem(this.WALLET_HAS_PASSWORD_KEY);
-        localStorage.removeItem(this.BIOMETRIC_SALT_KEY);
-        localStorage.removeItem(this.PASSWORD_DERIVED_KEY);
-        localStorage.removeItem(this.PASSWORD_HASH_KEY);
+        localStorage.removeItem(WalletStorageManager.WALLET_KEY);
+        localStorage.removeItem(WalletStorageManager.ENCRYPTION_KEY);
+        localStorage.removeItem(WalletStorageManager.WALLET_HAS_PASSWORD_KEY);
+        localStorage.removeItem(WalletStorageManager.BIOMETRIC_SALT_KEY);
+        localStorage.removeItem(WalletStorageManager.PASSWORD_DERIVED_KEY);
+        localStorage.removeItem(WalletStorageManager.PASSWORD_HASH_KEY);
       } else {
-        await AsyncStorage.removeItem(this.WALLET_KEY);
-        await SecureStore.deleteItemAsync(this.ENCRYPTION_KEY);
-        await SecureStore.deleteItemAsync(this.WALLET_HAS_PASSWORD_KEY);
-        await SecureStore.deleteItemAsync(this.BIOMETRIC_SALT_KEY);
-        await SecureStore.deleteItemAsync(this.PASSWORD_DERIVED_KEY);
-        await SecureStore.deleteItemAsync(this.PASSWORD_HASH_KEY);
+        await AsyncStorage.removeItem(WalletStorageManager.WALLET_KEY);
+        await SecureStore.deleteItemAsync(WalletStorageManager.ENCRYPTION_KEY);
+        await SecureStore.deleteItemAsync(WalletStorageManager.WALLET_HAS_PASSWORD_KEY);
+        await SecureStore.deleteItemAsync(WalletStorageManager.BIOMETRIC_SALT_KEY);
+        await SecureStore.deleteItemAsync(WalletStorageManager.PASSWORD_DERIVED_KEY);
+        await SecureStore.deleteItemAsync(WalletStorageManager.PASSWORD_HASH_KEY);
       }
     } catch (error) {
       console.error('Error clearing wallet:', error);
@@ -205,7 +206,7 @@ export class WalletStorageManager {
       
       if (isBiometricMode) {
         // Biometric mode: derive biometric key
-        const biometricKey = await this.deriveBiometricKey();
+        const biometricKey = await WalletStorageManager.deriveBiometricKey();
         if (!biometricKey) {
           throw new Error('Failed to derive biometric key');
         }
@@ -213,14 +214,14 @@ export class WalletStorageManager {
         console.log('BIOMETRIC: Encrypting with derived biometric key');
       } else {
         // Password mode: derive password key
-        encryptionKey = await this.derivePasswordKey(password);
+        encryptionKey = await WalletStorageManager.derivePasswordKey(password);
         console.log('PASSWORD: Encrypting with derived password key');
       }
       
       // Always encrypt with derived key, never human password
       const encryptedWallet = WalletRepository.save(wallet, encryptionKey);
-      await this.saveEncryptedWalletData(encryptedWallet);
-      await SecureStore.setItemAsync(this.WALLET_HAS_PASSWORD_KEY, 'true');
+      await WalletStorageManager.saveEncryptedWalletData(encryptedWallet);
+      await SecureStore.setItemAsync(WalletStorageManager.WALLET_HAS_PASSWORD_KEY, 'true');
     } catch (error) {
       console.error('Error saving encrypted wallet:', error);
       throw new Error('Failed to save encrypted wallet');
@@ -233,15 +234,15 @@ export class WalletStorageManager {
   static async saveEncryptedWalletWithPersistentKey(wallet: Wallet, password: string): Promise<void> {
     try {
       // Derive the key and encrypt with it
-      const derivedKey = await this.derivePasswordKey(password);
+      const derivedKey = await WalletStorageManager.derivePasswordKey(password);
       const encryptedWallet = WalletRepository.save(wallet, derivedKey);
-      await this.saveEncryptedWalletData(encryptedWallet);
+      await WalletStorageManager.saveEncryptedWalletData(encryptedWallet);
       
       // Store the persistent derived key and password hash
-      await this.storePersistentPasswordKey(password);
+      await WalletStorageManager.storePersistentPasswordKey(password);
       
       // Set the password flag
-      await SecureStore.setItemAsync(this.WALLET_HAS_PASSWORD_KEY, 'true');
+      await SecureStore.setItemAsync(WalletStorageManager.WALLET_HAS_PASSWORD_KEY, 'true');
       console.log('PASSWORD: Wallet encrypted with persistent derived key');
     } catch (error) {
       console.error('Error saving encrypted wallet with persistent key:', error);
@@ -251,7 +252,7 @@ export class WalletStorageManager {
 
   static async getEncryptedWallet(password: string): Promise<Wallet | null> {
     try {
-      const walletData = await this.getWallet();
+      const walletData = await WalletStorageManager.getWallet();
       return WalletRepository.getLocalWalletWithPassword(password, walletData);
     } catch (error) {
       console.error('Error getting encrypted wallet:', error);
@@ -264,9 +265,9 @@ export class WalletStorageManager {
       // Get raw encrypted data directly, bypassing authentication
       let data: string | null;
       if (Platform.OS === 'web') {
-        data = localStorage.getItem(this.WALLET_KEY);
+        data = localStorage.getItem(WalletStorageManager.WALLET_KEY);
       } else {
-        data = await AsyncStorage.getItem(this.WALLET_KEY);
+        data = await AsyncStorage.getItem(WalletStorageManager.WALLET_KEY);
       }
       
       if (!data) return null;
@@ -293,9 +294,9 @@ export class WalletStorageManager {
       // Get raw encrypted data directly
       let data: string | null;
       if (Platform.OS === 'web') {
-        data = localStorage.getItem(this.WALLET_KEY);
+        data = localStorage.getItem(WalletStorageManager.WALLET_KEY);
       } else {
-        data = await AsyncStorage.getItem(this.WALLET_KEY);
+        data = await AsyncStorage.getItem(WalletStorageManager.WALLET_KEY);
       }
       
       if (!data) return null;
@@ -322,9 +323,9 @@ export class WalletStorageManager {
       // Get raw encrypted data directly
       let data: string | null;
       if (Platform.OS === 'web') {
-        data = localStorage.getItem(this.WALLET_KEY);
+        data = localStorage.getItem(WalletStorageManager.WALLET_KEY);
       } else {
-        data = await AsyncStorage.getItem(this.WALLET_KEY);
+        data = await AsyncStorage.getItem(WalletStorageManager.WALLET_KEY);
       }
       
       if (!data) return null;
@@ -334,7 +335,7 @@ export class WalletStorageManager {
       // Check if this is encrypted data (has 'data' and 'nonce' properties)
       if (parsedData.data && parsedData.nonce) {
         // Derive biometric key from device capabilities + salt
-        const biometricKey = await this.deriveBiometricKey();
+        const biometricKey = await WalletStorageManager.deriveBiometricKey();
         if (!biometricKey) {
           return null;
         }
@@ -364,9 +365,9 @@ export class WalletStorageManager {
     try {
       let data: string | null;
       if (Platform.OS === 'web') {
-        data = localStorage.getItem(this.WALLET_KEY);
+        data = localStorage.getItem(WalletStorageManager.WALLET_KEY);
       } else {
-        data = await AsyncStorage.getItem(this.WALLET_KEY);
+        data = await AsyncStorage.getItem(WalletStorageManager.WALLET_KEY);
       }
       
       // Return true if any data exists (encrypted or not)
@@ -392,7 +393,7 @@ export class WalletStorageManager {
 
   static async walletHasPassword(): Promise<boolean> {
     try {
-      const hasPassword = await SecureStore.getItemAsync(this.WALLET_HAS_PASSWORD_KEY);
+      const hasPassword = await SecureStore.getItemAsync(WalletStorageManager.WALLET_HAS_PASSWORD_KEY);
       return hasPassword === 'true';
     } catch (error) {
       console.error('Error checking wallet password status:', error);
@@ -416,7 +417,7 @@ export class WalletStorageManager {
       });
 
       if (result.success) {
-        const wallet = await this.getWallet();
+        const wallet = await WalletStorageManager.getWallet();
         if (wallet) {
           return wallet;
         }
@@ -435,7 +436,7 @@ export class WalletStorageManager {
       
       if (isBiometricEnabled) {
         // Try biometric first
-        const wallet = await this.getWalletWithBiometric();
+        const wallet = await WalletStorageManager.getWalletWithBiometric();
         if (wallet) {
           return wallet;
         }
@@ -462,7 +463,7 @@ export class WalletStorageManager {
                   return;
                 }
                 
-                const wallet = await this.getEncryptedWallet(password);
+                const wallet = await WalletStorageManager.getEncryptedWallet(password);
                 resolve(wallet);
               },
             },
@@ -481,8 +482,8 @@ export class WalletStorageManager {
   static async generateAndStoreBiometricSalt(userPassword: string): Promise<void> {
     try {
       // Generate a salt derived from the user password
-      const salt = await this.deriveSaltFromPassword(userPassword);
-      await SecureStore.setItemAsync(this.BIOMETRIC_SALT_KEY, salt);
+      const salt = await WalletStorageManager.deriveSaltFromPassword(userPassword);
+      await SecureStore.setItemAsync(WalletStorageManager.BIOMETRIC_SALT_KEY, salt);
     } catch (error) {
       console.error('Error generating biometric salt:', error);
       throw new Error('Failed to generate biometric salt');
@@ -491,7 +492,7 @@ export class WalletStorageManager {
 
   static async getBiometricSalt(): Promise<string | null> {
     try {
-      return await SecureStore.getItemAsync(this.BIOMETRIC_SALT_KEY);
+      return await SecureStore.getItemAsync(WalletStorageManager.BIOMETRIC_SALT_KEY);
     } catch (error) {
       console.error('Error getting biometric salt:', error);
       return null;
@@ -507,7 +508,7 @@ export class WalletStorageManager {
   static async deriveBiometricKey(): Promise<string | null> {
     try {
       console.log('BIOMETRIC KEY: Starting key derivation...');
-      const salt = await this.getBiometricSalt();
+      const salt = await WalletStorageManager.getBiometricSalt();
       console.log('BIOMETRIC KEY: Salt available:', !!salt);
       if (!salt) {
         console.log('BIOMETRIC KEY: No salt found');
@@ -516,7 +517,7 @@ export class WalletStorageManager {
       
       // Generate a consistent biometric identifier based on device capabilities
       // This creates a unique key per device/user combination
-      const biometricIdentifier = await this.generateBiometricIdentifier();
+      const biometricIdentifier = await WalletStorageManager.generateBiometricIdentifier();
       console.log('BIOMETRIC KEY: Generated biometric identifier');
       
       // Derive key from biometric identifier + salt using expo-crypto
@@ -586,7 +587,7 @@ export class WalletStorageManager {
   // Custom Node Management Methods
   static async getCustomNode(): Promise<string | null> {
     try {
-      return await SecureStore.getItemAsync(this.CUSTOM_NODE_KEY);
+      return await SecureStore.getItemAsync(WalletStorageManager.CUSTOM_NODE_KEY);
     } catch (error) {
       console.error('Error getting custom node:', error);
       return null;
@@ -595,7 +596,7 @@ export class WalletStorageManager {
 
   static async setCustomNode(nodeUrl: string): Promise<boolean> {
     try {
-      await SecureStore.setItemAsync(this.CUSTOM_NODE_KEY, nodeUrl);
+      await SecureStore.setItemAsync(WalletStorageManager.CUSTOM_NODE_KEY, nodeUrl);
       console.log('Custom node saved:', nodeUrl);
       return true;
     } catch (error) {
@@ -606,7 +607,7 @@ export class WalletStorageManager {
 
   static async clearCustomNode(): Promise<boolean> {
     try {
-      await SecureStore.deleteItemAsync(this.CUSTOM_NODE_KEY);
+      await SecureStore.deleteItemAsync(WalletStorageManager.CUSTOM_NODE_KEY);
       console.log('Custom node cleared, reverting to default');
       return true;
     } catch (error) {
@@ -620,7 +621,7 @@ export class WalletStorageManager {
    * This is called after successful password authentication
    */
   static setCurrentSessionPasswordKey(passwordKey: string): void {
-    this.currentSessionPasswordKey = passwordKey;
+    WalletStorageManager.currentSessionPasswordKey = passwordKey;
     console.log('PASSWORD KEY: Stored current session password key for quiet saves');
   }
 
@@ -629,14 +630,14 @@ export class WalletStorageManager {
    * Returns null if no key is stored (user not authenticated or biometric mode)
    */
   static getStoredPasswordKey(): string | null {
-    return this.currentSessionPasswordKey;
+    return WalletStorageManager.currentSessionPasswordKey;
   }
 
   /**
    * Clear the current session's password key (called on logout/app restart)
    */
   static clearCurrentSessionPasswordKey(): void {
-    this.currentSessionPasswordKey = null;
+    WalletStorageManager.currentSessionPasswordKey = null;
     console.log('PASSWORD KEY: Cleared current session password key');
   }
 
@@ -646,11 +647,11 @@ export class WalletStorageManager {
    */
   static async storePersistentPasswordKey(password: string): Promise<void> {
     try {
-      const derivedKey = await this.derivePasswordKey(password);
+      const derivedKey = await WalletStorageManager.derivePasswordKey(password);
       const passwordHash = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, password);
       
-      await SecureStore.setItemAsync(this.PASSWORD_DERIVED_KEY, derivedKey);
-      await SecureStore.setItemAsync(this.PASSWORD_HASH_KEY, passwordHash);
+      await SecureStore.setItemAsync(WalletStorageManager.PASSWORD_DERIVED_KEY, derivedKey);
+      await SecureStore.setItemAsync(WalletStorageManager.PASSWORD_HASH_KEY, passwordHash);
       
       console.log('PASSWORD KEY: Stored persistent derived key and password hash');
     } catch (error) {
@@ -665,8 +666,8 @@ export class WalletStorageManager {
    */
   static async verifyPasswordAndGetKey(password: string): Promise<string | null> {
     try {
-      const storedHash = await SecureStore.getItemAsync(this.PASSWORD_HASH_KEY);
-      const storedKey = await SecureStore.getItemAsync(this.PASSWORD_DERIVED_KEY);
+      const storedHash = await SecureStore.getItemAsync(WalletStorageManager.PASSWORD_HASH_KEY);
+      const storedKey = await SecureStore.getItemAsync(WalletStorageManager.PASSWORD_DERIVED_KEY);
       
       if (!storedHash || !storedKey) {
         console.log('PASSWORD KEY: No stored password data found');
@@ -693,8 +694,8 @@ export class WalletStorageManager {
    */
   static async clearPersistentPasswordData(): Promise<void> {
     try {
-      await SecureStore.deleteItemAsync(this.PASSWORD_DERIVED_KEY);
-      await SecureStore.deleteItemAsync(this.PASSWORD_HASH_KEY);
+      await SecureStore.deleteItemAsync(WalletStorageManager.PASSWORD_DERIVED_KEY);
+      await SecureStore.deleteItemAsync(WalletStorageManager.PASSWORD_HASH_KEY);
       console.log('PASSWORD KEY: Cleared persistent password data');
     } catch (error) {
       console.error('PASSWORD KEY: Error clearing persistent data:', error);

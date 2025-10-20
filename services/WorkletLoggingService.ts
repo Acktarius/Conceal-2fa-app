@@ -1,9 +1,13 @@
-/**
- * KISS Worklet Logging Service - Just 6 simple functions
+/*
+ * Copyright (c) 2025 Acktarius, Conceal Devs
+ * 
+ * This file is part of Conceal-2FA-App
+ * 
+ * Distributed under the BSD 3-Clause License, see the accompanying
+ * file LICENSE or https://opensource.org/licenses/BSD-3-Clause.
  */
-
 import { createWorkletRuntime, scheduleOnRuntime } from 'react-native-worklets';
-import { IWorkletLogging, setGlobalWorkletLogging } from './interfaces/IWorkletLogging';
+import { type IWorkletLogging, setGlobalWorkletLogging } from './interfaces/IWorkletLogging';
 
 export class WorkletLoggingService implements IWorkletLogging {
   public readonly runtime: any;

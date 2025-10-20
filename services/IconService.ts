@@ -339,15 +339,15 @@ export class IconService {
     // Helper function to try matching against icon maps
     const tryMatch = (searchName: string): IconInfo | null => {
       // Try exact match first
-      if (this.ioniconsMap[searchName]) {
+      if (IconService.ioniconsMap[searchName]) {
         return {
-          name: this.ioniconsMap[searchName],
+          name: IconService.ioniconsMap[searchName],
           family: 'Ionicons'
         };
       }
       
       // Try partial matches in Ionicons
-      for (const [key, icon] of Object.entries(this.ioniconsMap)) {
+      for (const [key, icon] of Object.entries(IconService.ioniconsMap)) {
         if (searchName.includes(key) || key.includes(searchName)) {
           return {
             name: icon,
@@ -357,15 +357,15 @@ export class IconService {
       }
       
       // Try MaterialIcons as fallback
-      if (this.materialIconsMap[searchName]) {
+      if (IconService.materialIconsMap[searchName]) {
         return {
-          name: this.materialIconsMap[searchName],
+          name: IconService.materialIconsMap[searchName],
           family: 'MaterialIcons'
         };
       }
       
       // Try partial matches in MaterialIcons
-      for (const [key, icon] of Object.entries(this.materialIconsMap)) {
+      for (const [key, icon] of Object.entries(IconService.materialIconsMap)) {
         if (searchName.includes(key) || key.includes(searchName)) {
           return {
             name: icon,
@@ -375,15 +375,15 @@ export class IconService {
       }
       
       // Try FontAwesome as final fallback
-      if (this.fontAwesomeMap[searchName]) {
+      if (IconService.fontAwesomeMap[searchName]) {
         return {
-          name: this.fontAwesomeMap[searchName],
+          name: IconService.fontAwesomeMap[searchName],
           family: 'FontAwesome'
         };
       }
       
       // Try partial matches in FontAwesome
-      for (const [key, icon] of Object.entries(this.fontAwesomeMap)) {
+      for (const [key, icon] of Object.entries(IconService.fontAwesomeMap)) {
         if (searchName.includes(key) || key.includes(searchName)) {
           return {
             name: icon,
@@ -451,11 +451,11 @@ export class IconService {
   static getIconsByFamily(family: 'Ionicons' | 'MaterialIcons' | 'FontAwesome'): string[] {
     switch (family) {
       case 'Ionicons':
-        return Object.values(this.ioniconsMap);
+        return Object.values(IconService.ioniconsMap);
       case 'MaterialIcons':
-        return Object.values(this.materialIconsMap);
+        return Object.values(IconService.materialIconsMap);
       case 'FontAwesome':
-        return Object.values(this.fontAwesomeMap);
+        return Object.values(IconService.fontAwesomeMap);
       default:
         return [];
     }
@@ -467,9 +467,9 @@ export class IconService {
    */
   static getAllServiceNames(): string[] {
     const allNames = new Set([
-      ...Object.keys(this.ioniconsMap),
-      ...Object.keys(this.materialIconsMap),
-      ...Object.keys(this.fontAwesomeMap)
+      ...Object.keys(IconService.ioniconsMap),
+      ...Object.keys(IconService.materialIconsMap),
+      ...Object.keys(IconService.fontAwesomeMap)
     ]);
     return Array.from(allNames);
   }
@@ -481,8 +481,8 @@ export class IconService {
    */
   static hasIcon(serviceName: string): boolean {
     const name = serviceName.toLowerCase();
-    return this.ioniconsMap[name] !== undefined || 
-           this.materialIconsMap[name] !== undefined || 
-           this.fontAwesomeMap[name] !== undefined;
+    return IconService.ioniconsMap[name] !== undefined || 
+           IconService.materialIconsMap[name] !== undefined || 
+           IconService.fontAwesomeMap[name] !== undefined;
   }
 }

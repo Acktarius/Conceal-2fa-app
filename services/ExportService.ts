@@ -1,4 +1,4 @@
-import { Wallet } from '../model/Wallet';
+import type { Wallet } from '../model/Wallet';
 import { CoinUri } from '../model/CoinUri';
 
 export class ExportService {
@@ -25,7 +25,7 @@ export class ExportService {
       }
 
       // Create QR URI using CoinUri format
-      const qrData = this.createWalletURI(address, spendKey, viewKey, height);
+      const qrData = ExportService.createWalletURI(address, spendKey, viewKey, height);
       
       console.log('EXPORT: Generated QR data for wallet:', address);
       return qrData;

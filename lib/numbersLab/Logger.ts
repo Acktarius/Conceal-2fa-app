@@ -36,13 +36,13 @@ export class Logger{
         Context.getGlobalContextStorage().logLevel = level;
     }
     static get level() : number{
-        let level = Context.getGlobalContextStorage().logLevel;
+        const level = Context.getGlobalContextStorage().logLevel;
         return level;
     }
 
     public static log(level : number, caller: string, message : string, context : any = {}){
         if(Logger.level <= level){
-            let levelName = Logger.LEVEL_NAMES[level] === null ? '????' : Logger.LEVEL_NAMES[level];
+            const levelName = Logger.LEVEL_NAMES[level] === null ? '????' : Logger.LEVEL_NAMES[level];
             if(level >= Logger.ERROR) {
                 console.error(levelName + '[' + Logger.getCallerName(caller) + ']' + Logger.interpolate(message, context));
             }
@@ -81,20 +81,20 @@ export class Logger{
     }
 
     private static interpolate(message:string, context : any = {}){
-        for(let key in context) {
+        for(const key in context) {
             message = message.replace('{' +key+ '}', context[key]);
         }
         return message;
     }
 
     private static getCallerName(object : any){
-        let type = typeof object;
+        const type = typeof object;
         if(type === 'string'){
             return object;
-        }else if(type === 'object'){
+        }if(type === 'object'){
             let funcNameRegex = /function (.{1,})\(/;
             let results = (funcNameRegex).exec((object).constructor.toString());
-            let name = (results && results.length > 1) ? results[1] : '';
+            const name = (results && results.length > 1) ? results[1] : '';
             if(name !== '')
                 return name;
             funcNameRegex = /class [a-zA-Z0-9]+/;

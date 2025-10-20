@@ -1,12 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Animated,
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useState } from 'react';
+import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface FundingBannerProps {
@@ -23,10 +17,10 @@ export default function FundingBanner({ balance, maxKeys, onPress }: FundingBann
   const { theme } = useTheme();
 
   const messages = [
-    balance === 0 
+    balance === 0
       ? "Balance: 0 CCX - your keys won't be saved until you top up your wallet"
       : `Insufficient funds - your keys won't be saved until you top up your wallet`,
-    "Send some CCX to this address to unlock blockchain storage and sharing features"
+    'Send some CCX to this address to unlock blockchain storage and sharing features',
   ];
 
   useEffect(() => {
@@ -37,10 +31,10 @@ export default function FundingBanner({ balance, maxKeys, onPress }: FundingBann
     }
 
     const interval = setInterval(() => {
-      setCurrentText(prev => {
+      setCurrentText((prev) => {
         const next = (prev + 1) % messages.length;
         if (next === 0) {
-          setCycleCount(count => {
+          setCycleCount((count) => {
             const newCount = count + 1;
             if (newCount >= 2) {
               // After 2 complete cycles, fade out and hide
@@ -70,11 +64,7 @@ export default function FundingBanner({ balance, maxKeys, onPress }: FundingBann
 
   return (
     <Animated.View style={[styles.banner, { opacity: fadeAnim }]}>
-      <TouchableOpacity
-        style={styles.bannerContent}
-        onPress={onPress}
-        activeOpacity={0.8}
-      >
+      <TouchableOpacity style={styles.bannerContent} onPress={onPress} activeOpacity={0.8}>
         <View style={styles.iconContainer}>
           <Ionicons name="wallet-outline" size={20} color={theme.colors.warning} />
         </View>
@@ -87,33 +77,34 @@ export default function FundingBanner({ balance, maxKeys, onPress }: FundingBann
   );
 }
 
-const createStyles = (theme: any) => StyleSheet.create({
-  banner: {
-    backgroundColor: theme.isDark ? 'rgba(251, 191, 36, 0.1)' : '#FEF3C7',
-    borderRadius: 12,
-    margin: 16,
-    marginBottom: 8,
-    shadowColor: theme.colors.warning,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: theme.isDark ? 'rgba(251, 191, 36, 0.2)' : '#FDE68A',
-  },
-  bannerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-  },
-  iconContainer: {
-    marginRight: 12,
-  },
-  bannerText: {
-    flex: 1,
-    fontSize: 14,
-    color: theme.colors.warning,
-    fontWeight: '500',
-    lineHeight: 18,
-  },
-});
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    banner: {
+      backgroundColor: theme.colors.bannerBkg,
+      borderRadius: 12,
+      margin: 16,
+      marginBottom: 8,
+      shadowColor: theme.colors.warning,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+      borderWidth: 1,
+      borderColor: theme.colors.bannerBorder,
+    },
+    bannerContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 16,
+    },
+    iconContainer: {
+      marginRight: 12,
+    },
+    bannerText: {
+      flex: 1,
+      fontSize: 14,
+      color: theme.colors.warning,
+      fontWeight: '500',
+      lineHeight: 18,
+    },
+  });

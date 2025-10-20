@@ -1,7 +1,8 @@
 /**
 *     Copyright (c) 2025, Acktarius 
 */
-import React, { useState, useEffect } from 'react';
+import type React from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -28,6 +29,7 @@ import { WalletService } from '../services/WalletService';
 import { CnUtils } from '../model/Cn';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import packageJson from '../package.json';
 import { Mnemonic } from '../model/Mnemonic';
 import { PasswordChangeAlert } from '../components/PasswordChangeAlert';
 import { UnlockWalletAlert } from '../components/UnlockWalletAlert';
@@ -41,6 +43,7 @@ import { BiometricService } from '../services/BiometricService';
 import { config } from '../config';
 import { CoinUri } from '../model/CoinUri';
 import QRScannerModal from '../components/QRScannerModal';
+import { TermsModal } from '../components/TermsModal';
 // verifyOldPassword function moved here to avoid circular dependencies
 
 type RootStackParamList = {
@@ -78,6 +81,7 @@ export default function SettingsScreen() {
   const [showBroadcastQRScanner, setShowBroadcastQRScanner] = useState(false);
   const [biometricAction, setBiometricAction] = useState<'enable' | 'disable'>('enable');
   const [manualPaymentId, setManualPaymentId] = useState('');
+  const [showTermsModal, setShowTermsModal] = useState(false);
   
   // Theme options
   const themeOptions = [
@@ -1647,12 +1651,12 @@ export default function SettingsScreen() {
               <SettingItem
                 icon="information-circle-outline"
                 title="Version"
-                subtitle="1.0.0"
+                subtitle={packageJson.version}
               />
               <SettingItem
-                icon="help-circle-outline"
-                title="Help & Support"
-                onPress={() => Alert.alert('Help', 'Help documentation coming soon!')}
+                icon="document-text-outline"
+                title="Terms and Conditions"
+                onPress={() => setShowTermsModal(true)}
               />
             </View>
           </View>
@@ -1697,6 +1701,12 @@ export default function SettingsScreen() {
         visible={showBroadcastQRScanner}
         onClose={handleBroadcastQRClose}
         onScan={handleBroadcastQRScan}
+      />
+      
+      {/* Terms and Conditions Modal */}
+      <TermsModal
+        visible={showTermsModal}
+        onClose={() => setShowTermsModal(false)}
       />
       
     </GestureNavigator>

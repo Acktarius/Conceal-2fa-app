@@ -46,12 +46,12 @@ if (typeof Module === 'undefined') {
   Module = (global as any).Module;
 }
  
- let HASH_STATE_BYTES = 200;
- let HASH_SIZE = 32;
- let ADDRESS_CHECKSUM_SIZE = 4;
- let TX_EXTRA_MESSAGE_CHECKSUM_SIZE = 4;
- let INTEGRATED_ID_SIZE = 8;
- let ENCRYPTED_PAYMENT_ID_TAIL = 141;
+ const HASH_STATE_BYTES = 200;
+ const HASH_SIZE = 32;
+ const ADDRESS_CHECKSUM_SIZE = 4;
+ const TX_EXTRA_MESSAGE_CHECKSUM_SIZE = 4;
+ const INTEGRATED_ID_SIZE = 8;
+ const ENCRYPTED_PAYMENT_ID_TAIL = 141;
  let CRYPTONOTE_PUBLIC_ADDRESS_BASE58_PREFIX = config.addressPrefix;
  let CRYPTONOTE_PUBLIC_INTEGRATED_ADDRESS_BASE58_PREFIX = config.integratedAddressPrefix;
  let CRYPTONOTE_PUBLIC_SUBADDRESS_BASE58_PREFIX = config.subAddressPrefix;
@@ -61,12 +61,12 @@ if (typeof Module === 'undefined') {
      CRYPTONOTE_PUBLIC_INTEGRATED_ADDRESS_BASE58_PREFIX = config.integratedAddressPrefixTestnet;
      CRYPTONOTE_PUBLIC_SUBADDRESS_BASE58_PREFIX = config.subAddressPrefixTestnet;
  }
- let UINT64_MAX = new JSBigInt(2).pow(64);
- let CURRENT_TX_VERSION = 1;
- let OLD_TX_VERSION = 1;
- let DEPOSIT_TX_VERSION = 2;
- let TX_EXTRA_NONCE_MAX_COUNT = 255;
- let TX_EXTRA_TAGS = {
+ const UINT64_MAX = new JSBigInt(2).pow(64);
+ const CURRENT_TX_VERSION = 1;
+ const OLD_TX_VERSION = 1;
+ const DEPOSIT_TX_VERSION = 2;
+ const TX_EXTRA_NONCE_MAX_COUNT = 255;
+ const TX_EXTRA_TAGS = {
      PADDING: '00',
      PUBKEY: '01',
      NONCE: '02',
@@ -75,12 +75,12 @@ if (typeof Module === 'undefined') {
      MESSAGE_TAG: '04',
    TTL_TAG: '05'
  };
- let TX_EXTRA_NONCE_TAGS = {
+ const TX_EXTRA_NONCE_TAGS = {
      PAYMENT_ID: '00',
      ENCRYPTED_PAYMENT_ID: '01'
  };
- let KEY_SIZE = 32;
- let STRUCT_SIZES = {
+ const KEY_SIZE = 32;
+ const STRUCT_SIZES = {
      GE_P3: 160,
      GE_P2: 120,
      GE_P1P1: 160,
@@ -195,7 +195,7 @@ export namespace CnRandom{
             // Fallback to JS implementation if native fails
             console.warn('Native hextobin failed, using JS fallback:', error);
             if (hex.length % 2 !== 0) throw "Hex string has invalid length!";
-            let res = new Uint8Array(hex.length / 2);
+            const res = new Uint8Array(hex.length / 2);
             for (let i = 0; i < hex.length / 2; ++i) {
                 res[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
             }
@@ -227,7 +227,7 @@ export namespace CnRandom{
         } catch (error) {
             // Fallback to JS implementation if native fails
             console.warn('Native bintohex failed, using JS fallback:', error);
-            let out = [];
+            const out = [];
             if(typeof bin === 'string'){
                 for (let i = 0; i < bin.length; ++i) {
                     out.push(("0" + bin[i].charCodeAt(0).toString(16)).slice(-2));
@@ -275,9 +275,8 @@ export namespace CnRandom{
      export function d2s(integer : number|string){
          if (typeof integer === "string") {
              return CnUtils.swapEndian(CnUtils.d2h(integer));
-         } else {
-             return CnUtils.swapEndian(CnUtils.d2h(integer.toString()));
          }
+             return CnUtils.swapEndian(CnUtils.d2h(integer.toString()));
  
      }
  
@@ -302,13 +301,13 @@ export namespace CnRandom{
      }
  
      export function d2b(integer : number) : string{
-         let integerStr = integer.toString();
+         const integerStr = integer.toString();
          if (typeof integer !== "string" && integerStr.length > 15){throw "integer should be entered as a string for precision";}
          let padding = "";
          for (let i = 0; i < 63; i++){
              padding += "0";
          }
-         let a = new JSBigInt(integerStr);
+         const a = new JSBigInt(integerStr);
          if (a.toString(2).length > 64){throw "amount overflows uint64!";}
          return CnUtils.swapEndianC((padding + a.toString(2)).slice(-64));
      }
@@ -355,7 +354,7 @@ export namespace CnRandom{
  
      //order matters
      export function ge_sub(point1 : string, point2 : string) {
-         let point2n = CnUtils.ge_neg(point2);
+         const point2n = CnUtils.ge_neg(point2);
          return CnUtils.ge_add(point1, point2n);
      }
  
@@ -377,7 +376,7 @@ export function sec_key_to_pub(sec : string) : string {
 }
 
     export function valid_hex(hex : string) {
-        let exp = new RegExp("[0-9a-fA-F]{" + hex.length + "}");
+        const exp = new RegExp("[0-9a-fA-F]{" + hex.length + "}");
         return exp.test(hex);
     }
 
@@ -391,7 +390,7 @@ export function sec_key_to_pub(sec : string) : string {
              throw "Invalid derivation length!";
          }
          buf += derivation;
-         let enc = CnUtils.encode_varint(output_index);
+         const enc = CnUtils.encode_varint(output_index);
          if (enc.length > 10 * 2) {
              throw "output_index didn't fit in 64-bit varint";
          }
@@ -430,20 +429,24 @@ export function sec_key_to_pub(sec : string) : string {
      }
  
      export function cn_fast_hash(input : string) {
-         if (input.length % 2 !== 0 || !CnUtils.valid_hex(input)) {
-             throw "Input invalid";
-         }
-         //update to use new keccak impl (approx 45x faster)
-         //let state = this.keccak(input, inlen, HASH_STATE_BYTES);
-         //return state.substr(0, HASH_SIZE * 2);
-         return keccak_256(CnUtils.hextobin(input));
-     }
+        try {
+            // Use native C++ Keccak-256 (6-62x faster!)
+            return concealCrypto.cryptonote.cnFastHash(input);
+        } catch (error) {
+            // Fallback to JS implementation
+            console.warn('Native cnFastHash failed, using JS fallback:', error);
+            if (input.length % 2 !== 0 || !CnUtils.valid_hex(input)) {
+                throw "Input invalid";
+            }
+            return keccak_256(CnUtils.hextobin(input));
+        }
+    }
  
    export function hex_xor(hex1 : string, hex2 : string) {
          if (!hex1 || !hex2 || hex1.length !== hex2.length || hex1.length % 2 !== 0 || hex2.length % 2 !== 0){throw "Hex string(s) is/are invalid!";}
-         let bin1 = hextobin(hex1);
-         let bin2 = hextobin(hex2);
-         let xor = new Uint8Array(bin1.length);
+         const bin1 = hextobin(hex1);
+         const bin2 = hextobin(hex2);
+         const xor = new Uint8Array(bin1.length);
          for (let i = 0; i < xor.length; i++){
              xor[i] = bin1[i] ^ bin2[i];
          }
@@ -490,14 +493,14 @@ export function sec_key_to_pub(sec : string) : string {
            if (c.length !== 64 || P.length !== 64 || r.length !== 64 || I.length !== 64) {
                throw "Invalid input length!";
            }
-           let Pb = CnNativeBride.hash_to_ec_2(P);
+           const Pb = CnNativeBride.hash_to_ec_2(P);
            return bintohex(nacl.ll.ge_double_scalarmult_postcomp_vartime(hextobin(r), hextobin(Pb), hextobin(c), hextobin(I)));
        }
    }
  
      export function decompose_amount_into_digits(amount : number|string) {
          amount = amount.toString();
-         let ret = [];
+         const ret = [];
          while (amount.length > 0) {
              //check so we don't create 0s
              if (amount[0] !== "0"){
@@ -513,8 +516,8 @@ export function sec_key_to_pub(sec : string) : string {
      }
  
      export function decode_rct_ecdh(ecdh : {mask:string, amount:string}, key : string) {
-         let first = Cn.hash_to_scalar(key);
-         let second = Cn.hash_to_scalar(first);
+         const first = Cn.hash_to_scalar(key);
+         const second = Cn.hash_to_scalar(first);
          return {
              mask: CnNativeBride.sc_sub(ecdh.mask, first),
              amount: CnNativeBride.sc_sub(ecdh.amount, second),
@@ -522,8 +525,8 @@ export function sec_key_to_pub(sec : string) : string {
      }
  
     export function encode_rct_ecdh(ecdh : {mask:string, amount:string}, key : string) {
-        let first = Cn.hash_to_scalar(key);
-        let second = Cn.hash_to_scalar(first);
+        const first = Cn.hash_to_scalar(key);
+        const second = Cn.hash_to_scalar(first);
         return {
             mask: CnNativeBride.sc_add(ecdh.mask, first),
             amount: CnNativeBride.sc_add(ecdh.amount, second),
@@ -559,14 +562,14 @@ export function sec_key_to_pub(sec : string) : string {
  
  export namespace CnNativeBride{
      export function sc_reduce32(hex : string) {
-         let input = CnUtils.hextobin(hex);
+         const input = CnUtils.hextobin(hex);
          if (input.length !== 32) {
              throw "Invalid input length";
          }
-         let mem = Module._malloc(32);
+         const mem = Module._malloc(32);
          Module.HEAPU8.set(input, mem);
          Module.ccall('sc_reduce32', 'void', ['number'], [mem]);
-         let output = Module.HEAPU8.subarray(mem, mem + 32);
+         const output = Module.HEAPU8.subarray(mem, mem + 32);
          Module._free(mem);
          return CnUtils.bintohex(output);
      }
@@ -575,14 +578,14 @@ export function sec_key_to_pub(sec : string) : string {
          if (derivation.length !== 64 || sec.length !== 64) {
              throw "Invalid input length!";
          }
-         let scalar_m = Module._malloc(STRUCT_SIZES.EC_SCALAR);
-         let scalar_b = CnUtils.hextobin(CnUtils.derivation_to_scalar(derivation, out_index));
+         const scalar_m = Module._malloc(STRUCT_SIZES.EC_SCALAR);
+         const scalar_b = CnUtils.hextobin(CnUtils.derivation_to_scalar(derivation, out_index));
          Module.HEAPU8.set(scalar_b, scalar_m);
-         let base_m = Module._malloc(KEY_SIZE);
+         const base_m = Module._malloc(KEY_SIZE);
          Module.HEAPU8.set(CnUtils.hextobin(sec), base_m);
-         let derived_m = Module._malloc(STRUCT_SIZES.EC_SCALAR);
+         const derived_m = Module._malloc(STRUCT_SIZES.EC_SCALAR);
          Module.ccall("sc_add", "void", ["number", "number", "number"], [derived_m, base_m, scalar_m]);
-         let res = Module.HEAPU8.subarray(derived_m, derived_m + STRUCT_SIZES.EC_SCALAR);
+         const res = Module.HEAPU8.subarray(derived_m, derived_m + STRUCT_SIZES.EC_SCALAR);
          Module._free(scalar_m);
          Module._free(base_m);
          Module._free(derived_m);
@@ -593,16 +596,16 @@ export function sec_key_to_pub(sec : string) : string {
          if (key.length !== (KEY_SIZE * 2)) {
              throw "Invalid input length";
          }
-         let h_m = Module._malloc(HASH_SIZE);
-         let point_m = Module._malloc(STRUCT_SIZES.GE_P2);
-         let point2_m = Module._malloc(STRUCT_SIZES.GE_P1P1);
-         let res_m = Module._malloc(STRUCT_SIZES.GE_P3);
-         let hash = CnUtils.hextobin(CnUtils.cn_fast_hash(key));
+         const h_m = Module._malloc(HASH_SIZE);
+         const point_m = Module._malloc(STRUCT_SIZES.GE_P2);
+         const point2_m = Module._malloc(STRUCT_SIZES.GE_P1P1);
+         const res_m = Module._malloc(STRUCT_SIZES.GE_P3);
+         const hash = CnUtils.hextobin(CnUtils.cn_fast_hash(key));
          Module.HEAPU8.set(hash, h_m);
          Module.ccall("ge_fromfe_frombytes_vartime", "void", ["number", "number"], [point_m, h_m]);
          Module.ccall("ge_mul8", "void", ["number", "number"], [point2_m, point_m]);
          Module.ccall("ge_p1p1_to_p3", "void", ["number", "number"], [res_m, point2_m]);
-         let res = Module.HEAPU8.subarray(res_m, res_m + STRUCT_SIZES.GE_P3);
+         const res = Module.HEAPU8.subarray(res_m, res_m + STRUCT_SIZES.GE_P3);
          Module._free(h_m);
          Module._free(point_m);
          Module._free(point2_m);
@@ -615,18 +618,18 @@ export function sec_key_to_pub(sec : string) : string {
          if (key.length !== (KEY_SIZE * 2)) {
              throw "Invalid input length";
          }
-         let h_m = Module._malloc(HASH_SIZE);
-         let point_m = Module._malloc(STRUCT_SIZES.GE_P2);
-         let point2_m = Module._malloc(STRUCT_SIZES.GE_P1P1);
-         let res_m = Module._malloc(STRUCT_SIZES.GE_P3);
-         let hash = CnUtils.hextobin(CnUtils.cn_fast_hash(key));
-         let res2_m = Module._malloc(KEY_SIZE);
+         const h_m = Module._malloc(HASH_SIZE);
+         const point_m = Module._malloc(STRUCT_SIZES.GE_P2);
+         const point2_m = Module._malloc(STRUCT_SIZES.GE_P1P1);
+         const res_m = Module._malloc(STRUCT_SIZES.GE_P3);
+         const hash = CnUtils.hextobin(CnUtils.cn_fast_hash(key));
+         const res2_m = Module._malloc(KEY_SIZE);
          Module.HEAPU8.set(hash, h_m);
          Module.ccall("ge_fromfe_frombytes_vartime", "void", ["number", "number"], [point_m, h_m]);
          Module.ccall("ge_mul8", "void", ["number", "number"], [point2_m, point_m]);
          Module.ccall("ge_p1p1_to_p3", "void", ["number", "number"], [res_m, point2_m]);
          Module.ccall("ge_p3_tobytes", "void", ["number", "number"], [res2_m, res_m]);
-         let res = Module.HEAPU8.subarray(res2_m, res2_m + KEY_SIZE);
+         const res = Module.HEAPU8.subarray(res2_m, res2_m + KEY_SIZE);
          Module._free(h_m);
          Module._free(point_m);
          Module._free(point2_m);
@@ -639,21 +642,21 @@ export function sec_key_to_pub(sec : string) : string {
          if (!pub || !sec || pub.length !== 64 || sec.length !== 64) {
              throw "Invalid input length";
          }
-         let pub_m = Module._malloc(KEY_SIZE);
-         let sec_m = Module._malloc(KEY_SIZE);
+         const pub_m = Module._malloc(KEY_SIZE);
+         const sec_m = Module._malloc(KEY_SIZE);
          Module.HEAPU8.set(CnUtils.hextobin(pub), pub_m);
          Module.HEAPU8.set(CnUtils.hextobin(sec), sec_m);
          if (Module.ccall("sc_check", "number", ["number"], [sec_m]) !== 0) {
              throw "sc_check(sec) != 0";
          }
-         let point_m = Module._malloc(STRUCT_SIZES.GE_P3);
-         let point2_m = Module._malloc(STRUCT_SIZES.GE_P2);
-         let point_b = CnUtils.hextobin(CnNativeBride.hash_to_ec(pub));
+         const point_m = Module._malloc(STRUCT_SIZES.GE_P3);
+         const point2_m = Module._malloc(STRUCT_SIZES.GE_P2);
+         const point_b = CnUtils.hextobin(CnNativeBride.hash_to_ec(pub));
          Module.HEAPU8.set(point_b, point_m);
-         let image_m = Module._malloc(STRUCT_SIZES.KEY_IMAGE);
+         const image_m = Module._malloc(STRUCT_SIZES.KEY_IMAGE);
          Module.ccall("ge_scalarmult", "void", ["number", "number", "number"], [point2_m, sec_m, point_m]);
          Module.ccall("ge_tobytes", "void", ["number", "number"], [image_m, point2_m]);
-         let res = Module.HEAPU8.subarray(image_m, image_m + STRUCT_SIZES.KEY_IMAGE);
+         const res = Module.HEAPU8.subarray(image_m, image_m + STRUCT_SIZES.KEY_IMAGE);
          Module._free(pub_m);
          Module._free(sec_m);
          Module._free(point_m);
@@ -667,13 +670,13 @@ export function sec_key_to_pub(sec : string) : string {
          if (scalar1.length !== 64 || scalar2.length !== 64) {
              throw "Invalid input length!";
          }
-         let scalar1_m = Module._malloc(STRUCT_SIZES.EC_SCALAR);
-         let scalar2_m = Module._malloc(STRUCT_SIZES.EC_SCALAR);
+         const scalar1_m = Module._malloc(STRUCT_SIZES.EC_SCALAR);
+         const scalar2_m = Module._malloc(STRUCT_SIZES.EC_SCALAR);
          Module.HEAPU8.set(CnUtils.hextobin(scalar1), scalar1_m);
          Module.HEAPU8.set(CnUtils.hextobin(scalar2), scalar2_m);
-         let derived_m = Module._malloc(STRUCT_SIZES.EC_SCALAR);
+         const derived_m = Module._malloc(STRUCT_SIZES.EC_SCALAR);
          Module.ccall("sc_add", "void", ["number", "number", "number"], [derived_m, scalar1_m, scalar2_m]);
-         let res = Module.HEAPU8.subarray(derived_m, derived_m + STRUCT_SIZES.EC_SCALAR);
+         const res = Module.HEAPU8.subarray(derived_m, derived_m + STRUCT_SIZES.EC_SCALAR);
          Module._free(scalar1_m);
          Module._free(scalar2_m);
          Module._free(derived_m);
@@ -685,13 +688,13 @@ export function sec_key_to_pub(sec : string) : string {
          if (scalar1.length !== 64 || scalar2.length !== 64) {
              throw "Invalid input length!";
          }
-         let scalar1_m = Module._malloc(STRUCT_SIZES.EC_SCALAR);
-         let scalar2_m = Module._malloc(STRUCT_SIZES.EC_SCALAR);
+         const scalar1_m = Module._malloc(STRUCT_SIZES.EC_SCALAR);
+         const scalar2_m = Module._malloc(STRUCT_SIZES.EC_SCALAR);
          Module.HEAPU8.set(CnUtils.hextobin(scalar1), scalar1_m);
          Module.HEAPU8.set(CnUtils.hextobin(scalar2), scalar2_m);
-         let derived_m = Module._malloc(STRUCT_SIZES.EC_SCALAR);
+         const derived_m = Module._malloc(STRUCT_SIZES.EC_SCALAR);
          Module.ccall("sc_sub", "void", ["number", "number", "number"], [derived_m, scalar1_m, scalar2_m]);
-         let res = Module.HEAPU8.subarray(derived_m, derived_m + STRUCT_SIZES.EC_SCALAR);
+         const res = Module.HEAPU8.subarray(derived_m, derived_m + STRUCT_SIZES.EC_SCALAR);
          Module._free(scalar1_m);
          Module._free(scalar2_m);
          Module._free(derived_m);
@@ -703,16 +706,16 @@ export function sec_key_to_pub(sec : string) : string {
          if (k.length !== KEY_SIZE * 2 || sigc.length !== KEY_SIZE * 2 || sec.length !== KEY_SIZE * 2 || !CnUtils.valid_hex(k) || !CnUtils.valid_hex(sigc) || !CnUtils.valid_hex(sec)) {
              throw "bad scalar";
          }
-         let sec_m = Module._malloc(KEY_SIZE);
+         const sec_m = Module._malloc(KEY_SIZE);
          Module.HEAPU8.set(CnUtils.hextobin(sec), sec_m);
-         let sigc_m = Module._malloc(KEY_SIZE);
+         const sigc_m = Module._malloc(KEY_SIZE);
          Module.HEAPU8.set(CnUtils.hextobin(sigc), sigc_m);
-         let k_m = Module._malloc(KEY_SIZE);
+         const k_m = Module._malloc(KEY_SIZE);
          Module.HEAPU8.set(CnUtils.hextobin(k), k_m);
-         let res_m = Module._malloc(KEY_SIZE);
+         const res_m = Module._malloc(KEY_SIZE);
  
          Module.ccall("sc_mulsub", "void", ["number", "number", "number", "number"], [res_m, sigc_m, sec_m, k_m]);
-         let res = Module.HEAPU8.subarray(res_m, res_m + KEY_SIZE);
+         const res = Module.HEAPU8.subarray(res_m, res_m + KEY_SIZE);
          Module._free(k_m);
          Module._free(sec_m);
          Module._free(sigc_m);
@@ -722,16 +725,16 @@ export function sec_key_to_pub(sec : string) : string {
  
          // New function that takes binary directly
      export function sc_mulsub_bin(sigc_bin: Uint8Array, sec_bin: Uint8Array, k_bin: Uint8Array) {
-         let sigc_m = Module._malloc(KEY_SIZE);
+         const sigc_m = Module._malloc(KEY_SIZE);
          Module.HEAPU8.set(sigc_bin, sigc_m);
-         let sec_m = Module._malloc(KEY_SIZE);
+         const sec_m = Module._malloc(KEY_SIZE);
          Module.HEAPU8.set(sec_bin, sec_m);
-         let k_m = Module._malloc(KEY_SIZE);
+         const k_m = Module._malloc(KEY_SIZE);
          Module.HEAPU8.set(k_bin, k_m);
-         let res_m = Module._malloc(KEY_SIZE);
+         const res_m = Module._malloc(KEY_SIZE);
  
          Module.ccall("sc_mulsub", "void", ["number", "number", "number", "number"], [res_m, sigc_m, sec_m, k_m]);
-         let res = Module.HEAPU8.subarray(res_m, res_m + KEY_SIZE);
+         const res = Module.HEAPU8.subarray(res_m, res_m + KEY_SIZE);
          
          // Clean up
          Module._free(k_m);
@@ -777,23 +780,23 @@ export function sec_key_to_pub(sec : string) : string {
             };
         }
         
-        let _ge_tobytes = Module.cwrap("ge_tobytes", "void", ["number", "number"]);
-        let _ge_p3_tobytes = Module.cwrap("ge_p3_tobytes", "void", ["number", "number"]);
-        let _ge_scalarmult_base = Module.cwrap("ge_scalarmult_base", "void", ["number", "number"]);
-        let _ge_scalarmult = Module.cwrap("ge_scalarmult", "void", ["number", "number", "number"]);
-        let _sc_add = Module.cwrap("sc_add", "void", ["number", "number", "number"]);
-        let _sc_sub = Module.cwrap("sc_sub", "void", ["number", "number", "number"]);
-        let _sc_mulsub = Module.cwrap("sc_mulsub", "void", ["number", "number", "number", "number"]);
-        let _sc_0 = Module.cwrap("sc_0", "void", ["number"]);
-        let _ge_double_scalarmult_base_vartime = Module.cwrap("ge_double_scalarmult_base_vartime", "void", ["number", "number", "number", "number"]);
-        let _ge_double_scalarmult_precomp_vartime = Module.cwrap("ge_double_scalarmult_precomp_vartime", "void", ["number", "number", "number", "number", "number"]);
-        let _ge_frombytes_vartime = Module.cwrap("ge_frombytes_vartime", "number", ["number", "number"]);
-        let _ge_dsm_precomp = Module.cwrap("ge_dsm_precomp", "void", ["number", "number"]);
+        const _ge_tobytes = Module.cwrap("ge_tobytes", "void", ["number", "number"]);
+        const _ge_p3_tobytes = Module.cwrap("ge_p3_tobytes", "void", ["number", "number"]);
+        const _ge_scalarmult_base = Module.cwrap("ge_scalarmult_base", "void", ["number", "number"]);
+        const _ge_scalarmult = Module.cwrap("ge_scalarmult", "void", ["number", "number", "number"]);
+        const _sc_add = Module.cwrap("sc_add", "void", ["number", "number", "number"]);
+        const _sc_sub = Module.cwrap("sc_sub", "void", ["number", "number", "number"]);
+        const _sc_mulsub = Module.cwrap("sc_mulsub", "void", ["number", "number", "number", "number"]);
+        const _sc_0 = Module.cwrap("sc_0", "void", ["number"]);
+        const _ge_double_scalarmult_base_vartime = Module.cwrap("ge_double_scalarmult_base_vartime", "void", ["number", "number", "number", "number"]);
+        const _ge_double_scalarmult_precomp_vartime = Module.cwrap("ge_double_scalarmult_precomp_vartime", "void", ["number", "number", "number", "number", "number"]);
+        const _ge_frombytes_vartime = Module.cwrap("ge_frombytes_vartime", "number", ["number", "number"]);
+        const _ge_dsm_precomp = Module.cwrap("ge_dsm_precomp", "void", ["number", "number"]);
  
-         let buf_size = STRUCT_SIZES.EC_POINT * 2 * keys.length;
-         let buf_m = Module._malloc(buf_size);
-         let sig_size = STRUCT_SIZES.SIGNATURE * keys.length;
-         let sig_m = Module._malloc(sig_size);
+         const buf_size = STRUCT_SIZES.EC_POINT * 2 * keys.length;
+         const buf_m = Module._malloc(buf_size);
+         const sig_size = STRUCT_SIZES.SIGNATURE * keys.length;
+         const sig_m = Module._malloc(sig_size);
  
          // Struct pointer helper functions
          function buf_a(i : number) {
@@ -808,18 +811,18 @@ export function sec_key_to_pub(sec : string) : string {
          function sig_r(i : number) {
              return sig_m + STRUCT_SIZES.EC_SCALAR * (2 * i + 1);
          }
-         let image_m = Module._malloc(STRUCT_SIZES.KEY_IMAGE);
+         const image_m = Module._malloc(STRUCT_SIZES.KEY_IMAGE);
          Module.HEAPU8.set(CnUtils.hextobin(k_image), image_m);
          let i;
-         let image_unp_m = Module._malloc(STRUCT_SIZES.GE_P3);
-         let image_pre_m = Module._malloc(STRUCT_SIZES.GE_DSMP);
-         let sum_m = Module._malloc(STRUCT_SIZES.EC_SCALAR);
-         let k_m = Module._malloc(STRUCT_SIZES.EC_SCALAR);
-         let h_m = Module._malloc(STRUCT_SIZES.EC_SCALAR);
-         let tmp2_m = Module._malloc(STRUCT_SIZES.GE_P2);
-         let tmp3_m = Module._malloc(STRUCT_SIZES.GE_P3);
-         let pub_m = Module._malloc(KEY_SIZE);
-         let sec_m = Module._malloc(KEY_SIZE);
+         const image_unp_m = Module._malloc(STRUCT_SIZES.GE_P3);
+         const image_pre_m = Module._malloc(STRUCT_SIZES.GE_DSMP);
+         const sum_m = Module._malloc(STRUCT_SIZES.EC_SCALAR);
+         const k_m = Module._malloc(STRUCT_SIZES.EC_SCALAR);
+         const h_m = Module._malloc(STRUCT_SIZES.EC_SCALAR);
+         const tmp2_m = Module._malloc(STRUCT_SIZES.GE_P2);
+         const tmp3_m = Module._malloc(STRUCT_SIZES.GE_P3);
+         const pub_m = Module._malloc(KEY_SIZE);
+         const sec_m = Module._malloc(KEY_SIZE);
          Module.HEAPU8.set(CnUtils.hextobin(sec), sec_m);
          if (_ge_frombytes_vartime(image_unp_m, image_m) != 0) {
              throw "failed to call ge_frombytes_vartime";
@@ -829,11 +832,11 @@ export function sec_key_to_pub(sec : string) : string {
          for (i = 0; i < keys.length; i++) {
              if (i === real_index) {
                  // Real key
-                 let rand = CnRandom.random_scalar();
+                 const rand = CnRandom.random_scalar();
                  Module.HEAPU8.set(CnUtils.hextobin(rand), k_m);
                  _ge_scalarmult_base(tmp3_m, k_m);
                  _ge_p3_tobytes(buf_a(i), tmp3_m);
-                 let ec = CnNativeBride.hash_to_ec(keys[i]);
+                 const ec = CnNativeBride.hash_to_ec(keys[i]);
                  Module.HEAPU8.set(CnUtils.hextobin(ec), tmp3_m);
                  _ge_scalarmult(tmp2_m, k_m, tmp3_m);
                  _ge_tobytes(buf_b(i), tmp2_m);
@@ -846,20 +849,20 @@ export function sec_key_to_pub(sec : string) : string {
                  }
                  _ge_double_scalarmult_base_vartime(tmp2_m, sig_c(i), tmp3_m, sig_r(i));
                  _ge_tobytes(buf_a(i), tmp2_m);
-                 let ec = CnNativeBride.hash_to_ec(keys[i]);
+                 const ec = CnNativeBride.hash_to_ec(keys[i]);
                  Module.HEAPU8.set(CnUtils.hextobin(ec), tmp3_m);
                  _ge_double_scalarmult_precomp_vartime(tmp2_m, sig_r(i), tmp3_m, sig_c(i), image_pre_m);
                  _ge_tobytes(buf_b(i), tmp2_m);
                  _sc_add(sum_m, sum_m, sig_c(i));
              }
          }
-         let buf_bin = Module.HEAPU8.subarray(buf_m, buf_m + buf_size);
-         let scalar = Cn.hash_to_scalar(prefix_hash + CnUtils.bintohex(buf_bin));
+         const buf_bin = Module.HEAPU8.subarray(buf_m, buf_m + buf_size);
+         const scalar = Cn.hash_to_scalar(prefix_hash + CnUtils.bintohex(buf_bin));
          Module.HEAPU8.set(CnUtils.hextobin(scalar), h_m);
          _sc_sub(sig_c(real_index), h_m, sum_m);
          _sc_mulsub(sig_r(real_index), sig_c(real_index), sec_m, k_m);
-         let sig_data = CnUtils.bintohex(Module.HEAPU8.subarray(sig_m, sig_m + sig_size));
-         let sigs = [];
+         const sig_data = CnUtils.bintohex(Module.HEAPU8.subarray(sig_m, sig_m + sig_size));
+         const sigs = [];
          for (let k = 0; k < keys.length; k++) {
              sigs.push(sig_data.slice(STRUCT_SIZES.SIGNATURE * 2 * k, STRUCT_SIZES.SIGNATURE * 2 * (k + 1)));
          }
@@ -1014,8 +1017,8 @@ export function sec_key_to_pub(sec : string) : string {
 		} catch (error) {
 			// Fallback to JS Module implementation
 			console.warn('concealCrypto.generateKeyDerivation failed, using JS Module fallback:', error);
-			let pub_b = CnUtils.hextobin(pub);
-			let sec_b = CnUtils.hextobin(sec);
+			const pub_b = CnUtils.hextobin(pub);
+			const sec_b = CnUtils.hextobin(sec);
 			
 			try {
 				const pub_m = Module._malloc(KEY_SIZE);
@@ -1039,7 +1042,7 @@ export function sec_key_to_pub(sec : string) : string {
 					Module._ge_p1p1_to_p2(point2_m, point3_m);
 					Module._ge_tobytes(derivation_m, point2_m);
 					
-					let resultBytes = Module.HEAPU8.subarray(derivation_m, derivation_m + KEY_SIZE);
+					const resultBytes = Module.HEAPU8.subarray(derivation_m, derivation_m + KEY_SIZE);
 					return CnUtils.bintohex(resultBytes);
 					
 				} finally {
@@ -1068,19 +1071,19 @@ export function sec_key_to_pub(sec : string) : string {
 		} catch (error) {
 			// Fallback to JS Module implementation
 			console.warn('concealCrypto.derivePublicKey failed, using JS Module fallback:', error);
-			let derivation_b = CnUtils.hextobin(derivation);
-			let pub_spend_b = CnUtils.hextobin(pubSpend);
+			const derivation_b = CnUtils.hextobin(derivation);
+			const pub_spend_b = CnUtils.hextobin(pubSpend);
 
 			try {
-				let derivation_m = Module._malloc(KEY_SIZE);
-				let pub_spend_m = Module._malloc(KEY_SIZE);
-				let scalar_m = Module._malloc(KEY_SIZE);
-				let point1_m = Module._malloc(STRUCT_SIZES.GE_P3);
-				let point2_m = Module._malloc(STRUCT_SIZES.GE_P3);
-				let point3_m = Module._malloc(STRUCT_SIZES.GE_CACHED);
-				let point4_m = Module._malloc(STRUCT_SIZES.GE_P1P1);
-				let point5_m = Module._malloc(STRUCT_SIZES.GE_P2);
-				let derived_key_m = Module._malloc(KEY_SIZE);
+				const derivation_m = Module._malloc(KEY_SIZE);
+				const pub_spend_m = Module._malloc(KEY_SIZE);
+				const scalar_m = Module._malloc(KEY_SIZE);
+				const point1_m = Module._malloc(STRUCT_SIZES.GE_P3);
+				const point2_m = Module._malloc(STRUCT_SIZES.GE_P3);
+				const point3_m = Module._malloc(STRUCT_SIZES.GE_CACHED);
+				const point4_m = Module._malloc(STRUCT_SIZES.GE_P1P1);
+				const point5_m = Module._malloc(STRUCT_SIZES.GE_P2);
+				const derived_key_m = Module._malloc(KEY_SIZE);
 				
 				if (!derivation_m || !pub_spend_m || !scalar_m || !point1_m || !point2_m || !point3_m || !point4_m || !point5_m || !derived_key_m) {
 					console.error('Cn.derive_public_key: Failed to allocate buffers');
@@ -1092,8 +1095,8 @@ export function sec_key_to_pub(sec : string) : string {
 					Module.HEAPU8.set(pub_spend_b, pub_spend_m);
 					Module._ge_frombytes_vartime(point1_m, pub_spend_m);
 					
-					let scalar_hex = CnUtils.derivation_to_scalar(derivation, output_idx_in_tx);
-					let scalar_b = CnUtils.hextobin(scalar_hex);
+					const scalar_hex = CnUtils.derivation_to_scalar(derivation, output_idx_in_tx);
+					const scalar_b = CnUtils.hextobin(scalar_hex);
 					Module.HEAPU8.set(scalar_b, scalar_m);
 					
 					Module._ge_scalarmult_base(point2_m, scalar_m);
@@ -1102,7 +1105,7 @@ export function sec_key_to_pub(sec : string) : string {
 					Module._ge_p1p1_to_p2(point5_m, point4_m);
 					Module._ge_tobytes(derived_key_m, point5_m);
 					
-					let res = Module.HEAPU8.subarray(derived_key_m, derived_key_m + KEY_SIZE);
+					const res = Module.HEAPU8.subarray(derived_key_m, derived_key_m + KEY_SIZE);
 					return CnUtils.bintohex(res);
 					
 				} finally {
@@ -1450,8 +1453,8 @@ export function sec_key_to_pub(sec : string) : string {
  export namespace Cn{
  
      export function hash_to_scalar(buf : string) : string{
-         let hash = CnUtils.cn_fast_hash(buf);
-         let scalar = CnNativeBride.sc_reduce32(hash);
+         const hash = CnUtils.cn_fast_hash(buf);
+         const scalar = CnNativeBride.sc_reduce32(hash);
          return scalar;
      }
  
@@ -1473,7 +1476,7 @@ export function sec_key_to_pub(sec : string) : string {
          if (pub.length !== 64 || sec.length !== 64) {
              throw "Invalid input length";
          }
-         let P = CnUtils.ge_scalarmult(pub, sec);
+         const P = CnUtils.ge_scalarmult(pub, sec);
          return CnUtils.ge_scalarmult(P, CnUtils.d2s(8)); //mul8 to ensure group
      }
  
@@ -1487,7 +1490,7 @@ export function sec_key_to_pub(sec : string) : string {
          if (derivation.length !== 64 || pub.length !== 64) {
              throw "Invalid input length!";
          }
-         let s = CnUtils.derivation_to_scalar(derivation, out_index);
+         const s = CnUtils.derivation_to_scalar(derivation, out_index);
          
          // Ensure nacl.ll.ge_add is available
          if (typeof nacl === 'undefined' || !nacl.ll || !nacl.ll.ge_add) {
@@ -1512,14 +1515,14 @@ export function sec_key_to_pub(sec : string) : string {
          if (derivation.length !== 64 || pub.length !== 64) {
              throw "Invalid input length!";
          }
-         let s = CnUtils.derivation_to_scalar(derivation, out_index);
+         const s = CnUtils.derivation_to_scalar(derivation, out_index);
          return CnUtils.ge_sub(pub, CnUtils.ge_scalarmult_base(s));
      }
  
      export function generate_keys(seed : string) : {sec:string, pub:string}{
          if (seed.length !== 64) throw "Invalid input length!";
-         let sec = CnNativeBride.sc_reduce32(seed);
-         let pub = CnUtils.sec_key_to_pub(sec);
+         const sec = CnNativeBride.sc_reduce32(seed);
+         const pub = CnUtils.sec_key_to_pub(sec);
          return {
              sec: sec,
              pub: pub
@@ -1531,9 +1534,9 @@ export function sec_key_to_pub(sec : string) : string {
      }
  
      export function pubkeys_to_string(spend : string, view : string) {
-         let prefix = CnUtils.encode_varint(CRYPTONOTE_PUBLIC_ADDRESS_BASE58_PREFIX);
-         let data = prefix + spend + view;
-         let checksum = CnUtils.cn_fast_hash(data);
+         const prefix = CnUtils.encode_varint(CRYPTONOTE_PUBLIC_ADDRESS_BASE58_PREFIX);
+         const data = prefix + spend + view;
+         const checksum = CnUtils.cn_fast_hash(data);
          return cnBase58.encode(data + checksum.slice(0, ADDRESS_CHECKSUM_SIZE * 2));
      }
  
@@ -1548,7 +1551,7 @@ export function sec_key_to_pub(sec : string) : string {
          },
          public_addr:string
      }{
-         let keys = {
+         const keys = {
              spend:{
                  sec:'',
                  pub:''
@@ -1567,7 +1570,7 @@ export function sec_key_to_pub(sec : string) : string {
          }
  
          keys.spend = Cn.generate_keys(first);
-         let second = seed.length !== 64 ? CnUtils.cn_fast_hash(first) : CnUtils.cn_fast_hash(keys.spend.sec);
+         const second = seed.length !== 64 ? CnUtils.cn_fast_hash(first) : CnUtils.cn_fast_hash(keys.spend.sec);
          keys.view = Cn.generate_keys(second);
          keys.public_addr = Cn.pubkeys_to_string(keys.spend.pub, keys.view.pub);
          return keys;
@@ -1579,18 +1582,18 @@ export function sec_key_to_pub(sec : string) : string {
          intPaymentId: string|null
      }{
          let dec = cnBase58.decode(address);
-         logDebugMsg(dec,CRYPTONOTE_PUBLIC_ADDRESS_BASE58_PREFIX,CRYPTONOTE_PUBLIC_INTEGRATED_ADDRESS_BASE58_PREFIX);
-         let expectedPrefix = CnUtils.encode_varint(CRYPTONOTE_PUBLIC_ADDRESS_BASE58_PREFIX);
-         let expectedPrefixInt = CnUtils.encode_varint(CRYPTONOTE_PUBLIC_INTEGRATED_ADDRESS_BASE58_PREFIX);
-         let expectedPrefixSub = CnUtils.encode_varint(CRYPTONOTE_PUBLIC_SUBADDRESS_BASE58_PREFIX);
-         let prefix = dec.slice(0, expectedPrefix.length);
-         logDebugMsg(prefix,expectedPrefixInt,expectedPrefix);
+         // logDebugMsg(dec,CRYPTONOTE_PUBLIC_ADDRESS_BASE58_PREFIX,CRYPTONOTE_PUBLIC_INTEGRATED_ADDRESS_BASE58_PREFIX);
+         const expectedPrefix = CnUtils.encode_varint(CRYPTONOTE_PUBLIC_ADDRESS_BASE58_PREFIX);
+         const expectedPrefixInt = CnUtils.encode_varint(CRYPTONOTE_PUBLIC_INTEGRATED_ADDRESS_BASE58_PREFIX);
+         const expectedPrefixSub = CnUtils.encode_varint(CRYPTONOTE_PUBLIC_SUBADDRESS_BASE58_PREFIX);
+         const prefix = dec.slice(0, expectedPrefix.length);
+         // logDebugMsg(prefix,expectedPrefixInt,expectedPrefix);
          if (prefix !== expectedPrefix && prefix !== expectedPrefixInt && prefix !== expectedPrefixSub) {
              throw "Invalid address prefix";
          }
          dec = dec.slice(expectedPrefix.length);
-         let spend = dec.slice(0, 64);
-         let view = dec.slice(64, 128);
+         const spend = dec.slice(0, 64);
+         const view = dec.slice(64, 128);
          let checksum : string|null = null;
          let expectedChecksum : string|null = null;
          let intPaymentId : string|null = null;
@@ -1614,45 +1617,45 @@ export function sec_key_to_pub(sec : string) : string {
      }
  
      export function is_subaddress(addr : string) {
-         let decoded = cnBase58.decode(addr);
-         let subaddressPrefix = CnUtils.encode_varint(CRYPTONOTE_PUBLIC_SUBADDRESS_BASE58_PREFIX);
-         let prefix = decoded.slice(0, subaddressPrefix.length);
+         const decoded = cnBase58.decode(addr);
+         const subaddressPrefix = CnUtils.encode_varint(CRYPTONOTE_PUBLIC_SUBADDRESS_BASE58_PREFIX);
+         const prefix = decoded.slice(0, subaddressPrefix.length);
  
          return (prefix === subaddressPrefix);
      }
  
      export function valid_keys(view_pub : string, view_sec : string, spend_pub : string, spend_sec : string) {
-         let expected_view_pub = CnUtils.sec_key_to_pub(view_sec);
-         let expected_spend_pub = CnUtils.sec_key_to_pub(spend_sec);
+         const expected_view_pub = CnUtils.sec_key_to_pub(view_sec);
+         const expected_spend_pub = CnUtils.sec_key_to_pub(spend_sec);
          return (expected_spend_pub === spend_pub) && (expected_view_pub === view_pub);
      }
  
-     export function decrypt_payment_id(payment_id8 : string, tx_public_key : string, acc_prv_view_key : string) {
-         if (payment_id8.length !== 16) throw "Invalid input length2!";
- 
-         let key_derivation = Cn.generate_key_derivation(tx_public_key, acc_prv_view_key);
- 
-         let pid_key = CnUtils.cn_fast_hash(key_derivation + ENCRYPTED_PAYMENT_ID_TAIL.toString(16)).slice(0, INTEGRATED_ID_SIZE * 2);
- 
-         let decrypted_payment_id = CnUtils.hex_xor(payment_id8, pid_key);
- 
-         return decrypted_payment_id;
-     }
+    export function decrypt_payment_id(payment_id8 : string, tx_public_key : string, acc_prv_view_key : string) {
+        if (payment_id8.length !== 16) throw "Invalid input length2!";
+
+        const key_derivation = CnNativeBride.generate_key_derivation(tx_public_key, acc_prv_view_key);
+
+        const pid_key = CnUtils.cn_fast_hash(key_derivation + ENCRYPTED_PAYMENT_ID_TAIL.toString(16)).slice(0, INTEGRATED_ID_SIZE * 2);
+
+        const decrypted_payment_id = CnUtils.hex_xor(payment_id8, pid_key);
+
+        return decrypted_payment_id;
+    }
  
      export function get_account_integrated_address(address : string, payment_id8 : string) {
-         let decoded_address = decode_address(address);
+         const decoded_address = decode_address(address);
  
-         let prefix = CnUtils.encode_varint(CRYPTONOTE_PUBLIC_INTEGRATED_ADDRESS_BASE58_PREFIX);
-         let data = prefix + decoded_address.spend  + decoded_address.view + payment_id8;
+         const prefix = CnUtils.encode_varint(CRYPTONOTE_PUBLIC_INTEGRATED_ADDRESS_BASE58_PREFIX);
+         const data = prefix + decoded_address.spend  + decoded_address.view + payment_id8;
  
-         let checksum = CnUtils.cn_fast_hash(data);
+         const checksum = CnUtils.cn_fast_hash(data);
  
          return cnBase58.encode(data + checksum.slice(0, ADDRESS_CHECKSUM_SIZE * 2));
      }
  
      export function formatMoneyFull(units : number|string) {
          let unitsStr = (units).toString();
-         let symbol = unitsStr[0] === '-' ? '-' : '';
+         const symbol = unitsStr[0] === '-' ? '-' : '';
          if (symbol === '-') {
              unitsStr = unitsStr.slice(1);
          }
@@ -1670,7 +1673,7 @@ export function sec_key_to_pub(sec : string) : string {
      }
  
      export function formatMoney(units : number|string) {
-         let f = CnUtils.trimRight(Cn.formatMoneyFull(units), '0');
+         const f = CnUtils.trimRight(Cn.formatMoneyFull(units), '0');
          if (f[f.length - 1] === '.') {
              return f.slice(0, f.length - 1);
          }
@@ -1687,7 +1690,7 @@ export function sec_key_to_pub(sec : string) : string {
          if (!CnUtils.valid_hex(mask) || mask.length !== 64 || !CnUtils.valid_hex(amount) || amount.length !== 64){
              throw "invalid amount or mask!";
          }
-         let C = CnUtils.ge_double_scalarmult_base_vartime(amount, CnVars.H, mask);
+         const C = CnUtils.ge_double_scalarmult_base_vartime(amount, CnVars.H, mask);
          return C;
      }
  
@@ -1695,7 +1698,7 @@ export function sec_key_to_pub(sec : string) : string {
          if (!CnUtils.valid_hex(amount) || amount.length !== 64){
              throw "invalid amount!";
          }
-         let C = CnUtils.ge_double_scalarmult_base_vartime(amount, CnVars.H, CnVars.I);
+         const C = CnUtils.ge_double_scalarmult_base_vartime(amount, CnVars.H, CnVars.I);
          return C;
      }
  
@@ -1708,11 +1711,11 @@ export function sec_key_to_pub(sec : string) : string {
  
          //mask amount and mask
          // logDebugMsg('decode',rv.ecdhInfo[i], sk, h2d(rv.ecdhInfo[i].amount));
-         let ecdh_info = CnUtils.decode_rct_ecdh(rv.ecdhInfo[i], sk);
+         const ecdh_info = CnUtils.decode_rct_ecdh(rv.ecdhInfo[i], sk);
          // logDebugMsg('ecdh_info',ecdh_info);
          // mask = ecdh_info.mask;
-         let amount = ecdh_info.amount;
-         let C = rv.outPk[i].mask;
+         const amount = ecdh_info.amount;
+         const C = rv.outPk[i].mask;
  
          // logDebugMsg('amount', amount);
          // logDebugMsg('C', C);
@@ -1740,7 +1743,7 @@ export function sec_key_to_pub(sec : string) : string {
          if(derivation===null)
              derivation = CnNativeBride.generate_key_derivation(pub, sec);//[10;11]ms
  
-         let scalar1 = CnUtils.derivation_to_scalar(derivation, i);//[0.2ms;1ms]
+         const scalar1 = CnUtils.derivation_to_scalar(derivation, i);//[0.2ms;1ms]
  
          try
          {
@@ -1772,7 +1775,7 @@ export function sec_key_to_pub(sec : string) : string {
                          mask);
                      break;
                  default:
-                     logDebugMsg('Unsupported rc type', rv.type);
+                     // logDebugMsg('Unsupported rc type', rv.type);
                      // cerr << "Unsupported rct type: " << rv.type << endl;
                      return false;
              }
@@ -1799,21 +1802,21 @@ export function sec_key_to_pub(sec : string) : string {
  
          // let start = Date.now();
  
-         let in_ephemeral_pub = CnNativeBride.derive_public_key(recv_derivation, real_output_index, ack.public_spend_key);
+         const in_ephemeral_pub = CnNativeBride.derive_public_key(recv_derivation, real_output_index, ack.public_spend_key);
          // let in_ephemeral_pub = CnUtilNative.derive_public_key(recv_derivation, real_output_index, ack.public_spend_key);
          // logDebugMsg('in_ephemeral_pub',in_ephemeral_pub);
  
  
          // CHECK_AND_ASSERT_MES(r, false, "key image helper: failed to derive_public_key(" << recv_derivation << ", " << real_output_index <<  ", " << ack.m_account_address.m_spend_public_key << ")");
          //
-         let in_ephemeral_sec = CnNativeBride.derive_secret_key(recv_derivation, real_output_index, ack.spend_secret_key);
+         const in_ephemeral_sec = CnNativeBride.derive_secret_key(recv_derivation, real_output_index, ack.spend_secret_key);
          // let in_ephemeral_sec = CnNativeBride.derive_secret_key(recv_derivation, real_output_index, ack.spend_secret_key);
          // logDebugMsg('in_ephemeral_sec',in_ephemeral_sec);
  
  
  
          // let ki = CnNativeBride.generate_key_image_2(in_ephemeral_pub, in_ephemeral_sec);
-         let ki = CnNativeBride.generate_key_image_2(in_ephemeral_pub, in_ephemeral_sec);
+         const ki = CnNativeBride.generate_key_image_2(in_ephemeral_pub, in_ephemeral_sec);
  
          // let end = Date.now();
          // logDebugMsg(end-start);
@@ -1827,7 +1830,7 @@ export function sec_key_to_pub(sec : string) : string {
  
      //TODO duplicate above
      export function generate_key_image_helper_rct(keys : {view:{sec:string}, spend:{pub:string,sec:string}}, tx_pub_key : string, out_index : number, enc_mask : string | null) {
-         let recv_derivation = CnNativeBride.generate_key_derivation(tx_pub_key, keys.view.sec);
+         const recv_derivation = CnNativeBride.generate_key_derivation(tx_pub_key, keys.view.sec);
          if (!recv_derivation) throw "Failed to generate key image";
  
          let mask;
@@ -1840,16 +1843,16 @@ export function sec_key_to_pub(sec : string) : string {
          else
          {
              // for other ringct types or for non-ringct txs to this.
-             let temp0 = CnUtils.derivation_to_scalar(recv_derivation, out_index);
-             let temp1 = Cn.hash_to_scalar(temp0);
+             const temp0 = CnUtils.derivation_to_scalar(recv_derivation, out_index);
+             const temp1 = Cn.hash_to_scalar(temp0);
  
              mask = enc_mask ? CnNativeBride.sc_sub(enc_mask, temp1) : CnVars.I; //decode mask, or d2s(1) if no mask
          }
  
-         let ephemeral_pub = CnNativeBride.derive_public_key(recv_derivation, out_index, keys.spend.pub);
+         const ephemeral_pub = CnNativeBride.derive_public_key(recv_derivation, out_index, keys.spend.pub);
          if (!ephemeral_pub) throw "Failed to generate key image";
-         let ephemeral_sec = CnNativeBride.derive_secret_key(recv_derivation, out_index, keys.spend.sec);
-         let image = CnNativeBride.generate_key_image_2(ephemeral_pub, ephemeral_sec);
+         const ephemeral_sec = CnNativeBride.derive_secret_key(recv_derivation, out_index, keys.spend.sec);
+         const image = CnNativeBride.generate_key_image_2(ephemeral_pub, ephemeral_sec);
          return {
              in_ephemeral: {
                  pub: ephemeral_pub,
@@ -1870,7 +1873,7 @@ export function sec_key_to_pub(sec : string) : string {
      }
  
      export function decompose_tx_destinations(dsts : {address:string, amount:number}[], rct : boolean) : {address:string, amount:number}[] {
-         let out = [];
+         const out = [];
          if (rct) {
              for (let i = 0; i < dsts.length; i++) {
                  out.push({
@@ -1880,7 +1883,7 @@ export function sec_key_to_pub(sec : string) : string {
              }
          } else {
              for (let i = 0; i < dsts.length; i++) {
-                 let digits = CnUtils.decompose_amount_into_digits(dsts[i].amount);
+                 const digits = CnUtils.decompose_amount_into_digits(dsts[i].amount);
                  for (let j = 0; j < digits.length; j++) {
                      if (digits[j].compare(0) > 0) {
                          out.push({
@@ -1891,9 +1894,7 @@ export function sec_key_to_pub(sec : string) : string {
                  }
              }
          }
-         return out.sort(function(a,b){
-             return a["amount"] - b["amount"];
-         });
+         return out.sort((a,b)=> a["amount"] - b["amount"]);
      }
  
      export function get_payment_id_nonce(payment_id : string, pid_encrypt : boolean) {
@@ -1929,13 +1930,13 @@ export function sec_key_to_pub(sec : string) : string {
      //TODO merge
      export function add_additionnal_pub_keys_to_extra(extra : string, keys : string[]){
          //do not add if there is no additional keys
-         logDebugMsg('Add additionnal keys to extra', keys);
+         // logDebugMsg('Add additionnal keys to extra', keys);
          if(keys.length === 0)return extra;
  
          extra += TX_EXTRA_TAGS.ADDITIONAL_PUBKEY;
          // Encode count of keys
          extra += ('0' + (keys.length).toString(16)).slice(-2);
-         for(let key of keys){
+         for(const key of keys){
              if (key.length !== 64) throw "Invalid pubkey length";
              extra += key;
          }
@@ -2091,7 +2092,7 @@ export function sec_key_to_pub(sec : string) : string {
          buf += CnUtils.encode_varint(tx.vin.length);
          let i, j;
          for (i = 0; i < tx.vin.length; i++) {
-             let vin = tx.vin[i];
+             const vin = tx.vin[i];
              // logDebugMsg('start vin', vin);
              switch (vin.type) {
                  case "input_to_key":
@@ -2120,14 +2121,14 @@ export function sec_key_to_pub(sec : string) : string {
          // logDebugMsg('serialize tx ', tx);
          buf += CnUtils.encode_varint(tx.vout.length);
          for (i = 0; i < tx.vout.length; i++) {
-             let vout = tx.vout[i];
+             const vout = tx.vout[i];
              buf += CnUtils.encode_varint(vout.amount);
              switch (vout.target.type) {
                  case "txout_to_key":
                      buf += "02";
                      buf += vout.target.data.key;
                      break;
-                 case "txout_to_deposit_key":
+                 case "txout_to_deposit_key": {
                      buf += "03";
                      const keys = vout.target.data.keys || [];
                      buf += CnUtils.encode_varint(keys.length);	// varint for number of keys, only one for deposit
@@ -2137,6 +2138,7 @@ export function sec_key_to_pub(sec : string) : string {
                      buf += CnUtils.encode_varint(1);  // requiredSignatureCount is always 1 for deposits
                      buf += CnUtils.encode_varint_term(vout.target.data.term || 0);  // The term in block
                      break;
+                 }
                  default:
                      throw "Unhandled txout target type: " + vout.target.type;
              }
@@ -2198,12 +2200,12 @@ export function sec_key_to_pub(sec : string) : string {
          let buf = "";
          buf += CnTransactions.serialize_tx(tx, true);
          hashes += CnUtils.cn_fast_hash(buf);
-         let buf2 = CnTransactions.serialize_rct_base(tx.rct_signatures);
+         const buf2 = CnTransactions.serialize_rct_base(tx.rct_signatures);
          hashes += CnUtils.cn_fast_hash(buf2);
          buf += buf2;
          let buf3 = serializeRangeProofs(tx.rct_signatures);
          //add MGs
-         let p = tx.rct_signatures.p;
+         const p = tx.rct_signatures.p;
          if(p)
              for (let i = 0; i < p.MGs.length; i++) {
                  for (let j = 0; j < p.MGs[i].ss.length; j++) {
@@ -2215,7 +2217,7 @@ export function sec_key_to_pub(sec : string) : string {
  
          hashes += CnUtils.cn_fast_hash(buf3);
          buf += buf3;
-         let hash = CnUtils.cn_fast_hash(hashes);
+         const hash = CnUtils.cn_fast_hash(hashes);
          return {
              raw: buf,
              hash: hash,
@@ -2224,7 +2226,7 @@ export function sec_key_to_pub(sec : string) : string {
      }
  
      export function get_tx_prefix_hash(tx : CnTransactions.Transaction) {
-         let prefix = CnTransactions.serialize_tx(tx, true);
+         const prefix = CnTransactions.serialize_tx(tx, true);
          return CnUtils.cn_fast_hash(prefix);
      }
  
@@ -2255,7 +2257,7 @@ export function sec_key_to_pub(sec : string) : string {
              }
          }
          //signature struct
-         let bb : {
+         const bb : {
              s: string[][],
              ee:string
          } = {
@@ -2263,7 +2265,7 @@ export function sec_key_to_pub(sec : string) : string {
              ee: ""
          };
          //signature pubkey matrix
-         let L : string[][] = [];
+         const L : string[][] = [];
          //add needed sub vectors (1 per ring size)
          for (let i = 0; i < size; i++){
              bb.s[i] = [];
@@ -2271,14 +2273,14 @@ export function sec_key_to_pub(sec : string) : string {
          }
          //compute starting at the secret index to the last row
          let index;
-         let alpha = [];
+         const alpha = [];
          for (let i = 0; i < nrings; i++){
              index = parseInt(''+iv[i]);
              alpha[i] = CnRandom.random_scalar();
              L[index][i] = CnUtils.ge_scalarmult_base(alpha[i]);
              for (let j = index + 1; j < size; j++){
                  bb.s[j][i] = CnRandom.random_scalar();
-                 let c = Cn.hash_to_scalar(L[j-1][i]);
+                 const c = Cn.hash_to_scalar(L[j-1][i]);
                  L[j][i] = CnUtils.ge_double_scalarmult_base_vartime(c, pm[j][i], bb.s[j][i]);
              }
          }
@@ -2294,7 +2296,7 @@ export function sec_key_to_pub(sec : string) : string {
              let j = 0;
              for (j = 0; j < parseInt(iv[i]); j++){
                  bb.s[j][i] = CnRandom.random_scalar();
-                 let LL = CnUtils.ge_double_scalarmult_base_vartime(cc, pm[j][i], bb.s[j][i]);
+                 const LL = CnUtils.ge_double_scalarmult_base_vartime(cc, pm[j][i], bb.s[j][i]);
                  cc = Cn.hash_to_scalar(LL);
              }
              bb.s[j][i] = CnNativeBride.sc_mulsub(xv[i], cc, alpha[i]);
@@ -2309,11 +2311,11 @@ export function sec_key_to_pub(sec : string) : string {
      //   mask is a such that C = aG + bH, and b = amount
      //commitMaskObj = {C: commit, mask: mask}
      export function proveRange(commitMaskObj : {C:string,mask:string}, amount : number, nrings : number, enc_seed : number, exponent : number){
-         let size = 2;
+         const size = 2;
          let C = CnVars.I; //identity
          let mask = CnVars.Z; //zero scalar
-         let indices = CnUtils.d2b(amount); //base 2 for now
-         let sig : RangeProveSignature = {
+         const indices = CnUtils.d2b(amount); //base 2 for now
+         const sig : RangeProveSignature = {
              Ci: [],
              bsig:{
                  s:[],
@@ -2328,8 +2330,8 @@ export function sec_key_to_pub(sec : string) : string {
          }
          genSeeds(seeds, enc_seed);
          */
-         let ai = [];
-         let PM : string[][]= [];
+         const ai = [];
+         const PM : string[][]= [];
          for (let i = 0; i < size; i++){
              PM[i] = [];
          }
@@ -2393,9 +2395,9 @@ export function sec_key_to_pub(sec : string) : string {
      // this is a simplied MLSAG_Gen function to reflect that
      // because we don't want to force same secret column for all inputs
      export function MLSAG_Gen(message : string, pk : string[][], xx : string[], kimg : string, index : number){
-         let cols = pk.length; //ring size
+         const cols = pk.length; //ring size
          if (index >= cols){throw "index out of range";}
-         let rows = pk[0].length; //number of signature rows (always 2)
+         const rows = pk[0].length; //number of signature rows (always 2)
          if (rows !== 2){throw "wrong row count";}
          for (let i = 0; i < cols; i++){
              if (pk[i].length !== rows){throw "pk is not rectangular";}
@@ -2403,16 +2405,16 @@ export function sec_key_to_pub(sec : string) : string {
          if (xx.length !== rows){throw "bad xx size";}
  
          let c_old = "";
-         let alpha = [];
+         const alpha = [];
  
-         let rv : MG_Signature = {
+         const rv : MG_Signature = {
              ss: [],
              cc: ''
          };
          for (let i = 0; i < cols; i++){
              rv.ss[i] = [];
          }
-         let toHash = []; //holds 6 elements: message, pubkey, dsRow L, dsRow R, commitment, ndsRow L
+         const toHash = []; //holds 6 elements: message, pubkey, dsRow L, dsRow R, commitment, ndsRow L
          toHash[0] = message;
  
          //secret index (pubkey section)
@@ -2456,10 +2458,10 @@ export function sec_key_to_pub(sec : string) : string {
  
      //prepares for MLSAG_Gen
      export function proveRctMG(message : string, pubs : {dest:string, mask:string}[], inSk : {a:string, x:string}, kimg : string, mask : string, Cout : string, index : number){
-         let cols = pubs.length;
+         const cols = pubs.length;
          if (cols < 3){throw "cols must be > 2 (mixin)";}
-         let xx : string[] = [];
-         let PK : string[][] = [];
+         const xx : string[] = [];
+         const PK : string[][] = [];
          //fill pubkey matrix (copy destination, subtract commitments)
          for (let i = 0; i < cols; i++){
              PK[i] = [];
@@ -2494,24 +2496,24 @@ export function sec_key_to_pub(sec : string) : string {
      }
  
      export function serializeRangeProofs(rv : RctSignature) : string {
-         let buf = "";
-         let p = rv.p;
+         const buf = "";
+         const p = rv.p;
          if(p){
              if(p.rangeSigs.length)
                  return CnTransactions.serializeRangeProofsClassic(rv);
-             else if(p.bulletproofs.length)
+             if(p.bulletproofs.length)
                  return CnTransactions.serializeRangeProofsBulletproof(rv);
-             else
+             
                  throw new Error(' missing range proof or bulletproof range proof');
          }
-         else
+         
              throw new Error('invalid p signature');
          return buf;
      }
  
      export function serializeRangeProofsClassic(rv : RctSignature) : string {
          let buf = "";
-         let p = rv.p;
+         const p = rv.p;
          if(p && p.rangeSigs.length)
              for (let i = 0; i < p.rangeSigs.length; i++) {
                  for (let j = 0; j < p.rangeSigs[i].bsig.s.length; j++) {
@@ -2530,8 +2532,8 @@ export function sec_key_to_pub(sec : string) : string {
      }
  
      export function serializeRangeProofsBulletproof(rv : RctSignature) : string {
-         let buf = "";
-         let p = rv.p;
+         const buf = "";
+         const p = rv.p;
          if(p)
              for (let i = 0; i < p.bulletproofs.length; i++) {
                  throw new Error('bulletproof serialization not implemented');
@@ -2546,7 +2548,7 @@ export function sec_key_to_pub(sec : string) : string {
          let hashes = "";
          hashes += rv.message;
          hashes += CnUtils.cn_fast_hash(CnTransactions.serialize_rct_base(rv));
-         let buf = CnTransactions.serializeRangeProofs(rv);
+         const buf = CnTransactions.serializeRangeProofs(rv);
          hashes += CnUtils.cn_fast_hash(buf);
          return CnUtils.cn_fast_hash(hashes);
      }
@@ -2573,7 +2575,7 @@ export function sec_key_to_pub(sec : string) : string {
          txnFee : string,
          bulletproof : boolean = false
      ){
-         logDebugMsg('MIXIN:', mixRing);
+         // logDebugMsg('MIXIN:', mixRing);
          if (outAmounts.length !== amountKeys.length ){throw "different number of amounts/amount_keys";}
          for (let i = 0; i < mixRing.length; i++){
              if (mixRing[i].length <= indices[i]){throw "bad mixRing/index size";}
@@ -2582,9 +2584,9 @@ export function sec_key_to_pub(sec : string) : string {
          if (inAmounts.length !== inSk.length){throw "mismatched inAmounts/inSk";}
          if (indices.length !== inSk.length){throw "mismatched indices/inSk";}
  
-         logDebugMsg('======t');
+         // logDebugMsg('======t');
  
-         let rv : RctSignature = {
+         const rv : RctSignature = {
              type: inSk.length === 1 ? CnVars.RCT_TYPE.Full : CnVars.RCT_TYPE.Simple,
              message: message,
              outPk: [],
@@ -2599,36 +2601,36 @@ export function sec_key_to_pub(sec : string) : string {
          };
  
          let sumout = CnVars.Z;
-         let cmObj = {
+         const cmObj = {
              C: '',
              mask: ''
          };
  
-         logDebugMsg('====a');
+         // logDebugMsg('====a');
  
-         let p = rv.p;
+         const p = rv.p;
          if(p) {
-             let nrings = 64; //for base 2/current
+             const nrings = 64; //for base 2/current
              //compute range proofs, etc
              for (let i = 0; i < outAmounts.length; i++) {
-                 let teststart = new Date().getTime();
+                 const teststart = new Date().getTime();
                  if(!bulletproof)
                      p.rangeSigs[i] = CnTransactions.proveRange(cmObj, outAmounts[i], nrings, 0, 0);
                  // else
                  // 	p.bulletproofs[i] = CnTransactions.proveRangeBulletproof(cmObj, outAmounts[i], nrings, 0, 0);
  
-                 let testfinish = new Date().getTime() - teststart;
-                 logDebugMsg("Time take for range proof " + i + ": " + testfinish);
+                 const testfinish = new Date().getTime() - teststart;
+                 // logDebugMsg("Time take for range proof " + i + ": " + testfinish);
                  rv.outPk[i] = cmObj.C;
                  sumout = CnNativeBride.sc_add(sumout, cmObj.mask);
                  rv.ecdhInfo[i] = CnUtils.encode_rct_ecdh({mask: cmObj.mask, amount: CnUtils.d2s(outAmounts[i])}, amountKeys[i]);
              }
-             logDebugMsg('====a');
+             // logDebugMsg('====a');
  
              //simple
-             logDebugMsg('-----------rv type', rv.type);
+             // logDebugMsg('-----------rv type', rv.type);
              if (rv.type === CnVars.RCT_TYPE.Simple) {
-                 let ai = [];
+                 const ai = [];
                  let sumpouts = CnVars.Z;
                  //create pseudoOuts
                  let i = 0;
@@ -2639,7 +2641,7 @@ export function sec_key_to_pub(sec : string) : string {
                  }
                  ai[i] = CnNativeBride.sc_sub(sumout, sumpouts);
                  rv.pseudoOuts[i] = commit(CnUtils.d2s(inAmounts[i]), ai[i]);
-                 let full_message = CnTransactions.get_pre_mlsag_hash(rv);
+                 const full_message = CnTransactions.get_pre_mlsag_hash(rv);
                  for (let i = 0; i < inAmounts.length; i++) {
                      p.MGs.push(CnTransactions.proveRctMG(full_message, mixRing[i], inSk[i], kimg[i], ai[i], rv.pseudoOuts[i], indices[i]));
                  }
@@ -2650,7 +2652,7 @@ export function sec_key_to_pub(sec : string) : string {
                      sumC = CnUtils.ge_add(sumC, rv.outPk[i]);
                  }
                  sumC = CnUtils.ge_add(sumC, CnUtils.ge_scalarmult(CnVars.H, CnUtils.d2s(rv.txnFee)));
-                 let full_message = CnTransactions.get_pre_mlsag_hash(rv);
+                 const full_message = CnTransactions.get_pre_mlsag_hash(rv);
                  p.MGs.push(CnTransactions.proveRctMG(full_message, mixRing[0], inSk[0], kimg[0], sumout, sumC, indices[0]));
              }
          }
@@ -2680,18 +2682,19 @@ export function sec_key_to_pub(sec : string) : string {
          rct:boolean,
          message: string,
          messageTo: string|undefined,
+         cipher: "chacha8" | "chacha12",
          ttl: number,
          transactionType: string,
          term: number
      ){
          try {
-             console.log('Starting transaction construction...');
+             // console.log('Starting transaction construction...');
              //we move payment ID stuff here, because we need txkey to encrypt
-             let txkey = Cn.random_keypair();
-             logDebugMsg(txkey);
-             let extra = '';
+             const txkey = Cn.random_keypair();
+             // logDebugMsg(txkey);
+             const extra = '';
             // Payment ID will be added after message and TTL (WalletGreen order)
-             let tx : CnTransactions.Transaction = {
+             const tx : CnTransactions.Transaction = {
                  unlock_time: unlock_time,
                  version: rct ? CURRENT_TX_VERSION : OLD_TX_VERSION,
                  extra: extra,
@@ -2720,16 +2723,16 @@ export function sec_key_to_pub(sec : string) : string {
  
              tx.prvkey = txkey.sec;
  
-             let in_contexts = [];
+             const in_contexts = [];
              let inputs_money = JSBigInt.ZERO;
              let i, j;
  
-             logDebugMsg('Sources: ');
+             // logDebugMsg('Sources: ');
              //run the for loop twice to sort ins by key image
              //first generate key image and other construction data to sort it all in one go
              if (transactionType !== "withdraw") {
              for (i = 0; i < sources.length; i++) {
-                 logDebugMsg(i + ': ' + Cn.formatMoneyFull(sources[i].amount));
+                 // logDebugMsg(i + ': ' + Cn.formatMoneyFull(sources[i].amount));
                  if (sources[i].real_out >= sources[i].outputs.length) {
                      throw "real index >= outputs.length";
                  }
@@ -2737,7 +2740,7 @@ export function sec_key_to_pub(sec : string) : string {
  
                  // sets res.mask among other things. mask is identity for non-rct transactions
                  // and for coinbase ringct (type = 0) txs.
-                 let res = CnTransactions.generate_key_image_helper_rct(keys, sources[i].real_out_tx_key, sources[i].real_out_in_tx, sources[i].mask); //mask will be undefined for non-rct
+                 const res = CnTransactions.generate_key_image_helper_rct(keys, sources[i].real_out_tx_key, sources[i].real_out_in_tx, sources[i].mask); //mask will be undefined for non-rct
                  // in_contexts.push(res.in_ephemeral);
  
                  // now we mark if this is ringct coinbase txs. such transactions
@@ -2746,7 +2749,7 @@ export function sec_key_to_pub(sec : string) : string {
                  // coinbaser ringct txs.
                  //is_rct_coinbases.push((sources[i].mask ? sources[i].mask === I : 0));
  
-                 logDebugMsg('res.in_ephemeral.pub', res, res.in_ephemeral.pub, sources, i);
+                 // logDebugMsg('res.in_ephemeral.pub', res, res.in_ephemeral.pub, sources, i);
                  if (res.in_ephemeral.pub !== sources[i].outputs[sources[i].real_out].key) {
                      throw "in_ephemeral.pub != source.real_out.key";
                  }
@@ -2754,9 +2757,7 @@ export function sec_key_to_pub(sec : string) : string {
                      sources[i].in_ephemeral = res.in_ephemeral;
                  }
              //sort ins
-             sources.sort(function(a,b){
-                 return JSBigInt.parse(a.key_image, 16).compare(JSBigInt.parse(b.key_image, 16)) * -1 ;
-             });
+             sources.sort((a,b)=> JSBigInt.parse(a.key_image, 16).compare(JSBigInt.parse(b.key_image, 16)) * -1);
              } 
              //copy the sorted sources data to tx
              for (i = 0; i < sources.length; i++) {
@@ -2792,21 +2793,21 @@ export function sec_key_to_pub(sec : string) : string {
                  }
                  tx.vin.push(input_to_key);
              }
-             let outputs_money = JSBigInt.ZERO;
+             const outputs_money = JSBigInt.ZERO;
              let out_index = 0;
-             let amountKeys = []; //rct only
+             const amountKeys = []; //rct only
  
              let num_stdaddresses = 0;
              let num_subaddresses = 0;
              let single_dest_subaddress : string = '';
  
-             let unique_dst_addresses : {[key : string] : number} = {};
+             const unique_dst_addresses : {[key : string] : number} = {};
  
              for (i = 0; i < dsts.length; ++i) {
                  if (new JSBigInt(dsts[i].amount).compare(0) < 0) {
                      throw "dst.amount < 0"; //amount can be zero if no change
                  }
-                 let destKeys = Cn.decode_address(dsts[i].address);
+                 const destKeys = Cn.decode_address(dsts[i].address);
  
                  if(destKeys.view === keys.view.pub)//change address
                      continue;
@@ -2823,20 +2824,20 @@ export function sec_key_to_pub(sec : string) : string {
                  }
              }
  
-             logDebugMsg('Destinations resume:', unique_dst_addresses, num_stdaddresses, num_subaddresses );
+             // logDebugMsg('Destinations resume:', unique_dst_addresses, num_stdaddresses, num_subaddresses );
  
              if (num_stdaddresses == 0 && num_subaddresses == 1) {
-                 let uniqueSubaddressDecoded = Cn.decode_address(single_dest_subaddress);
+                 const uniqueSubaddressDecoded = Cn.decode_address(single_dest_subaddress);
                  txkey.pub = CnUtils.ge_scalarmult(uniqueSubaddressDecoded.spend, txkey.sec);
              }
  
-             let additional_tx_keys : string[] = [];
-             let additional_tx_public_keys : string[] = [];
-             let need_additional_txkeys : boolean = num_subaddresses > 0 && (num_stdaddresses > 0 || num_subaddresses > 1);
+             const additional_tx_keys : string[] = [];
+             const additional_tx_public_keys : string[] = [];
+             const need_additional_txkeys : boolean = num_subaddresses > 0 && (num_stdaddresses > 0 || num_subaddresses > 1);
  
  
              for (i = 0; i < dsts.length; ++i) {
-                 let destKeys = Cn.decode_address(dsts[i].address);
+                 const destKeys = Cn.decode_address(dsts[i].address);
  
                  let additional_txkey : {sec:string, pub:string} = {sec:'', pub:''};
                  if(need_additional_txkeys){
@@ -2847,29 +2848,29 @@ export function sec_key_to_pub(sec : string) : string {
                      }else
                          additional_txkey.pub = CnUtils.ge_scalarmult_base(additional_txkey.sec);
                  }
-                 let out_derivation;
-                 if(destKeys.view === keys.view.pub) {
-                     out_derivation = Cn.generate_key_derivation(txkey.pub, keys.view.sec);
-                 } else {
-                     if(Cn.is_subaddress(dsts[i].address) && need_additional_txkeys)
-                         out_derivation = Cn.generate_key_derivation(destKeys.view, additional_txkey.sec);
-                     else
-                         out_derivation = Cn.generate_key_derivation(destKeys.view, txkey.sec);
-                 }
+                let out_derivation;
+                if(destKeys.view === keys.view.pub) {
+                    out_derivation = CnNativeBride.generate_key_derivation(txkey.pub, keys.view.sec);
+                } else {
+                    if(Cn.is_subaddress(dsts[i].address) && need_additional_txkeys)
+                        out_derivation = CnNativeBride.generate_key_derivation(destKeys.view, additional_txkey.sec);
+                    else
+                        out_derivation = CnNativeBride.generate_key_derivation(destKeys.view, txkey.sec);
+                }
  
                  if (need_additional_txkeys){
                      additional_tx_public_keys.push(additional_txkey.pub);
                      additional_tx_keys.push(additional_txkey.sec);
                  }
  
-                 if (rct) {
-                     amountKeys.push(CnUtils.derivation_to_scalar(out_derivation, out_index));
-                 }
-                 let out_ephemeral_pub = Cn.derive_public_key(out_derivation, out_index, destKeys.spend);
-                 let out : CnTransactions.Vout;
+                if (rct) {
+                    amountKeys.push(CnUtils.derivation_to_scalar(out_derivation, out_index));
+                }
+                let out_ephemeral_pub = CnNativeBride.derive_public_key(out_derivation, out_index, destKeys.spend);
+                let out : CnTransactions.Vout;
                  
                      if (transactionType === "deposit" && i === 0 ) {
-                         let depositOut = {
+                         const depositOut = {
                              amount: dsts[i].amount, // dsts[0].amount = amount_to_deposit
                              target:{
                                  type: "txout_to_deposit_key",
@@ -2880,12 +2881,12 @@ export function sec_key_to_pub(sec : string) : string {
                                  }
                              }
                          };
-                         tx.vout.push(depositOut);
-                         ++out_index;
-                         ++i;
-                         out_ephemeral_pub = Cn.derive_public_key(out_derivation, out_index, destKeys.spend);
- 
-                     }
+                        tx.vout.push(depositOut);
+                        ++out_index;
+                        ++i;
+                        out_ephemeral_pub = CnNativeBride.derive_public_key(out_derivation, out_index, destKeys.spend);
+
+                    }
  
                          out = {
                              amount: dsts[i].amount,
@@ -2912,28 +2913,28 @@ export function sec_key_to_pub(sec : string) : string {
      // Encrypt message and add it to the extra
          // CCX has only 1 destination for messages anyways
          if (message) {
-         let messageAddress = messageTo;  // Use first destination for message encryption
+         const messageAddress = messageTo;  // Use first destination for message encryption
             
-        console.log('CN: messageAddress', messageAddress);
+        // console.log('CN: messageAddress', messageAddress);
        if (messageAddress) {
-         let destKeys = Cn.decode_address(messageAddress);
-         let derivation: string = CnNativeBride.generate_key_derivation(destKeys.spend, txkey.sec);
-         let magick1: string = "80";
-         let magick2: string = "00";
-         let keyData: string = derivation + magick1 + magick2;
-        let hash: string = CnUtils.cn_fast_hash(keyData);
-        let hashBuf: Uint8Array = CnUtils.hextobin(hash);
+         const destKeys = Cn.decode_address(messageAddress);
+         const derivation: string = CnNativeBride.generate_key_derivation(destKeys.spend, txkey.sec);
+         const magick1: string = "80";
+         const magick2: string = "00";
+         const keyData: string = derivation + magick1 + magick2;
+        const hash: string = CnUtils.cn_fast_hash(keyData);
+        const hashBuf: Uint8Array = CnUtils.hextobin(hash);
         
         // ✅ Optimized: Create 8-byte nonce with ArrayBuffer + DataView
         const nonceBuffer = new ArrayBuffer(8);
         const nonceView = new DataView(nonceBuffer);
-        let index: number = 0; // Because we only have one message
+        const index: number = 0; // Because we only have one message
         // Fill nonce in big-endian format
         nonceView.setBigUint64(0, BigInt(index), false); // false = big-endian
         
         // Encode message with 4-byte padding
-        let rawMessArr = new TextEncoder().encode(message);
-        let rawMessArrFull = new Uint8Array(rawMessArr.length + 4);
+        const rawMessArr = new TextEncoder().encode(message);
+        const rawMessArrFull = new Uint8Array(rawMessArr.length + 4);
         rawMessArrFull.set(rawMessArr);
         rawMessArrFull.set([0,0,0,0], rawMessArr.length);
         
@@ -2949,18 +2950,32 @@ export function sec_key_to_pub(sec : string) : string {
           const inputView = new Uint8Array(inputBuffer);
           inputView.set(rawMessArrFull);
           
-          // Encrypt with native C++ ChaCha8
-          const nativeResult = concealCrypto.chacha8(inputBuffer, keyBuffer, nonceBuffer);
+          // Encrypt with native C++ ChaCha (8 or 12 rounds)
+          let nativeResult: ArrayBuffer;
+          if (cipher === "chacha8") {
+            nativeResult = concealCrypto.chacha8(inputBuffer, keyBuffer, nonceBuffer);
+          } else if (cipher === "chacha12") {
+            nativeResult = concealCrypto.chacha12(inputBuffer, keyBuffer, nonceBuffer);
+          } else {
+            throw new Error(`Unsupported cipher: ${cipher}`);
+          }
+          
           const encryptedBuf = new Uint8Array(nativeResult);
           encryptedMessStr = CnUtils.bintohex(encryptedBuf);
         } catch (error) {
-          // Fallback to JS implementation if native fails
-          console.warn('Native chacha8 failed, using JS fallback:', error);
-          const nonceBuf12 = new Uint8Array(12);
-          nonceBuf12.set(new Uint8Array(nonceBuffer));
-          const cha = new JSChaCha8(hashBuf, nonceBuf12);
-          const _buf = cha.encrypt(rawMessArrFull);
-          encryptedMessStr = CnUtils.bintohex(_buf);
+          // Fallback to JS implementation (only available for ChaCha8)
+          if (cipher === "chacha8") {
+            console.warn('Native chacha8 failed, using JS fallback:', error);
+            const nonceBuf12 = new Uint8Array(12);
+            nonceBuf12.set(new Uint8Array(nonceBuffer));
+            const cha = new JSChaCha8(hashBuf, nonceBuf12);
+            const _buf = cha.encrypt(rawMessArrFull);
+            encryptedMessStr = CnUtils.bintohex(_buf);
+          } else {
+            // No JS fallback for ChaCha12 - let it fail
+            console.error(`Native ${cipher} failed and no JS fallback available:`, error);
+            throw error;
+          }
         }
  
          // Append to extra:
@@ -2976,8 +2991,8 @@ export function sec_key_to_pub(sec : string) : string {
              // Convert TTL from minutes to absolute UNIX timestamp in seconds
              const currentTimestamp = Math.floor(Date.now() / 1000); // Current time in seconds
              const ttlTimestamp = currentTimestamp + (ttl * 60); // Add TTL minutes converted to seconds
-             let ttlStr = CnUtils.encode_varint(ttlTimestamp);
-             let ttlSize = CnUtils.encode_varint(ttlStr.length / 2);
+             const ttlStr = CnUtils.encode_varint(ttlTimestamp);
+             const ttlSize = CnUtils.encode_varint(ttlStr.length / 2);
              tx.extra = tx.extra + TX_EXTRA_TAGS.TTL_TAG + ttlSize + ttlStr;
          }
 
@@ -2986,14 +3001,14 @@ export function sec_key_to_pub(sec : string) : string {
              if (pid_encrypt && payment_id.length !== INTEGRATED_ID_SIZE * 2) {
                  throw "payment ID must be " + INTEGRATED_ID_SIZE + " bytes to be encrypted!";
              }
-             logDebugMsg("Adding payment id: " + payment_id);
-             if (pid_encrypt && realDestViewKey) { //get the derivation from our passed viewkey, then hash that + tail to get encryption key
-                 let pid_key = CnUtils.cn_fast_hash(Cn.generate_key_derivation(realDestViewKey, txkey.sec) + ENCRYPTED_PAYMENT_ID_TAIL.toString(16)).slice(0, INTEGRATED_ID_SIZE * 2);
-                 logDebugMsg("Txkeys:", txkey, "Payment ID key:", pid_key);
-                 payment_id = CnUtils.hex_xor(payment_id, pid_key);
-             }
-             let nonce = CnTransactions.get_payment_id_nonce(payment_id, pid_encrypt);
-             logDebugMsg("Extra nonce: " + nonce);
+            // logDebugMsg("Adding payment id: " + payment_id);
+            if (pid_encrypt && realDestViewKey) { //get the derivation from our passed viewkey, then hash that + tail to get encryption key
+                const pid_key = CnUtils.cn_fast_hash(CnNativeBride.generate_key_derivation(realDestViewKey, txkey.sec) + ENCRYPTED_PAYMENT_ID_TAIL.toString(16)).slice(0, INTEGRATED_ID_SIZE * 2);
+                // logDebugMsg("Txkeys:", txkey, "Payment ID key:", pid_key);
+                payment_id = CnUtils.hex_xor(payment_id, pid_key);
+            }
+             const nonce = CnTransactions.get_payment_id_nonce(payment_id, pid_encrypt);
+             // logDebugMsg("Extra nonce: " + nonce);
              tx.extra = CnTransactions.add_nonce_to_extra(tx.extra, nonce);
          }
      
@@ -3002,40 +3017,40 @@ export function sec_key_to_pub(sec : string) : string {
          }
          if (!rct) {
              for (i = 0; i < sources.length; ++i) {
-                 let src_keys : string[] = [];
+                 const src_keys : string[] = [];
                  for (j = 0; j < sources[i].outputs.length; ++j) {
                      src_keys.push(sources[i].outputs[j].key);
                  }
                  if (transactionType !== "withdraw") {
-                 let sigs = CnNativeBride.generate_ring_signature(CnTransactions.get_tx_prefix_hash(tx), tx.vin[i].k_image, src_keys,
+                 const sigs = CnNativeBride.generate_ring_signature(CnTransactions.get_tx_prefix_hash(tx), tx.vin[i].k_image, src_keys,
                      in_contexts[i].sec, sources[i].real_out);
                  tx.signatures.push(sigs);
                  } else {
                      // For withdrawals, use multisignature signing
-                     let txPrefixHash = CnTransactions.get_tx_prefix_hash(tx);
+                     const txPrefixHash = CnTransactions.get_tx_prefix_hash(tx);
  
                      // Step 1: Generate key derivation
-                     let derivation = CnNativeBride.generate_key_derivation(
+                     const derivation = CnNativeBride.generate_key_derivation(
                          sources[i].real_out_tx_key,  				// sourceTransactionKey
                          keys.view.sec                				// accountKeys.viewSecretKey
                      );
                      //console.log('generate_key_derivation', sources[i].real_out_tx_key, keys.view.sec, 'true', derivation); // debug for crypto-test.cpp
                      // Step 2: Derive ephemeral keys
-                     let ephemeralPublicKey = CnNativeBride.derive_public_key(
+                     const ephemeralPublicKey = CnNativeBride.derive_public_key(
                          derivation,                  				// derivation
                          parseInt(sources[i].outputs[i].index),   	// outputIndex
                          keys.spend.pub               				// accountKeys.address.spendPublicKey
                      );
                      //console.log('derive_public_key', derivation, parseInt(sources[i].outputs[0].index), keys.spend.pub, 'true', ephemeralPublicKey); // debug for crypto-test.cpp
  
-                     let ephemeralSecretKey = CnNativeBride.derive_secret_key(
+                     const ephemeralSecretKey = CnNativeBride.derive_secret_key(
                          derivation,                					// derivation
                          parseInt(sources[i].outputs[i].index),   	// outputIndex
                          keys.spend.sec               				// accountKeys.spendSecretKey
                      );
                      //console.log('derive_secret_key', derivation, parseInt(sources[i].outputs[0].index), keys.spend.sec, ephemeralSecretKey); // debug for crypto-test.cpp
                      // Step 3: Generate signature using ephemeral keys
-                     let sig = CnNativeBride.generate_signature(
+                     const sig = CnNativeBride.generate_signature(
                          txPrefixHash,               				// txPrefixHash
                          ephemeralPublicKey,         				// ephemeralPublicKey
                          ephemeralSecretKey          				// ephemeralSecretKey
@@ -3047,7 +3062,7 @@ export function sec_key_to_pub(sec : string) : string {
                          ephemeralPublicKey,
                          sig
                      );
-                     console.log('Signature verification result:', isValidSignature);
+                     // console.log('Signature verification result:', isValidSignature);
                      if (!isValidSignature) {
                          throw "Signature verification failed";
                      }
@@ -3061,8 +3076,8 @@ export function sec_key_to_pub(sec : string) : string {
                          derivation,          						// D: key derivation
                          sig                  						// signature
                      );
-                     console.log('Deposit Public key:', sources[i].keys[0]);
-                     console.log('Signature verification from Blockchain point of view:', isValid_2);
+                     // console.log('Deposit Public key:', sources[i].keys[0]);
+                     // console.log('Signature verification from Blockchain point of view:', isValid_2);
                      if (!isValid_2) {
                          throw "Signature verification with derived key failed";
                      }
@@ -3072,12 +3087,12 @@ export function sec_key_to_pub(sec : string) : string {
                  }
              }
          } else { //rct
-             let txnFee = fee_amount;
-             let keyimages = [];
-             let inSk = [];
-             let inAmounts = [];
-             let mixRing : {dest:string, mask:string}[][] = [];
-             let indices = [];
+             const txnFee = fee_amount;
+             const keyimages = [];
+             const inSk = [];
+             const inAmounts = [];
+             const mixRing : {dest:string, mask:string}[][] = [];
+             const indices = [];
              for (i = 0; i < tx.vin.length; i++) {
                  keyimages.push(tx.vin[i].k_image);
                  inSk.push({
@@ -3098,19 +3113,19 @@ export function sec_key_to_pub(sec : string) : string {
                  }
                  indices.push(sources[i].real_out);
              }
-             let outAmounts: number[] = [];
+             const outAmounts: number[] = [];
              for (i = 0; i < tx.vout.length; i++) {
                  outAmounts.push(tx.vout[i].amount);
                  tx.vout[i].amount = 0; //zero out all rct outputs
              }
              // logDebugMsg('rc signature----');
-             let tx_prefix_hash = CnTransactions.get_tx_prefix_hash(tx);
+             const tx_prefix_hash = CnTransactions.get_tx_prefix_hash(tx);
              // logDebugMsg('rc signature----');
              tx.rct_signatures = CnTransactions.genRct(tx_prefix_hash, inSk, keyimages, /*destinations, */inAmounts, outAmounts, mixRing, amountKeys, indices, txnFee);
  
          }
          // logDebugMsg(tx);
-         console.log('Transaction construction completed successfully');
+         // console.log('Transaction construction completed successfully');
          return tx;
          } catch (error) {
              console.error('Error in construct_tx:', error);
@@ -3144,7 +3159,8 @@ export function sec_key_to_pub(sec : string) : string {
      realDestViewKey : string|undefined,
      unlock_time : number = 0,
      rct:boolean,
-     message: string, messageTo: string|undefined,
+     message: string, messageTo: string|undefined, 
+     cipher: "chacha8" | "chacha12",
      ttl: number,
      transactionType: string,
      term: number
@@ -3167,7 +3183,7 @@ export function sec_key_to_pub(sec : string) : string {
              }
          }
          }
-         let keys = {
+         const keys = {
              view: {
                  pub: pub_keys.view,
                  sec: sec_keys.view
@@ -3189,15 +3205,15 @@ export function sec_key_to_pub(sec : string) : string {
          }
          
          let found_money = JSBigInt.ZERO;
-         let sources : CnTransactions.Source[] = [];
-         logDebugMsg('Selected transfers: ', outputs);
+         const sources : CnTransactions.Source[] = [];
+         // logDebugMsg('Selected transfers: ', outputs);
          for (i = 0; i < outputs.length; ++i) {
              found_money = found_money.add(outputs[i].amount);
              if (found_money.compare(UINT64_MAX) !== -1) {
                  throw "Input overflow!";
              }
              if (transactionType === "withdraw") {
-                 let src : CnTransactions.Source = {
+                 const src : CnTransactions.Source = {
                      outputs: [
                          {
                          index:outputs[i].index.toString(),           //.index.toString(),
@@ -3221,7 +3237,7 @@ export function sec_key_to_pub(sec : string) : string {
                  sources.push(src);
  
              } else {
-             let src : CnTransactions.Source = {
+             const src : CnTransactions.Source = {
                  outputs: [],
                  amount: '',
                  real_out_tx_key:'',
@@ -3240,25 +3256,23 @@ export function sec_key_to_pub(sec : string) : string {
              
              if (mix_outs.length !== 0) { //if mixin
                  // Sort fake outputs by global index
-                 logDebugMsg('mix outs before sort',mix_outs[i].outs);
-                 mix_outs[i].outs.sort(function(a, b) {
-                     return new JSBigInt(a.global_index).compare(b.global_index);
-                 });
+                 //logDebugMsg('mix outs before sort',mix_outs[i].outs);
+                 mix_outs[i].outs.sort((a, b) => new JSBigInt(a.global_index).compare(b.global_index));
                  j = 0;
  
-                 logDebugMsg('mix outs sorted',mix_outs[i].outs);
+                 // logDebugMsg('mix outs sorted',mix_outs[i].outs);
  
                  while ((src.outputs.length < fake_outputs_count) && (j < mix_outs[i].outs.length)) {
-                     let out = mix_outs[i].outs[j];
-                     logDebugMsg('chekcing mixin');
-                     logDebugMsg("out: ", out);
-                     logDebugMsg("output ", i, ": ", outputs[i]);
+                     const out = mix_outs[i].outs[j];
+                     // logDebugMsg('chekcing mixin');
+                     // logDebugMsg("out: ", out);
+                     // logDebugMsg("output ", i, ": ", outputs[i]);
                      if (out.global_index === outputs[i].global_index) {
-                         logDebugMsg('got mixin the same as output, skipping');
+                         // logDebugMsg('got mixin the same as output, skipping');
                          j++;
                          continue;
                      }
-                     let oe : Output = {
+                     const oe : Output = {
                          index:out.global_index.toString(),
                          key:out.public_key,
                          commit:''
@@ -3278,12 +3292,12 @@ export function sec_key_to_pub(sec : string) : string {
                      j++;
                  }
              } // end of mixin
-             let real_oe = {
+             const real_oe = {
                  index:new JSBigInt(outputs[i].global_index || 0).toString(),
                  key:outputs[i].public_key,
                  commit:'',
              };
-             logDebugMsg('OUT FOR REAL:',outputs[i].global_index);
+             // logDebugMsg('OUT FOR REAL:',outputs[i].global_index);
              /*
              if (rct){
                  if (outputs[i].rct) {
@@ -3303,13 +3317,13 @@ export function sec_key_to_pub(sec : string) : string {
                  }
              }
              // Add real_oe to outputs
-             logDebugMsg('inserting real ouput at index', real_index, real_oe, outputs[i], i);
+             // logDebugMsg('inserting real ouput at index', real_index, real_oe, outputs[i], i);
              src.outputs.splice(real_index, 0, real_oe);
              src.real_out_tx_key = outputs[i].tx_pub_key;
              // Real output entry index
              src.real_out = real_index;
              src.real_out_in_tx = outputs[i].index;
-             logDebugMsg('check mask', outputs, rct, i);
+             // logDebugMsg('check mask', outputs, rct, i);
              /*
              if (rct){
                  if (outputs[i].rct) {
@@ -3325,11 +3339,11 @@ export function sec_key_to_pub(sec : string) : string {
              }
          }
      
-     logDebugMsg('found_money: ', found_money);
-     logDebugMsg('needed_money: ', needed_money);
-         logDebugMsg('sources: ', sources);
+     // logDebugMsg('found_money: ', found_money);
+     // logDebugMsg('needed_money: ', needed_money);
+     // logDebugMsg('sources: ', sources);
  
-         let change = {
+         const change = {
              amount: JSBigInt.ZERO
          };
          let cmp = needed_money.compare(found_money);
@@ -3344,7 +3358,7 @@ export function sec_key_to_pub(sec : string) : string {
          } else if (cmp > 0) {
              throw "Need more money than found! (have: " + Cn.formatMoney(found_money) + " need: " + Cn.formatMoney(needed_money) + ")";
          }
-         return CnTransactions.construct_tx(keys, sources, dsts, senderAddress, fee_amount, payment_id, pid_encrypt, realDestViewKey, unlock_time, rct, message, messageTo, ttl, transactionType, term);
+         return CnTransactions.construct_tx(keys, sources, dsts, senderAddress, fee_amount, payment_id, pid_encrypt, realDestViewKey, unlock_time, rct, message, messageTo, cipher, ttl, transactionType, term);
      }
 
  }

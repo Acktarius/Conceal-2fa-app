@@ -21,12 +21,12 @@ export class BiometricService {
       // Read settings directly to avoid circular dependency
       let settings: any = {};
       if (Platform.OS === 'web') {
-        const data = localStorage.getItem(this.SETTINGS_KEY);
+        const data = localStorage.getItem(BiometricService.SETTINGS_KEY);
         if (data) {
           settings = JSON.parse(data);
         }
       } else {
-        const data = await SecureStore.getItemAsync(this.SETTINGS_KEY);
+        const data = await SecureStore.getItemAsync(BiometricService.SETTINGS_KEY);
         if (data) {
           settings = JSON.parse(data);
         }

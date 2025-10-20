@@ -30,22 +30,22 @@ export class CoinUri{
 		description?:string,
 	}|null {
 		if(str.startsWith(CoinUri.coinAddressPrefix)){			// legacy code use to check .coinTxPrefix
-			let data = str 										//legacy .replace(this.coinTxPrefix,'');
-			let temp = data.replace(/&/g, '?').trim();
-			let exploded = temp.split('?');
+			const data = str 										//legacy .replace(this.coinTxPrefix,'');
+			const temp = data.replace(/&/g, '?').trim();
+			const exploded = temp.split('?');
 
 			if(exploded.length == 0)
 				throw 'missing_address';
 
-			if(exploded[0].length !== this.coinAddressLength)
+			if(exploded[0].length !== CoinUri.coinAddressLength)
 				throw 'invalid_address_length';
 
-			let decodedUri : any = {
+			const decodedUri : any = {
 				address:exploded[0]
 			};
 
 			for(let i = 0; i < exploded.length; ++i){
-				let optionParts = exploded[i].split('=');
+				const optionParts = exploded[i].split('=');
 				if(optionParts.length === 2){
 					switch (optionParts[0].trim()){
 						case 'payment_id':
@@ -79,7 +79,7 @@ export class CoinUri{
 
 	static isTxValid(str : string){
 		try{
-			this.decodeTx(str);
+			CoinUri.decodeTx(str);
 			return true;
 		}catch (e) {
 			return false;
@@ -88,7 +88,7 @@ export class CoinUri{
 
 	static encodeTx(address : string, paymentId:string|null = null, amount : string|null=null, recipientName:string|null = null, description : string|null=null) : string{
 		let encoded = address;					//legacy this.coinTxPrefix + address;
-		if(address.length !== this.coinAddressLength)
+		if(address.length !== CoinUri.coinAddressLength)
 			throw 'invalid_address_length';
 
 		if(paymentId !== null) encoded += '?payment_id='+paymentId;
@@ -108,21 +108,21 @@ export class CoinUri{
 		encryptMethod?:string
 	}{
 		if(str.startsWith(CoinUri.coinWalletPrefix)){
-			let data = str.replace(this.coinWalletPrefix,'').trim();
-			let exploded = data.split('?');
+			const data = str.replace(CoinUri.coinWalletPrefix,'').trim();
+			const exploded = data.split('?');
 
 			if(exploded.length == 0)
 				throw 'missing_address';
 
-			if(exploded[0].length !== this.coinAddressLength)
+			if(exploded[0].length !== CoinUri.coinAddressLength)
 				throw 'invalid_address_length';
 
-			let decodedUri : any = {
+			const decodedUri : any = {
 				address:exploded[0]
 			};
 
 			for(let i = 1; i < exploded.length; ++i){
-				let optionParts = exploded[i].split('=');
+				const optionParts = exploded[i].split('=');
 				if(optionParts.length === 2){
 					switch (optionParts[0].trim()){
 						case 'spend_key':
@@ -153,7 +153,7 @@ export class CoinUri{
 				(typeof decodedUri.viewKey !== 'undefined' && typeof decodedUri.address !== 'undefined')
 			) {
 				return decodedUri;
-			}else
+			}
 				throw 'missing_seeds';
 		}
 		throw 'missing_prefix';
@@ -161,7 +161,7 @@ export class CoinUri{
 
 	static isWalletValid(str : string){
 		try{
-			this.decodeWallet(str);
+			CoinUri.decodeWallet(str);
 			return true;
 		}catch (e) {
 			return false;
@@ -169,8 +169,8 @@ export class CoinUri{
 	}
 
 	static encodeWalletKeys(address : string, spendKey : string, viewKey : string|null=null, height:number|null=null, encryptMethod:string|null=null,nonce:string|null=null){
-		let encoded = this.coinWalletPrefix + address;
-		if(address.length !== this.coinAddressLength)
+		let encoded = CoinUri.coinWalletPrefix + address;
+		if(address.length !== CoinUri.coinAddressLength)
 			throw 'invalid_address_length';
 
 		if(spendKey !== null) encoded += '?spend_key='+spendKey;

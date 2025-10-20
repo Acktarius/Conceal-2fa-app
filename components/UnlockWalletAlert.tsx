@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { View, StyleSheet } from 'react-native';
-import { CustomAlert, CustomAlertProps } from './CustomAlert';
+import type React from 'react';
+import { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { CustomAlert, type CustomAlertProps } from './CustomAlert';
 import { PasswordInput } from './PasswordInput';
 
 interface UnlockWalletAlertProps extends Omit<CustomAlertProps, 'children' | 'onConfirm'> {

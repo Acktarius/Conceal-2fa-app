@@ -36,14 +36,14 @@ export class CronBuddy {
    * Example: { 'toBePushed': 60000, 'revokeQueue': 300000, 'walletSync': 30000 }
    */
   static start(intervals?: { [jobName: string]: number }): void {
-    if (this.isRunning) {
+    if (CronBuddy.isRunning) {
       getGlobalWorkletLogging().logging1string('CronBuddy: Already running');
       return;
     }
 
     // Default intervals if none provided
     const defaultIntervals = {
-      'toBePushed': this.DEFAULT_INTERVAL,      // 15 seconds - check for keys to push
+      'toBePushed': CronBuddy.DEFAULT_INTERVAL,      // 15 seconds - check for keys to push
       'revokeQueue': 60000,    // 1 minute - check for keys to revoke
       'walletSync': 30000,      // 30 seconds - check wallet sync status
     };
@@ -51,11 +51,11 @@ export class CronBuddy {
     const jobIntervals = intervals || defaultIntervals;
 
     console.log('CronBuddy: Starting background job scheduler with intervals:', jobIntervals);
-    this.isRunning = true;
+    CronBuddy.isRunning = true;
     
     // Start each job with its specific interval
     for (const [jobName, interval] of Object.entries(jobIntervals)) {
-      this.startJob(jobName, interval);
+      CronBuddy.startJob(jobName, interval);
     }
     
     getGlobalWorkletLogging().loggingWithNumber('CronBuddy: Started successfully with {} jobs', Object.keys(jobIntervals).length);
@@ -68,31 +68,31 @@ export class CronBuddy {
     getGlobalWorkletLogging().loggingWith_s_d(`CronBuddy: Starting job %s with %dms interval`, jobName, interval);
     
     // Run initial check
-    this.runJob(jobName);
+    CronBuddy.runJob(jobName);
     
     // Set up interval for periodic checks
     const intervalId = setInterval(() => {
-      this.runJob(jobName);
+      CronBuddy.runJob(jobName);
     }, interval);
     
-    this.intervalIds.set(jobName, intervalId);
+    CronBuddy.intervalIds.set(jobName, intervalId);
   }
 
   /**
    * Dynamically adjust the interval for a specific job
    */
   private static adjustJobInterval(jobName: string, newInterval: number): void {
-    const existingIntervalId = this.intervalIds.get(jobName);
+    const existingIntervalId = CronBuddy.intervalIds.get(jobName);
     if (existingIntervalId) {
       clearInterval(existingIntervalId);
       getGlobalWorkletLogging().loggingWith_s_d(`CronBuddy: Adjusted %s interval to %dms`, jobName, newInterval);
       
       // Set up new interval
       const newIntervalId = setInterval(() => {
-        this.runJob(jobName);
+        CronBuddy.runJob(jobName);
       }, newInterval);
       
-      this.intervalIds.set(jobName, newIntervalId);
+      CronBuddy.intervalIds.set(jobName, newIntervalId);
     }
   }
 
@@ -105,13 +105,13 @@ export class CronBuddy {
       
       switch (jobName) {
         case 'toBePushed':
-          await this.checkToBePushed();
+          await CronBuddy.checkToBePushed();
           break;
         case 'revokeQueue':
-          await this.checkRevokeQueue();
+          await CronBuddy.checkRevokeQueue();
           break;
         case 'walletSync':
-          await this.checkWalletSync();
+          await CronBuddy.checkWalletSync();
           break;
         default:
           console.warn(`CronBuddy: Unknown job '${jobName}'`);
@@ -126,27 +126,27 @@ export class CronBuddy {
    * Should be triggered when wallet goes from isLocal=false to isLocal=true
    */
   static stop(): void {
-    if (!this.isRunning) {
+    if (!CronBuddy.isRunning) {
       getGlobalWorkletLogging().logging1string('CronBuddy: Not running');
       return;
     }
 
     getGlobalWorkletLogging().logging1string('CronBuddy: Stopping background job scheduler (wallet downgraded to local-only)');
-    this.isRunning = false;
+    CronBuddy.isRunning = false;
     
     // Clear all intervals
-    for (const [jobName, intervalId] of this.intervalIds) {
+    for (const [jobName, intervalId] of CronBuddy.intervalIds) {
       clearInterval(intervalId);
       getGlobalWorkletLogging().loggingWithString(`CronBuddy: Stopped job {}`, jobName);
     }
-    this.intervalIds.clear();
+    CronBuddy.intervalIds.clear();
   }
 
   /**
    * Check if CronBuddy is running
    */
   static isActive(): boolean {
-    return this.isRunning;
+    return CronBuddy.isRunning;
   }
 
   /**
@@ -156,13 +156,13 @@ export class CronBuddy {
     if (jobName) {
       
       getGlobalWorkletLogging().loggingWithString(`CronBuddy: Force check requested for job {}`, jobName);
-      await this.runJob(jobName);
+      await CronBuddy.runJob(jobName);
     } else {
       getGlobalWorkletLogging().logging1string('CronBuddy: Force check requested for all jobs');
       await Promise.all([
-        this.checkToBePushed(),
-        this.checkRevokeQueue(),
-        this.checkWalletSync()
+        CronBuddy.checkToBePushed(),
+        CronBuddy.checkRevokeQueue(),
+        CronBuddy.checkWalletSync()
       ]);
     }
   }
@@ -216,7 +216,7 @@ export class CronBuddy {
 
       // Check wallet balance (wallet.amount is number, convert to JSBigInt for comparison)
       const walletAmountBigInt = new JSBigInt(walletOperations.getWalletBalance().toString());
-      if (walletAmountBigInt.compare(this.MIN_BALANCE_ATOMIC) < 0) {
+      if (walletAmountBigInt.compare(CronBuddy.MIN_BALANCE_ATOMIC) < 0) {
         getGlobalWorkletLogging().logging1string('CronBuddy: Insufficient balance, skipping toBePushed check');
         return;
       }
@@ -229,12 +229,12 @@ export class CronBuddy {
       
       if (!keyToPush) {
         // No keys to push - adjust interval back to default
-        this.adjustJobInterval('toBePushed', this.DEFAULT_INTERVAL);
+        CronBuddy.adjustJobInterval('toBePushed', CronBuddy.DEFAULT_INTERVAL);
         return;
       }
 
       // Found a key to push - adjust interval to busy mode
-      this.adjustJobInterval('toBePushed', this.BUSY_INTERVAL);
+      CronBuddy.adjustJobInterval('toBePushed', CronBuddy.BUSY_INTERVAL);
 
       try {
         // CRITICAL: Set toBePush = false IMMEDIATELY to prevent retry loops
@@ -260,19 +260,12 @@ export class CronBuddy {
         }
         
       } catch (error) {
-        console.error(`CronBuddy: Error pushing shared key ${keyToPush.name}:`, error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(`CronBuddy: Error pushing ${keyToPush.name}:`, errorMessage);
         
         // Re-enable toBePush for retry on next cycle
         keyToPush.toBePush = true;
         await storageService.saveSharedKeys(sharedKeys);
-        
-        // Check if it's a blockchain transaction error
-        if (error.message && error.message.includes('Failed to send raw transaction')) {
-          console.error(`CronBuddy: Blockchain transaction failed for ${keyToPush.name}. This may be due to network issues or insufficient balance.`);
-          // Will retry on next cycle since toBePush is re-enabled
-        } else {
-          console.error(`CronBuddy: Non-blockchain error for ${keyToPush.name}:`, error.message);
-        }
       }
 
     } catch (error) {
@@ -310,7 +303,7 @@ export class CronBuddy {
 
       // Check wallet balance (wallet.amount is number, convert to JSBigInt for comparison)
       const walletAmountBigInt = new JSBigInt(walletOperations.getWalletBalance().toString());
-      if (walletAmountBigInt.compare(this.MIN_BALANCE_ATOMIC) < 0) {
+      if (walletAmountBigInt.compare(CronBuddy.MIN_BALANCE_ATOMIC) < 0) {
         getGlobalWorkletLogging().logging1string('CronBuddy: Insufficient balance, skipping revokeQueue check');
         return;
       }
@@ -329,12 +322,12 @@ export class CronBuddy {
       
       if (!keyToRevoke) {
         // No keys to revoke - adjust interval back to default
-        this.adjustJobInterval('revokeQueue', this.DEFAULT_INTERVAL);
+        CronBuddy.adjustJobInterval('revokeQueue', CronBuddy.DEFAULT_INTERVAL);
         return;
       }
 
       // Found a key to revoke - adjust interval to busy mode
-      this.adjustJobInterval('revokeQueue', this.BUSY_INTERVAL);
+      CronBuddy.adjustJobInterval('revokeQueue', CronBuddy.BUSY_INTERVAL);
 
       try {
         if (!keyToRevoke.hash) {
@@ -368,28 +361,23 @@ export class CronBuddy {
         }
         
       } catch (error) {
-        console.error(`CronBuddy: Error revoking shared key ${keyToRevoke.name}:`, error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(`CronBuddy: Error revoking ${keyToRevoke.name}:`, errorMessage);
         
         // Re-enable revokeInQueue for retry on next cycle
         keyToRevoke.revokeInQueue = true;
         await storageService.saveSharedKeys(sharedKeys);
-        
-        // Check if it's a blockchain transaction error
-        if (error.message && error.message.includes('Failed to send raw transaction')) {
-          console.error(`CronBuddy: Blockchain transaction failed for ${keyToRevoke.name}. This may be due to network issues or insufficient balance.`);
-          // Will retry on next cycle since revokeInQueue is re-enabled
-        } else {
-          console.error(`CronBuddy: Non-blockchain error for ${keyToRevoke.name}:`, error.message);
-        }
       }
 
     } catch (error) {
       console.error('CronBuddy: Error checking revokeQueue:', error);
-      console.error('CronBuddy: Error details:', {
-        message: error.message,
-        stack: error.stack,
-        name: error.name
-      });
+      if (error instanceof Error) {
+        console.error('CronBuddy: Error details:', {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        });
+      }
     }
   }
 
@@ -406,7 +394,7 @@ export class CronBuddy {
     
     // Default intervals for status display
     const defaultIntervals = {
-      'toBePushed': this.DEFAULT_INTERVAL, // Will be dynamically adjusted
+      'toBePushed': CronBuddy.DEFAULT_INTERVAL, // Will be dynamically adjusted
       'revokeQueue': 60000,
       'walletSync': 30000
     };
@@ -419,7 +407,7 @@ export class CronBuddy {
     }
 
     return {
-      isRunning: this.isRunning,
+      isRunning: CronBuddy.isRunning,
       jobs
     };
   }

@@ -7,7 +7,13 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "dev": "export REACT_NATIVE_PACKAGER_HOSTNAME=192.168.1.19 && expo start",
-    "build": "expo export"
+    "build": "expo export",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "format": "biome format .",
+    "format:fix": "biome format --write .",
+    "check": "biome check .",
+    "check:fix": "biome check --write ."
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
@@ -45,6 +51,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
+    "@biomejs/biome": "2.2.6",
     "@react-native-community/cli": "^20.0.1",
     "@react-native/metro-config": "^0.81.4",
     "@types/react": "~19.1.10",

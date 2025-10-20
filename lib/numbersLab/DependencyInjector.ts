@@ -29,7 +29,7 @@ export class DependencyInjector{
     }
 
     returnBest(name:string, subname:string):any{
-        let found : any = this.searchFromRequireJs(name);
+        const found : any = this.searchFromRequireJs(name);
         //console.log(name, subname,found);
         if(found != null){
             this.register(name, new found(), subname);
@@ -39,22 +39,21 @@ export class DependencyInjector{
 
     searchFromRequireJs(name:string){
         //noinspection TypeScriptUnresolvedVariable
-        let loaded = (<any>window).require.s.contexts._.defined;
+        const loaded = (<any>window).require.s.contexts._.defined;
         let dependency = null;
 
         //console.log(loaded);
 
-        for(let containerName in loaded){
-            let container = loaded[containerName];
+        for(const containerName in loaded){
+            const container = loaded[containerName];
             //console.log('type', typeof container, container, container[name]);
             if(typeof container[name] != 'undefined') {
                 if(!DependencyInjector.debug)
                     return container[name];
-                else{
+                
                     if(dependency != null){
                         //console.log('%c/!\\ Dependency injector : Multiple Classes Have the same name !! Conflict when resolving dependencies', 'background: white;color: red');
                     }
-                }
                 dependency = container[name];
             }else{
 				//console.log('default->', typeof container['default']);
@@ -65,11 +64,10 @@ export class DependencyInjector{
             		if(container['default'].name === name){
 						if(!DependencyInjector.debug)
 							return container['default'];
-						else{
+						
 							if(dependency != null){
 								//console.log('%c/!\\ Dependency injector : Multiple Classes Have the same name !! Conflict when resolving dependencies', 'background: white;color: red');
 							}
-						}
 						dependency = container['default'];
 					}
 				}
@@ -85,7 +83,7 @@ export function DependencyInjectorInstance() : DependencyInjector{
 		typeof Context.getGlobalContext()['di'] === 'undefined' ||
 		Context.getGlobalContext()['di'] === null
 	){
-		let Inj : DependencyInjector = new DependencyInjector();
+		const Inj : DependencyInjector = new DependencyInjector();
 		Context.getGlobalContext()['di'] = Inj;
 		//console.log('register');
 	}
@@ -95,12 +93,12 @@ export function DependencyInjectorInstance() : DependencyInjector{
 
 export function Autowire(...keys: string[]) {
     // Inj.need(keys[0]);
-    return function(target: any, key: string) {
+    return (target: any, key: string) => {
         // property getter
-        let getter = function () {
-			let Inj : DependencyInjector = DependencyInjectorInstance();
+        const getter = () => {
+			const Inj : DependencyInjector = DependencyInjectorInstance();
             //console.log(Get: ${key} => ${_val});
-            let subname = keys.length > 1 ? keys[1] : 'default';
+            const subname = keys.length > 1 ? keys[1] : 'default';
             return Inj.getInstance(keys[0],subname);
         };
 

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { CustomAlert, CustomAlertProps } from './CustomAlert';
+import type React from 'react';
+import { useState } from 'react';
+import { CustomAlert, type CustomAlertProps } from './CustomAlert';
 import { PasswordInput } from './PasswordInput';
 
 interface PasswordInputAlertProps extends Omit<CustomAlertProps, 'children' | 'onConfirm'> {
@@ -38,11 +39,7 @@ export const PasswordInputAlert: React.FC<PasswordInputAlertProps> = ({
       onConfirm={handleConfirm}
       confirmText="Unlock"
     >
-      <PasswordInput
-        placeholder="Enter wallet password"
-        value={password}
-        onChangeText={setPassword}
-      />
+      <PasswordInput placeholder="Enter wallet password" value={password} onChangeText={setPassword} />
     </CustomAlert>
   );
 };

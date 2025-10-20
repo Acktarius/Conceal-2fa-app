@@ -13,7 +13,7 @@ export class TOTPService {
       
       // Calculate time counter
       const time = timestamp || Math.floor(Date.now() / 1000);
-      const counter = Math.floor(time / this.PERIOD);
+      const counter = Math.floor(time / TOTPService.PERIOD);
       
       // ✅ Optimized ArrayBuffer with DataView (faster than manual byte manipulation)
       const counterBuffer = new ArrayBuffer(8);
@@ -45,7 +45,7 @@ export class TOTPService {
                    (hmac[offset + 3] & 0xff);
       
       // Generate final code
-      const otp = (code % Math.pow(10, this.DIGITS)).toString().padStart(this.DIGITS, '0');
+      const otp = (code % 10 ** TOTPService.DIGITS).toString().padStart(TOTPService.DIGITS, '0');
       return otp;
     } catch (error) {
       console.error('Error generating TOTP:', error);
@@ -88,7 +88,7 @@ export class TOTPService {
                    (hmac[offset + 3] & 0xff);
       
       // Generate final code
-      const otp = (code % Math.pow(10, this.DIGITS)).toString().padStart(this.DIGITS, '0');
+      const otp = (code % 10 ** TOTPService.DIGITS).toString().padStart(TOTPService.DIGITS, '0');
       return otp;
     } catch (error) {
       console.error('Error generating TOTP for time step:', error);
@@ -98,11 +98,11 @@ export class TOTPService {
 
   static getTimeRemaining(): number {
     const now = Math.floor(Date.now() / 1000);
-    return this.PERIOD - (now % this.PERIOD);
+    return TOTPService.PERIOD - (now % TOTPService.PERIOD);
   }
 
   static getCurrentPeriod(): number {
-    return Math.floor(Date.now() / 1000 / this.PERIOD);
+    return Math.floor(Date.now() / 1000 / TOTPService.PERIOD);
   }
 
   static validateSecret(secret: string): boolean {

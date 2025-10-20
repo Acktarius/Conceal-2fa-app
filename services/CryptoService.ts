@@ -33,7 +33,7 @@ export class CryptoService {
         
         // Extend the sixteen 32-bit words into eighty 32-bit words
         for (let i = 16; i < 80; i++) {
-          w[i] = this.leftRotate(w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16], 1);
+          w[i] = CryptoService.leftRotate(w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16], 1);
         }
         
         // Initialize hash value for this chunk
@@ -56,10 +56,10 @@ export class CryptoService {
             k = 0xCA62C1D6;
           }
           
-          const temp = (this.leftRotate(a, 5) + f + e + k + w[i]) >>> 0;
+          const temp = (CryptoService.leftRotate(a, 5) + f + e + k + w[i]) >>> 0;
           e = d;
           d = c;
-          c = this.leftRotate(b, 30);
+          c = CryptoService.leftRotate(b, 30);
           b = a;
           a = temp;
         }

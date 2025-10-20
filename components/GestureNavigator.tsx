@@ -1,7 +1,8 @@
-import React, { useRef } from 'react';
-import { View, Dimensions } from 'react-native';
-import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import { useNavigation } from '@react-navigation/native';
+import type React from 'react';
+import { useRef } from 'react';
+import { Dimensions, View } from 'react-native';
+import { PanGestureHandler, State } from 'react-native-gesture-handler';
 
 interface GestureNavigatorProps {
   children: React.ReactNode;
@@ -15,15 +16,15 @@ export default function GestureNavigator({ children }: GestureNavigatorProps) {
 
   const onHandlerStateChange = (event: any) => {
     const { state, translationX } = event.nativeEvent;
-    
+
     if (state === State.BEGAN) {
       hasTriggered.current = false;
     }
-    
+
     if (state === State.END && !hasTriggered.current) {
       if (Math.abs(translationX) > gestureThreshold) {
         hasTriggered.current = true;
-        
+
         if (translationX > 0) {
           // Swipe right - navigate to previous tab
           navigateToPreviousTab();
@@ -38,12 +39,14 @@ export default function GestureNavigator({ children }: GestureNavigatorProps) {
   const navigateToPreviousTab = () => {
     const state = navigation.getState();
     const currentIndex = state.index;
-    
+
     if (currentIndex > 0) {
       // Navigate to previous tab: Settings → Wallet → Home
-      if (currentIndex === 2) { // Settings
+      if (currentIndex === 2) {
+        // Settings
         navigation.navigate('Wallet' as never);
-      } else if (currentIndex === 1) { // Wallet
+      } else if (currentIndex === 1) {
+        // Wallet
         navigation.navigate('Home' as never);
       }
     }
@@ -52,26 +55,22 @@ export default function GestureNavigator({ children }: GestureNavigatorProps) {
   const navigateToNextTab = () => {
     const state = navigation.getState();
     const currentIndex = state.index;
-    
+
     if (currentIndex < 2) {
       // Navigate to next tab: Home → Wallet → Settings
-      if (currentIndex === 0) { // Home
+      if (currentIndex === 0) {
+        // Home
         navigation.navigate('Wallet' as never);
-      } else if (currentIndex === 1) { // Wallet
+      } else if (currentIndex === 1) {
+        // Wallet
         navigation.navigate('Settings' as never);
       }
     }
   };
 
   return (
-    <PanGestureHandler
-      onHandlerStateChange={onHandlerStateChange}
-      activeOffsetX={[-30, 30]}
-      failOffsetY={[-50, 50]}
-    >
-      <View style={{ flex: 1 }}>
-        {children}
-      </View>
+    <PanGestureHandler onHandlerStateChange={onHandlerStateChange} activeOffsetX={[-30, 30]} failOffsetY={[-50, 50]}>
+      <View style={{ flex: 1 }}>{children}</View>
     </PanGestureHandler>
   );
 }

@@ -7,7 +7,7 @@ import * as Crypto from 'expo-crypto';
 import { Platform } from 'react-native';
 import { SharedKey } from '../model/Transaction';
 import { WalletStorageManager } from './WalletStorageManager';
-import { IStorageService } from './interfaces/IStorageService';
+import type { IStorageService } from './interfaces/IStorageService';
 import { dependencyContainer } from './DependencyContainer';
 
 export class StorageService implements IStorageService {
@@ -46,7 +46,7 @@ export class StorageService implements IStorageService {
   // TODO: Remove these functions when shared keys are integrated into transactions
   // Shared keys should use WalletRepository encryption like wallet data
   private static async encryptData(data: string): Promise<string> {
-    const combined = data + this.ENCRYPTION_SALT;
+    const combined = data + StorageService.ENCRYPTION_SALT;
     const hash = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, combined);
     return btoa(data + '|' + hash);
   }
@@ -57,7 +57,7 @@ export class StorageService implements IStorageService {
     const [data, hash] = decoded.split('|');
     
     // Verify the data integrity
-    const combined = data + this.ENCRYPTION_SALT;
+    const combined = data + StorageService.ENCRYPTION_SALT;
     const expectedHash = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, combined);
     
     if (hash !== expectedHash) {
@@ -70,12 +70,12 @@ export class StorageService implements IStorageService {
   static async saveSharedKeys(sharedKeys: SharedKey[]): Promise<void> {
     try {
       const data = JSON.stringify(sharedKeys);
-      const encryptedData = await this.encryptData(data);
+      const encryptedData = await StorageService.encryptData(data);
       
       if (Platform.OS === 'web') {
-        localStorage.setItem(this.SHARED_KEYS_KEY, encryptedData);
+        localStorage.setItem(StorageService.SHARED_KEYS_KEY, encryptedData);
       } else {
-        await AsyncStorage.setItem(this.SHARED_KEYS_KEY, encryptedData);
+        await AsyncStorage.setItem(StorageService.SHARED_KEYS_KEY, encryptedData);
       }
     } catch (error) {
       console.error('Error saving shared keys:', error);
@@ -87,14 +87,14 @@ export class StorageService implements IStorageService {
     try {
       let encryptedData: string | null;
       if (Platform.OS === 'web') {
-        encryptedData = localStorage.getItem(this.SHARED_KEYS_KEY);
+        encryptedData = localStorage.getItem(StorageService.SHARED_KEYS_KEY);
       } else {
-        encryptedData = await AsyncStorage.getItem(this.SHARED_KEYS_KEY);
+        encryptedData = await AsyncStorage.getItem(StorageService.SHARED_KEYS_KEY);
       }
       
       if (!encryptedData) return [];
       
-      const data = await this.decryptData(encryptedData);
+      const data = await StorageService.decryptData(encryptedData);
       const parsed = JSON.parse(data);
       return parsed.map((item: any) => {
         const sharedKey = new SharedKey();
@@ -130,9 +130,9 @@ export class StorageService implements IStorageService {
     try {
       const data = JSON.stringify(settings);
       if (Platform.OS === 'web') {
-        localStorage.setItem(this.SETTINGS_KEY, data);
+        localStorage.setItem(StorageService.SETTINGS_KEY, data);
       } else {
-        await SecureStore.setItemAsync(this.SETTINGS_KEY, data);
+        await SecureStore.setItemAsync(StorageService.SETTINGS_KEY, data);
       }
     } catch (error) {
       console.error('Error saving settings:', error);
@@ -144,9 +144,9 @@ export class StorageService implements IStorageService {
     try {
       let data: string | null;
       if (Platform.OS === 'web') {
-        data = localStorage.getItem(this.SETTINGS_KEY);
+        data = localStorage.getItem(StorageService.SETTINGS_KEY);
       } else {
-        data = await SecureStore.getItemAsync(this.SETTINGS_KEY);
+        data = await SecureStore.getItemAsync(StorageService.SETTINGS_KEY);
       }
       return data ? JSON.parse(data) : {};
     } catch (error) {
@@ -162,8 +162,8 @@ export class StorageService implements IStorageService {
       if (Platform.OS === 'web') {
         console.log('Clearing web storage...');
         // Clear all known keys
-        localStorage.removeItem(this.SHARED_KEYS_KEY);
-        localStorage.removeItem(this.SETTINGS_KEY);
+        localStorage.removeItem(StorageService.SHARED_KEYS_KEY);
+        localStorage.removeItem(StorageService.SETTINGS_KEY);
         localStorage.removeItem('shared_keys');
         localStorage.removeItem('app_settings');
         localStorage.removeItem('wallet_data');
@@ -174,15 +174,15 @@ export class StorageService implements IStorageService {
       } else {
         console.log('Clearing native storage...');
         // Clear all known keys
-        await SecureStore.deleteItemAsync(this.SHARED_KEYS_KEY);
-        await SecureStore.deleteItemAsync(this.SETTINGS_KEY);
+        await SecureStore.deleteItemAsync(StorageService.SHARED_KEYS_KEY);
+        await SecureStore.deleteItemAsync(StorageService.SETTINGS_KEY);
         await SecureStore.deleteItemAsync('shared_keys');
         await SecureStore.deleteItemAsync('app_settings');
         await SecureStore.deleteItemAsync('wallet_data');
         await SecureStore.deleteItemAsync('wallet_encryption_key');
         await SecureStore.deleteItemAsync('wallet_has_password');
         // Clear AsyncStorage
-        await AsyncStorage.removeItem(this.SHARED_KEYS_KEY);
+        await AsyncStorage.removeItem(StorageService.SHARED_KEYS_KEY);
       }
       
       // Clear wallet data
@@ -200,7 +200,7 @@ export class StorageService implements IStorageService {
       console.log('=== STORAGE DEBUG ===');
       
       // Check shared keys
-      const sharedKeys = await this.getSharedKeys();
+      const sharedKeys = await StorageService.getSharedKeys();
       console.log('Shared keys count:', sharedKeys.length);
       sharedKeys.forEach((key, index) => {
         console.log(`Shared key ${index}:`, {
@@ -220,7 +220,7 @@ export class StorageService implements IStorageService {
       }
       
       // Check settings
-      const settings = await this.getSettings();
+      const settings = await StorageService.getSettings();
       console.log('Settings:', settings);
       
       console.log('=== END STORAGE DEBUG ===');

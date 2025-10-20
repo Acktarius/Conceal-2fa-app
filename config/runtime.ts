@@ -22,7 +22,7 @@ interface RuntimeConfig {
  */
 export const getRuntimeConfig = (): RuntimeConfig => {
   const extra = Constants.expoConfig?.extra || {};
-  
+
   return {
     conceal: {
       defaultNodeUrl: extra.conceal?.defaultNodeUrl || 'https://explorer.conceal.network/',

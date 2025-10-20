@@ -3,7 +3,7 @@ import {Transaction} from "../model/Transaction";
 import {Wallet, WalletOptions} from "../model/Wallet";
 import {TransactionData} from "../model/Transaction";
 import {TransactionsExplorer} from "../model/TransactionsExplorer";
-import {RawDaemon_Transaction} from "../model/blockchain/BlockchainExplorer";
+import type {RawDaemon_Transaction} from "../model/blockchain/BlockchainExplorer";
 
 // React Native thread worker for parsing transactions
 // Adapted from ParseTransactions.ts for react-native-threads

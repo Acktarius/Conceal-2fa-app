@@ -1,12 +1,13 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { WalletService } from '../services/WalletService';
-import { StorageService } from '../services/StorageService';
-import { WalletStorageManager } from '../services/WalletStorageManager';
-import { CronBuddy } from '../services/CronBuddy';
-import { Wallet } from '../model/Wallet';
-import { config } from '../config';
-import { getGlobalWorkletLogging } from '../services/interfaces/IWorkletLogging';
+import type React from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
+import { config } from '../config';
+import type { Wallet } from '../model/Wallet';
+import { CronBuddy } from '../services/CronBuddy';
+import { getGlobalWorkletLogging } from '../services/interfaces/IWorkletLogging';
+import { StorageService } from '../services/StorageService';
+import { WalletService } from '../services/WalletService';
+import { WalletStorageManager } from '../services/WalletStorageManager';
 
 interface WalletContextType {
   wallet: Wallet | null;
@@ -46,7 +47,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
             setTimeout(() => {
               promptUserForSynchronization();
             }, 45000);
-          }
+          },
         },
         {
           text: 'OK',
@@ -59,8 +60,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
               console.error('Error starting wallet synchronization:', error);
               Alert.alert('Error', 'Failed to start wallet synchronization. Please try again.');
             }
-          }
-        }
+          },
+        },
       ],
       { cancelable: false }
     );
@@ -70,35 +71,33 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     initializeWallet();
   }, []);
 
-
-
   const initializeWallet = async () => {
     try {
       setIsLoading(true);
       console.log('Initializing wallet...');
-      
+
       // All authentication is now handled by WalletStorageManager.getWallet()
       // This includes biometric authentication, password prompts, and fallbacks
       console.log('Authentication will be handled by WalletStorageManager.getWallet()');
-      
+
       try {
         // Wallet operations in separate try-catch to maintain auth state
         const wallet = await WalletService.getOrCreateWallet('home');
         console.log('Wallet loaded:', !!wallet, 'Address:', wallet?.getPublicAddress() || 'none');
-        
+
         // If we got here, authentication was successful
         setIsAuthenticated(true);
-        
+
         // Note: Removed aggressive corrupted wallet detection that was clearing valid wallets
-        
+
         setWallet(wallet);
-        
+
         if (wallet) {
           // Calculate balance immediately using the loaded wallet object
           const currentBalance = new JSBigInt(wallet.amount);
           setBalance(currentBalance);
         }
-        
+
         // Note: refreshBalance() removed - balance is already calculated and set above
         /*
         // Start wallet synchronization if it's a blockchain wallet (with user confirmation after 5s delay)
@@ -112,7 +111,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         } else {
           await WalletService.startWalletSynchronization();
         }
-        */        
+        */
         // Call refreshWallet to start CronBuddy and complete initialization
         await refreshWallet(wallet);
       } catch (walletError) {
@@ -120,7 +119,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         console.error('Wallet error details:', {
           message: walletError.message,
           stack: walletError.stack,
-          name: walletError.name
+          name: walletError.name,
         });
         // Don't change authentication state, just set balance to 0
         setBalance(new JSBigInt(0));
@@ -130,7 +129,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       console.error('Initialization error details:', {
         message: error.message,
         stack: error.stack,
-        name: error.name
+        name: error.name,
       });
       // Only set isAuthenticated to false if it was an auth error
       if (error.message === 'Authentication required') {
@@ -167,11 +166,11 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         providedWalletAddress: providedWallet?.getPublicAddress() || 'none',
         providedWalletIsLocal: providedWallet?.isLocal(),
         providedWalletCreationHeight: providedWallet?.creationHeight,
-        providedWalletLastHeight: providedWallet?.lastHeight
+        providedWalletLastHeight: providedWallet?.lastHeight,
       });
-      
+
       let walletToUse: Wallet | null = null;
-      
+
       if (providedWallet) {
         // Use the provided wallet (no need to authenticate again)
         console.log('REFRESH WALLET: Using provided wallet');
@@ -180,7 +179,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         // Load wallet directly from storage without going through upgrade prompts
         console.log('REFRESH WALLET: Loading wallet from storage...');
         walletToUse = await WalletStorageManager.getWallet();
-        
+
         if (walletToUse) {
           console.log('REFRESH WALLET: Wallet loaded from storage:', {
             hasWallet: !!walletToUse,
@@ -189,7 +188,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
             creationHeight: walletToUse?.creationHeight,
             lastHeight: walletToUse?.lastHeight,
             hasKeys: !!walletToUse?.keys,
-            hasSpendKey: !!walletToUse?.keys?.priv?.spend
+            hasSpendKey: !!walletToUse?.keys?.priv?.spend,
           });
         } else {
           console.log('REFRESH WALLET: No wallet found during refresh - creating new local wallet');
@@ -197,11 +196,11 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           walletToUse = await WalletService.createLocalWallet();
         }
       }
-      
+
       if (walletToUse) {
         setWallet(walletToUse);
         await refreshBalance();
-        
+
         // Simple wallet observer - observe the CACHED wallet that WalletWatchdogRN modifies
         const cachedWallet = WalletService.getCachedWallet();
         if (cachedWallet) {
@@ -209,16 +208,18 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
             refreshBalance();
           });
         }
-        
+
         // PRAGMATIC APPROACH: Register direct callback for balance refresh
         WalletService.registerBalanceRefreshCallback(refreshBalance);
-        
+
         // Start wallet synchronization if it's a blockchain wallet
         if (!walletToUse.isLocal()) {
           try {
             if (!alreadyAsked) {
               // First time - show prompt after 5 seconds
-              getGlobalWorkletLogging().logging1string('Wallet is blockchain-enabled, scheduling synchronization prompt in 5 seconds...');
+              getGlobalWorkletLogging().logging1string(
+                'Wallet is blockchain-enabled, scheduling synchronization prompt in 5 seconds...'
+              );
               setAlreadyAsked(true);
               setTimeout(() => {
                 promptUserForSynchronization();
@@ -246,10 +247,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           // Stop CronBuddy if wallet becomes local
           CronBuddy.stop();
         }
-        
+
         // Increment refresh counter to force component re-renders
-        setRefreshCounter(prev => prev + 1);
-        
+        setRefreshCounter((prev) => prev + 1);
+
         console.log('Wallet refreshed successfully');
       }
     } catch (error) {
@@ -261,7 +262,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     // Use the cached wallet from WalletService, not the state variable
     // This ensures we're always using the most up-to-date wallet instance
     const cachedWallet = WalletService.getCachedWallet();
-    
+
     if (cachedWallet) {
       try {
         const currentBalance = new JSBigInt(cachedWallet.amount);
@@ -274,7 +275,6 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       setBalance(new JSBigInt(0));
     }
   };
-
 
   return (
     <WalletContext.Provider

@@ -15,8 +15,8 @@
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-import {BlockchainExplorer, NetworkInfo, RawDaemon_Transaction, RawDaemon_Out, RemoteNodeInformation} from "./BlockchainExplorer";
-import {Wallet} from "../Wallet";
+import {type BlockchainExplorer, NetworkInfo, type RawDaemon_Transaction, type RawDaemon_Out, type RemoteNodeInformation} from "./BlockchainExplorer";
+import type {Wallet} from "../Wallet";
 import {MathUtil} from "../MathUtil";
 import {CnTransactions, CnUtils} from "../Cn";
 import {Transaction} from "../Transaction";
@@ -151,13 +151,12 @@ class NodeWorker {
   getStatus = (): number => {
     if ((this._errors < this.maxTempErrors) && (this._allErrors < this.maxAllErrors)) {
       return 0;
-    } else if ((this._errors >= this.maxTempErrors) && (this._allErrors < this.maxAllErrors)) {
+    }if ((this._errors >= this.maxTempErrors) && (this._allErrors < this.maxAllErrors)) {
       return 1;
-    } else if (this._allErrors >= this.maxAllErrors) {
+    }if (this._allErrors >= this.maxAllErrors) {
       return 2;
-    } else {
-      return 3;
     }
+      return 3;
   }
 }
 
@@ -429,7 +428,7 @@ export class BlockchainExplorerRpcDaemon implements BlockchainExplorer {
 
     this.lastTimeRetrieveHeight = Date.now();
     return this.nodeWorkers.makeRequest('GET', 'getheight').then((data: any) => {
-      let height = parseInt(data.height);
+      const height = parseInt(data.height);
       this.cacheHeight = height;
       return height;
     });
@@ -508,7 +507,7 @@ export class BlockchainExplorerRpcDaemon implements BlockchainExplorer {
       
       if (result.success && (result.list.length > 0)) {
         for (let i = 0; i < result.list.length; ++i) {
-          let finalUrl = "https://" + result.list[i].url.host + "/";
+          const finalUrl = "https://" + result.list[i].url.host + "/";
 
           if (config.nodeList.findIndex(doesMatch(finalUrl)) == -1) {
             config.nodeList.push(finalUrl);
@@ -528,7 +527,7 @@ export class BlockchainExplorerRpcDaemon implements BlockchainExplorer {
   }
 
   start = (wallet: Wallet): WalletWatchdog => {
-    let watchdog = new WalletWatchdog(wallet, this);
+    const watchdog = new WalletWatchdog(wallet, this);
     watchdog.start();
     return watchdog;    
   }
@@ -539,7 +538,7 @@ export class BlockchainExplorerRpcDaemon implements BlockchainExplorer {
    * @param end
    */
   range(start: number, end: number) {
-      let numbers: number[] = [];
+      const numbers: number[] = [];
       for (let i = start; i <= end; ++i) {
           numbers.push(i);
       }
@@ -563,14 +562,14 @@ export class BlockchainExplorerRpcDaemon implements BlockchainExplorer {
       status: 'OK' | 'string',
       transactions: { transaction: any, timestamp: number, output_indexes: number[], height: number, block_hash: string, hash: string, fee: number }[]
     }) => {
-      let formatted: RawDaemon_Transaction[] = [];
+      const formatted: RawDaemon_Transaction[] = [];
 
       if (response.status !== 'OK') {
         throw 'invalid_transaction_answer';
       }
 
       if (response.transactions.length > 0) {
-        for (let rawTx of response.transactions) {
+        for (const rawTx of response.transactions) {
           let tx: RawDaemon_Transaction | null = null;
 
           if (rawTx && rawTx.transaction) {
@@ -600,9 +599,9 @@ export class BlockchainExplorerRpcDaemon implements BlockchainExplorer {
         status: 'OK' | 'string',
         transactions: { transaction: any, timestamp: number, output_indexes: number[], height: number, block_hash: string, hash: string, fee: number }[]
       }) => {
-        let formatted: RawDaemon_Transaction[] = [];
+        const formatted: RawDaemon_Transaction[] = [];
 
-        for (let rawTx of response.transactions) {
+        for (const rawTx of response.transactions) {
           let tx: RawDaemon_Transaction | null = null;
 
           if (rawTx && rawTx.transaction) {
@@ -667,10 +666,10 @@ export class BlockchainExplorerRpcDaemon implements BlockchainExplorer {
   }
 
   resolveOpenAlias(domain: string): Promise<{ address: string, name: string | null }> {
-      return this.nodeWorkers.makeRpcRequest('resolve_open_alias', {url: domain}).then(function (response: {
+      return this.nodeWorkers.makeRpcRequest('resolve_open_alias', {url: domain}).then((response: {
         addresses?: string[],
         status: 'OK' | string
-      }) {
+      }) => {
         if (response.addresses && response.addresses.length > 0)
           return {address: response.addresses[0], name: null};
         throw 'not_found';
@@ -679,8 +678,8 @@ export class BlockchainExplorerRpcDaemon implements BlockchainExplorer {
 
   getNetworkInfo(): Promise<any> {
       return this.nodeWorkers.makeRpcRequest('getlastblockheader').then((raw: any) => {
-        let nodeList: NodeWorker[] = this.nodeWorkers.getNodes();
-        let usedNodes: NodeInfo[] = [];
+        const nodeList: NodeWorker[] = this.nodeWorkers.getNodes();
+        const usedNodes: NodeInfo[] = [];
 
         for (let i = 0; i < nodeList.length; i++) {
           usedNodes.push({

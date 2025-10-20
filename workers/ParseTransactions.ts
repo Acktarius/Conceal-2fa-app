@@ -3,20 +3,20 @@ import {Transaction} from "../model/Transaction";
 import {Wallet, WalletOptions} from "../model/Wallet";
 import {TransactionData} from "../model/Transaction";
 import {TransactionsExplorer} from "../model/TransactionsExplorer";
-import {RawDaemon_Transaction} from "../model/blockchain/BlockchainExplorer";
+import type {RawDaemon_Transaction} from "../model/blockchain/BlockchainExplorer";
 
-onmessage = function (data: MessageEvent) {
+onmessage = (data: MessageEvent) => {
 	// if(data.isTrusted){
-	let event: any = data.data;
+	const event: any = data.data;
   try {
     if (event.type === 'initWallet') {
       postMessage({ type: 'readyWallet'	});
     } else if (event.type === 'process') {
-      let readMinersTx = typeof event.readMinersTx !== 'undefined' && event.readMinersTx;
-      let rawTransactions: RawDaemon_Transaction[] = event.transactions;
-      let maxBlockNumber: number = event.maxBlock; 
+      const readMinersTx = typeof event.readMinersTx !== 'undefined' && event.readMinersTx;
+      const rawTransactions: RawDaemon_Transaction[] = event.transactions;
+      const maxBlockNumber: number = event.maxBlock; 
       let currentWallet: Wallet | null = null;
-      let transactions = [];
+      const transactions = [];
 
       if (rawTransactions.length > 0) {
         currentWallet = Wallet.loadFromRaw(event.wallet);
@@ -31,7 +31,7 @@ onmessage = function (data: MessageEvent) {
         // log any raw transactions that need to be processed
         logDebugMsg(`rawTransactions`, rawTransactions);
 
-        for (let rawTransaction of rawTransactions) {
+        for (const rawTransaction of rawTransactions) {
           if (rawTransaction) {
             if (rawTransaction.height) {
               if (!readMinersTx && TransactionsExplorer.isMinerTx(rawTransaction)) {
@@ -40,7 +40,7 @@ onmessage = function (data: MessageEvent) {
 
               try {
                 // parse the raw transaction to include it into the wallet
-                let txData = TransactionsExplorer.parse(rawTransaction, currentWallet);
+                const txData = TransactionsExplorer.parse(rawTransaction, currentWallet);
 
                 if (txData && txData.transaction) {              
                   currentWallet.addNew(txData.transaction);

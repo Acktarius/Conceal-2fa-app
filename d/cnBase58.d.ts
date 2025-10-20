@@ -1,1 +1,1 @@
-declare var cnBase58 : any;
+declare var cnBase58: any;

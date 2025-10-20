@@ -1,6 +1,6 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import type React from 'react';
+import { Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 
 export interface ToggleOption {
@@ -41,7 +41,7 @@ export const ExpSectionToggle: React.FC<ExpSectionToggleProps> = ({
   leftOptionId,
   rightOptionId,
   children,
-  className = "mb-6",
+  className = 'mb-6',
 }) => {
   const { theme } = useTheme();
 
@@ -78,28 +78,22 @@ export const ExpSectionToggle: React.FC<ExpSectionToggleProps> = ({
     if (selectedOptionId === 'velvet') return '#8852d2';
     if (selectedOptionId === 'dark') return theme.colors.primary;
     if (selectedOptionId === 'light') return theme.colors.border;
-    
+
     // For 2FA Display options, use blue when not "off"
     if (selectedOptionId === 'off') return theme.colors.border;
     if (selectedOptionId === '5s' || selectedOptionId === '10s' || selectedOptionId === 'on') {
       return theme.colors.primary;
     }
-    
+
     return theme.colors.border; // Default
   };
 
   return (
     <View className={className}>
-      <Text 
-        className="text-base font-semibold mb-2 ml-1 font-poppins-medium" 
-        style={{ color: theme.colors.text }}
-      >
+      <Text className="text-base font-semibold mb-2 ml-1 font-poppins-medium" style={{ color: theme.colors.text }}>
         {sectionTitle}
       </Text>
-      <View 
-        className="rounded-2xl shadow-lg" 
-        style={{ backgroundColor: theme.colors.card }}
-      >
+      <View className="rounded-2xl shadow-lg" style={{ backgroundColor: theme.colors.card }}>
         {/* Header with toggle switch */}
         <View className="flex-row items-center justify-between p-4">
           <TouchableOpacity
@@ -109,47 +103,41 @@ export const ExpSectionToggle: React.FC<ExpSectionToggleProps> = ({
           >
             <Ionicons name={icon as any} size={24} color={theme.colors.text} />
             <View className="ml-3 flex-1">
-              <Text 
-                className="text-base font-medium font-poppins-medium" 
-                style={{ color: theme.colors.text }}
-              >
+              <Text className="text-base font-medium font-poppins-medium" style={{ color: theme.colors.text }}>
                 {title}
               </Text>
               {subtitle && (
-                <Text 
-                  className="text-sm mt-0.5 font-poppins" 
-                  style={{ color: theme.colors.textSecondary }}
-                >
+                <Text className="text-sm mt-0.5 font-poppins" style={{ color: theme.colors.textSecondary }}>
                   {subtitle}
                 </Text>
               )}
             </View>
           </TouchableOpacity>
-          
+
           {/* Toggle Switch - Track color matches selected theme */}
           <Switch
             value={toggleValue === true}
             onValueChange={handleToggleSwitch}
-            trackColor={{ 
+            trackColor={{
               false: theme.colors.border,
-              true: getTrackColor()
+              true: getTrackColor(),
             }}
             thumbColor={theme.colors.background}
             ios_backgroundColor={theme.colors.border}
           />
         </View>
-        
+
         {/* Expanded content - Only for 3+ options */}
         {isExpanded && hasMoreThanTwoOptions && (
           <View className="px-4 pb-4 border-t" style={{ borderTopColor: theme.colors.border }}>
             <View className="pt-3">
-              <Text 
-                className="text-sm font-medium mb-3 font-poppins-medium" 
+              <Text
+                className="text-sm font-medium mb-3 font-poppins-medium"
                 style={{ color: theme.colors.textSecondary }}
               >
                 Choose an option:
               </Text>
-              
+
               {/* Options list - Left to Right, icon + text */}
               <View className="flex-row items-center gap-4">
                 {options.map((option) => (
@@ -160,17 +148,17 @@ export const ExpSectionToggle: React.FC<ExpSectionToggleProps> = ({
                     activeOpacity={0.7}
                   >
                     {option.icon && (
-                      <Ionicons 
-                        name={option.icon as any} 
-                        size={16} 
+                      <Ionicons
+                        name={option.icon as any}
+                        size={16}
                         color={theme.colors.textSecondary}
                         style={{ marginRight: 4 }}
                       />
                     )}
-                    <Text 
-                      className="text-sm font-poppins-medium" 
-                      style={{ 
-                        color: selectedOptionId === option.id ? theme.colors.primary : theme.colors.text 
+                    <Text
+                      className="text-sm font-poppins-medium"
+                      style={{
+                        color: selectedOptionId === option.id ? theme.colors.primary : theme.colors.text,
                       }}
                     >
                       {option.label}
@@ -178,13 +166,9 @@ export const ExpSectionToggle: React.FC<ExpSectionToggleProps> = ({
                   </TouchableOpacity>
                 ))}
               </View>
-              
+
               {/* Custom children if provided */}
-              {children && (
-                <View className="mt-3">
-                  {children}
-                </View>
-              )}
+              {children && <View className="mt-3">{children}</View>}
             </View>
           </View>
         )}

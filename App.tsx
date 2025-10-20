@@ -1,13 +1,13 @@
 /// <reference path="./d/config.d.ts" />
 
-import "./global.css";
-import React from 'react';
+import './global.css';
 import { NavigationContainer } from '@react-navigation/native';
+import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
+import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { useFonts } from 'expo-font';
 
 // Polyfills are handled by metro.config.js aliases and polyfill files
 
@@ -29,8 +29,8 @@ import './lib/polyfills/path-polyfill.js';
 import './lib/polyfills/nacl-polyfill.js';
 
 import './lib/biginteger.js';
-import './lib/polyfills/JSBigIntPolyfill.ts';  // Polyfill loaded on top of original
-import './lib/sha3.js';  // Provides keccak_256 function
+import './lib/polyfills/JSBigIntPolyfill.ts'; // Polyfill loaded on top of original
+import './lib/sha3.js'; // Provides keccak_256 function
 
 // Import Conceal configuration and make it globally available (after JSBigInt is loaded)
 import { config } from './config';
@@ -42,10 +42,9 @@ import { config } from './config';
 console.log('ExpoCrypto available:', !!ExpoCrypto);
 console.log('Global Module available:', !!(global as any).Module);
 
-
 // Import cryptographic libraries (matching web wallet order)
 import './lib/crypto.js';
-import './lib/nacl-fast.js';  // This provides nacl.ll functions (matching web wallet)
+import './lib/nacl-fast.js'; // This provides nacl.ll functions (matching web wallet)
 import './lib/nacl-util.min.js';
 import './lib/base58.js';
 
@@ -65,28 +64,28 @@ console.log('APP: nacl.util available:', !!(global as any).nacl?.util);
 console.log('APP: self.Module available:', typeof self !== 'undefined' && !!(self as any).Module);
 console.log('APP: Module.cwrap available:', typeof self !== 'undefined' && !!(self as any).Module?.ccall);
 console.log('APP: Module._malloc available:', typeof self !== 'undefined' && !!(self as any).Module?._malloc);
-console.log('APP: Module functions:', typeof self !== 'undefined' ? Object.keys((self as any).Module || {}).length : 'N/A');
+console.log(
+  'APP: Module functions:',
+  typeof self !== 'undefined' ? Object.keys((self as any).Module || {}).length : 'N/A'
+);
 console.log('APP: nacl.util.encodeBase64 available:', !!(global as any).nacl?.util?.encodeBase64);
 
-
-import TabNavigator from './components/TabNavigator';
-import { WalletProvider } from './contexts/WalletContext';
-import { ThemeProvider, useTheme } from './contexts/ThemeContext';
-import { PasswordPromptProvider, usePasswordPrompt } from './contexts/PasswordPromptContext';
-import { SeedInputProvider, useSeedInput } from './contexts/SeedInputContext';
-import { QRInputProvider, useQRInput } from './contexts/QRInputContext';
-import { PasswordInputAlert } from './components/PasswordInputAlert';
 import { PasswordCreationAlert } from './components/PasswordCreationAlert';
-import { WalletService } from './services/WalletService'; // MAINTENANCE MODE: One-time wallet clearing for development/testing
+import { PasswordInputAlert } from './components/PasswordInputAlert';
+import TabNavigator from './components/TabNavigator';
+import { PasswordPromptProvider, usePasswordPrompt } from './contexts/PasswordPromptContext';
+import { QRInputProvider, useQRInput } from './contexts/QRInputContext';
+import { SeedInputProvider, useSeedInput } from './contexts/SeedInputContext';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+import { WalletProvider } from './contexts/WalletContext';
 import { StorageService } from './services/StorageService';
+import { WalletService } from './services/WalletService'; // MAINTENANCE MODE: One-time wallet clearing for development/testing
 import { initializeGlobalWorkletLogging } from './services/WorkletLoggingService';
-
-
 
 export default function App() {
   // Initialize global worklet logging service
   initializeGlobalWorkletLogging();
-  
+
   // Register services in dependency container to break circular dependencies
   WalletService.registerInContainer();
   StorageService.registerInContainer();
@@ -94,7 +93,7 @@ export default function App() {
     'Poppins-Regular': require('./assets/fonts/Poppins-Regular.ttf'),
     'Poppins-Medium': require('./assets/fonts/Poppins-Medium.ttf'),
     'Poppins-Light': require('./assets/fonts/Poppins-Light.ttf'),
-    'Poppins-Italic': require('./assets/fonts/Poppins-Italic.ttf')
+    'Poppins-Italic': require('./assets/fonts/Poppins-Italic.ttf'),
   });
 
   if (!fontsLoaded) {
@@ -122,28 +121,27 @@ export default function App() {
 
 function AppContent() {
   const { theme } = useTheme();
-  const { 
-    showPasswordPrompt, 
-    passwordPromptMessage, 
-    passwordPromptTitle, 
-    showPasswordPromptAlert, 
+  const {
+    showPasswordPrompt,
+    passwordPromptMessage,
+    passwordPromptTitle,
+    showPasswordPromptAlert,
     showPasswordCreationAlert,
     handlePasswordPrompt,
     showPasswordCreation,
     passwordCreationMessage,
     passwordCreationTitle,
-    handlePasswordCreation
+    handlePasswordCreation,
   } = usePasswordPrompt();
   const { showSeedInputModal } = useSeedInput();
   const { showQRScannerModal } = useQRInput();
-
 
   // Set global functions for services to access
   React.useEffect(() => {
     console.log('APP: Setting global passwordPromptContext...');
     (global as any).passwordPromptContext = {
       showPasswordPromptAlert,
-      showPasswordCreationAlert
+      showPasswordCreationAlert,
     };
     console.log('APP: Global context set:', !!(global as any).passwordPromptContext);
   }, [showPasswordPromptAlert, showPasswordCreationAlert]);
@@ -151,7 +149,7 @@ function AppContent() {
   React.useEffect(() => {
     console.log('APP: Setting global seedInputContext...');
     (global as any).seedInputContext = {
-      showSeedInputModal
+      showSeedInputModal,
     };
     console.log('APP: Global seed context set:', !!(global as any).seedInputContext);
   }, [showSeedInputModal]);
@@ -159,7 +157,7 @@ function AppContent() {
   React.useEffect(() => {
     console.log('APP: Setting global qrInputContext...');
     (global as any).qrInputContext = {
-      showQRScannerModal
+      showQRScannerModal,
     };
     console.log('APP: Global QR context set:', !!(global as any).qrInputContext);
   }, [showQRScannerModal]);
@@ -183,7 +181,7 @@ function AppContent() {
   */
 
   // Simple UI worklet test
-/*
+  /*
   React.useEffect(() => {
     const simpleUIWork = () => {
       'worklet';
@@ -195,15 +193,19 @@ function AppContent() {
 */
   // Debug log when alert state changes
   React.useEffect(() => {
-    console.log('APP: Password prompt state changed:', { showPasswordPrompt, passwordPromptTitle, passwordPromptMessage });
+    console.log('APP: Password prompt state changed:', {
+      showPasswordPrompt,
+      passwordPromptTitle,
+      passwordPromptMessage,
+    });
   }, [showPasswordPrompt, passwordPromptTitle, passwordPromptMessage]);
 
   return (
     <NavigationContainer>
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <StatusBar style={theme.isDark ? "light" : "dark"} />
+        <StatusBar style={theme.isDark ? 'light' : 'dark'} />
         <TabNavigator />
-        
+
         <PasswordInputAlert
           visible={showPasswordPrompt}
           title={passwordPromptTitle}
@@ -211,7 +213,7 @@ function AppContent() {
           onCancel={() => handlePasswordPrompt(null)}
           onConfirm={handlePasswordPrompt}
         />
-        
+
         <PasswordCreationAlert
           visible={showPasswordCreation}
           title={passwordCreationTitle}

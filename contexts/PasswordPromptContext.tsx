@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState } from 'react';
+import type React from 'react';
+import { createContext, useContext, useState } from 'react';
 
 interface PasswordPromptContextType {
   showPasswordPrompt: boolean;
@@ -21,12 +22,14 @@ export function PasswordPromptProvider({ children }: { children: React.ReactNode
   const [passwordPromptMessage, setPasswordPromptMessage] = useState('');
   const [passwordPromptTitle, setPasswordPromptTitle] = useState('');
   const [passwordPromptResolve, setPasswordPromptResolve] = useState<((password: string | null) => void) | null>(null);
-  
+
   // Password creation state
   const [showPasswordCreation, setShowPasswordCreation] = useState(false);
   const [passwordCreationMessage, setPasswordCreationMessage] = useState('');
   const [passwordCreationTitle, setPasswordCreationTitle] = useState('');
-  const [passwordCreationResolve, setPasswordCreationResolve] = useState<((password: string | null) => void) | null>(null);
+  const [passwordCreationResolve, setPasswordCreationResolve] = useState<((password: string | null) => void) | null>(
+    null
+  );
 
   const showPasswordPromptAlert = (title: string, message: string): Promise<string | null> => {
     console.log('PASSWORD CONTEXT: showPasswordPromptAlert called with:', title, message);
