@@ -1,5 +1,3 @@
-import quickCrypto from 'react-native-quick-crypto';
-
 export class CryptoService {
   static async hmacSha1(key: Uint8Array, data: Uint8Array): Promise<Uint8Array> {
     // SHA-1 implementation

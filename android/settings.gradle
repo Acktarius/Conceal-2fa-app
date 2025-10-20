@@ -31,9 +31,14 @@ extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
 }
 expoAutolinking.useExpoModules()
 
-rootProject.name = 'Conceal 2FA'
+rootProject.name = 'Conceal 2FA (Dev)'
 
 expoAutolinking.useExpoVersionCatalog()
 
 include ':app'
 includeBuild(expoAutolinking.reactNativeGradlePlugin)
+
+// Added by withNitroModulesPlugin
+
+include(":react-native-nitro-modules")
+project(":react-native-nitro-modules").projectDir = new File(rootProject.projectDir, "../node_modules/react-native-nitro-modules/android")

@@ -1,6 +1,6 @@
 import * as Crypto from 'expo-crypto';
 import { CryptoService } from './CryptoService';
-import quickCrypto from 'react-native-quick-crypto';
+import concealCrypto from 'react-native-conceal-crypto';
 
 export class TOTPService {
   private static readonly PERIOD = 30; // 30 seconds
@@ -15,19 +15,25 @@ export class TOTPService {
       const time = timestamp || Math.floor(Date.now() / 1000);
       const counter = Math.floor(time / this.PERIOD);
       
-      // Convert counter to 8-byte array (big-endian)
-      const counterBytes = new Uint8Array(8);
-      let tempCounter = counter;
-      for (let i = 7; i >= 0; i--) {
-        counterBytes[i] = tempCounter & 0xff;
-        tempCounter = Math.floor(tempCounter / 256);
-      }
+      // ✅ Optimized ArrayBuffer with DataView (faster than manual byte manipulation)
+      const counterBuffer = new ArrayBuffer(8);
+      const counterView = new DataView(counterBuffer);
+      counterView.setBigUint64(0, BigInt(counter), false); // false = big-endian
       
-      // Generate HMAC-SHA1
+      // Prepare secret as ArrayBuffer for native implementation
+      const secretBuffer = new ArrayBuffer(secretBytes.length);
+      const secretView = new Uint8Array(secretBuffer);
+      secretView.set(secretBytes);
+      
+      // Generate HMAC-SHA1 using native C++ implementation
       let hmac: Uint8Array;
       try {
-        hmac = quickCrypto.createHmac('sha1', secretBytes).update(counterBytes).digest();
-      } catch {
+        const concealCryptoResult = concealCrypto.hmacSha1(secretBuffer, counterBuffer);
+        hmac = new Uint8Array(concealCryptoResult);
+      } catch (error) {
+        // Fallback to JS implementation if native fails
+        console.warn('Native hmacSha1 failed, using fallback:', error);
+        const counterBytes = new Uint8Array(counterBuffer);
         hmac = await CryptoService.hmacSha1(secretBytes, counterBytes);
       }
      
@@ -52,19 +58,25 @@ export class TOTPService {
       // Decode base32 secret
       const secretBytes = CryptoService.base32Decode(secret.replace(/\s/g, '').toUpperCase());
       
-      // Convert time step to 8-byte array (big-endian)
-      const counterBytes = new Uint8Array(8);
-      let tempCounter = timeStep;
-      for (let i = 7; i >= 0; i--) {
-        counterBytes[i] = tempCounter & 0xff;
-        tempCounter = Math.floor(tempCounter / 256);
-      }
+      // ✅ Optimized ArrayBuffer with DataView (faster than manual byte manipulation)
+      const counterBuffer = new ArrayBuffer(8);
+      const counterView = new DataView(counterBuffer);
+      counterView.setBigUint64(0, BigInt(timeStep), false); // false = big-endian
       
-      // Generate HMAC-SHA1
+      // Prepare secret as ArrayBuffer for native implementation
+      const secretBuffer = new ArrayBuffer(secretBytes.length);
+      const secretView = new Uint8Array(secretBuffer);
+      secretView.set(secretBytes);
+      
+      // Generate HMAC-SHA1 using native C++ implementation
       let hmac: Uint8Array;
       try {
-        hmac = quickCrypto.createHmac('sha1', secretBytes).update(counterBytes).digest();
-      } catch {
+        const concealCryptoResult = concealCrypto.hmacSha1(secretBuffer, counterBuffer);
+        hmac = new Uint8Array(concealCryptoResult);
+      } catch (error) {
+        // Fallback to JS implementation if native fails
+        console.warn('Native hmacSha1 failed, using fallback:', error);
+        const counterBytes = new Uint8Array(counterBuffer);
         hmac = await CryptoService.hmacSha1(secretBytes, counterBytes);
       }
       

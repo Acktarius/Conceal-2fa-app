@@ -16,6 +16,7 @@
  */
 
 import {MnemonicLang} from "./MnemonicLang";
+import concealCrypto from 'react-native-conceal-crypto';
 
 
 class crc32Type{
@@ -171,35 +172,44 @@ export class Mnemonic{
 	}
 
 	static mn_random(bits : number) {
-		if (bits % 32 !== 0) throw "Something weird went wrong: Invalid number of bits - " + bits;
-		let array = new Uint32Array(bits / 32);
-		
-		// Check for crypto API in React Native environment
-		const crypto = global.crypto || (global as any).crypto || (global as any).msCrypto;
-		if (!crypto) throw "Crypto API not available in this environment";
-		
-		let i = 0;
-
-		function arr_is_zero() {
-			for (let j = 0; j < bits / 32; ++j) {
-				if (array[j] !== 0) return false;
+		try {
+			// ✅ Use native C++ secure random generation (libsodium or hardware RNG)
+			return concealCrypto.random(bits);
+		} catch (error) {
+			// Fallback to JavaScript implementation if native fails
+			console.warn('Native random generation failed, using JS fallback:', error);
+			
+			if (bits % 32 !== 0) throw "Something weird went wrong: Invalid number of bits - " + bits;
+			let array = new Uint32Array(bits / 32);
+			
+			// Check for crypto API in React Native environment
+			const crypto = global.crypto || (global as any).crypto || (global as any).msCrypto;
+			if (!crypto) throw "Crypto API not available in this environment";
+			
+			const arr_is_zero = () => {
+				for (let j = 0; j < bits / 32; ++j) {
+					if (array[j] !== 0) return false;
+				}
+				return true;
+			};
+			
+			let i = 0;
+			do {
+				crypto.getRandomValues(array);
+				++i;
+			} while (i < 5 && arr_is_zero());
+			
+			if (arr_is_zero()) {
+				throw "Something went wrong and we could not securely generate random data for your account";
 			}
-			return true;
+			
+			// Convert to hex
+			let out = '';
+			for (let j = 0; j < bits / 32; ++j) {
+				out += ('0000000' + array[j].toString(16)).slice(-8);
+			}
+			return out;
 		}
-
-		do {
-			crypto.getRandomValues(array);
-			++i;
-		} while (i < 5 && arr_is_zero());
-		if (arr_is_zero()) {
-			throw "Something went wrong and we could not securely generate random data for your account";
-		}
-		// Convert to hex
-		let out = '';
-		for (let j = 0; j < bits / 32; ++j) {
-			out += ('0000000' + array[j].toString(16)).slice(-8);
-		}
-		return out;
 	}
 
 	static detectLang(mnemonicPhrase : string){

@@ -16,6 +16,7 @@ export interface Theme {
     accent: string;
     success: string;
     warning: string;
+    status: string;
     error: string;
     border: string;
     tabBar: string;
@@ -44,6 +45,7 @@ const lightTheme: Theme = {
     accent: '#06B6D4',
     success: '#10B981',
     warning: '#F59E0B',
+    status: '#34D399',
     error: '#EF4444',
     border: '#E2E8F0',
     tabBar: '#FFFFFF',
@@ -71,7 +73,8 @@ const darkTheme: Theme = {
     primaryLight: '#1E293B',
     accent: '#22D3EE',
     success: '#34D399',
-    warning: '#FBBF24',
+    warning: '#F23333', // trashcan
+    status: '#34D399',
     error: '#F87171',
     border: '#475569',
     tabBar: '#1E293B',
@@ -99,7 +102,8 @@ const orangeTheme: Theme = {
     primaryLight: '#262626',
     accent: '#FF6B35',
     success: '#00FF7F',
-    warning: '#FFD700',
+    warning: '#F07B78',
+    status: '#34D399',
     error: '#FF4444',
     border: '#333333',
     tabBar: '#1A1A1A',
@@ -127,7 +131,8 @@ const velvetTheme: Theme = {
     primaryLight: '#2A1F2A',
     accent: '#B380E6',
     success: '#98FB98',
-    warning: '#FFB6C1',
+    warning: '#F07B78',  //trashcan
+    status: '#34D399',
     error: '#FF69B4',
     border: '#3A3A3A',
     tabBar: '#1A0F1A',

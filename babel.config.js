@@ -7,15 +7,6 @@ module.exports = function (api) {
     ],
     plugins: [
       [
-        'module-resolver',
-        {
-          alias: {
-            'stream': 'readable-stream',
-            'buffer': '@craftzdog/react-native-buffer',
-          },
-        },
-      ],
-      [
       'react-native-worklets/plugin',
       ],
     ],

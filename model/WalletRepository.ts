@@ -18,6 +18,8 @@
 import {RawFullyEncryptedWallet, RawWallet, Wallet} from "./Wallet";
 import {CoinUri} from "./CoinUri";
 import { getGlobalWorkletLogging } from "../services/interfaces/IWorkletLogging";
+import concealCrypto from 'react-native-conceal-crypto';
+
 export class WalletRepository {
 
   // Note: Storage methods are handled by WalletStorageManager in React Native
@@ -54,7 +56,30 @@ export class WalletRepository {
 			//console.log('new wallet format');
 			let rawFullyEncrypted : RawFullyEncryptedWallet = <any>rawWallet;
 			let encrypted = new Uint8Array(<any>rawFullyEncrypted.data);
-			let decrypted = nacl.secretbox.open(encrypted, nonce, privKey);
+			
+			// Decrypt wallet using native secretbox
+			let decrypted: Uint8Array | null;
+			try {
+				// Optimized ArrayBuffer preparation - avoid copy if already aligned
+				const encryptedBuffer = encrypted.byteOffset === 0 && encrypted.byteLength === encrypted.buffer.byteLength
+					? encrypted.buffer as ArrayBuffer
+					: (() => { const buf = new ArrayBuffer(encrypted.length); new Uint8Array(buf).set(encrypted); return buf; })();
+				
+				const nonceBuffer = nonce.byteOffset === 0 && nonce.byteLength === nonce.buffer.byteLength
+					? nonce.buffer as ArrayBuffer
+					: (() => { const buf = new ArrayBuffer(nonce.length); new Uint8Array(buf).set(nonce); return buf; })();
+				
+				const keyBuffer = privKey.byteOffset === 0 && privKey.byteLength === privKey.buffer.byteLength
+					? privKey.buffer as ArrayBuffer
+					: (() => { const buf = new ArrayBuffer(privKey.length); new Uint8Array(buf).set(privKey); return buf; })();
+				
+				const result = concealCrypto.secretboxOpen(encryptedBuffer, nonceBuffer, keyBuffer);
+				decrypted = result ? new Uint8Array(result) : null;
+			} catch (error) {
+				console.warn('Native secretboxOpen failed, using nacl fallback:', error);
+				decrypted = nacl.secretbox.open(encrypted, nonce, privKey);
+			}
+			
 			if(decrypted === null)
 				return null;
 
@@ -67,7 +92,30 @@ export class WalletRepository {
 			//console.log('old wallet format');
 			let oldRawWallet : RawWallet = <any>rawWallet;
 			let encrypted = new Uint8Array(<any>oldRawWallet.encryptedKeys);
-			let decrypted = nacl.secretbox.open(encrypted, nonce, privKey);
+			
+			// Decrypt old wallet format using native secretbox
+			let decrypted: Uint8Array | null;
+			try {
+				// Optimized ArrayBuffer preparation - avoid copy if already aligned
+				const encryptedBuffer = encrypted.byteOffset === 0 && encrypted.byteLength === encrypted.buffer.byteLength
+					? encrypted.buffer as ArrayBuffer
+					: (() => { const buf = new ArrayBuffer(encrypted.length); new Uint8Array(buf).set(encrypted); return buf; })();
+				
+				const nonceBuffer = nonce.byteOffset === 0 && nonce.byteLength === nonce.buffer.byteLength
+					? nonce.buffer as ArrayBuffer
+					: (() => { const buf = new ArrayBuffer(nonce.length); new Uint8Array(buf).set(nonce); return buf; })();
+				
+				const keyBuffer = privKey.byteOffset === 0 && privKey.byteLength === privKey.buffer.byteLength
+					? privKey.buffer as ArrayBuffer
+					: (() => { const buf = new ArrayBuffer(privKey.length); new Uint8Array(buf).set(privKey); return buf; })();
+				
+				const result = concealCrypto.secretboxOpen(encryptedBuffer, nonceBuffer, keyBuffer);
+				decrypted = result ? new Uint8Array(result) : null;
+			} catch (error) {
+				console.warn('Native secretboxOpen failed (old format), using nacl fallback:', error);
+				decrypted = nacl.secretbox.open(encrypted, nonce, privKey);
+			}
+			
 			if(decrypted === null)
 				return null;
 
@@ -102,13 +150,14 @@ export class WalletRepository {
 			});
 			
 			// Debug actual key values loaded
+			/*
 			if (wallet.keys?.priv?.spend) {
 				console.log('WALLET REPO: Spend key value after load:', wallet.keys.priv.spend);
 			}
 			if (wallet.keys?.priv?.view) {
 				console.log('WALLET REPO: View key value after load:', wallet.keys.priv.view);
 			}
-			
+			*/
 			if(wallet.coinAddressPrefix !== config.addressPrefix)
 				return null;
 			return wallet;
@@ -192,7 +241,29 @@ export class WalletRepository {
 		let rawWallet = wallet.exportToRaw();
 		let uint8EncryptedContent = new (<any>TextEncoder)("utf8").encode(JSON.stringify(rawWallet));
 
-		let encrypted : Uint8Array = nacl.secretbox(uint8EncryptedContent, nonce, privKey);
+		// Encrypt wallet using native secretbox
+		let encrypted: Uint8Array;
+		try {
+			// Optimized ArrayBuffer preparation - avoid copy if already aligned
+			const messageBuffer = uint8EncryptedContent.byteOffset === 0 && uint8EncryptedContent.byteLength === uint8EncryptedContent.buffer.byteLength
+				? uint8EncryptedContent.buffer as ArrayBuffer
+				: (() => { const buf = new ArrayBuffer(uint8EncryptedContent.length); new Uint8Array(buf).set(uint8EncryptedContent); return buf; })();
+			
+			const nonceBuffer = nonce.byteOffset === 0 && nonce.byteLength === nonce.buffer.byteLength
+				? nonce.buffer as ArrayBuffer
+				: (() => { const buf = new ArrayBuffer(nonce.length); new Uint8Array(buf).set(nonce); return buf; })();
+			
+			const keyBuffer = privKey.byteOffset === 0 && privKey.byteLength === privKey.buffer.byteLength
+				? privKey.buffer as ArrayBuffer
+				: (() => { const buf = new ArrayBuffer(privKey.length); new Uint8Array(buf).set(privKey); return buf; })();
+			
+			const result = concealCrypto.secretbox(messageBuffer, nonceBuffer, keyBuffer);
+			encrypted = new Uint8Array(result);
+		} catch (error) {
+			console.warn('Native secretbox failed, using nacl fallback:', error);
+			encrypted = nacl.secretbox(uint8EncryptedContent, nonce, privKey);
+		}
+		
 		let tabEncrypted = [];
 		for(let i = 0; i < encrypted.length; ++i){
 			tabEncrypted.push(encrypted[i]);

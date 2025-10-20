@@ -76,6 +76,7 @@ declare var config: {
    import { SmartMessageParser } from "./SmartMessage";
    import { SmartMessageService } from "../services/SmartMessageService";
    import { getGlobalWorkletLogging } from "../services/interfaces/IWorkletLogging";
+   import concealCrypto from 'react-native-conceal-crypto';
   
    export const TX_EXTRA_PADDING_MAX_COUNT = 255;
    export const TX_EXTRA_NONCE_MAX_COUNT = 255;
@@ -365,17 +366,38 @@ declare var config: {
        let hash: string = CnUtils.cn_fast_hash(keyData);
        let hashBuf: Uint8Array = CnUtils.hextobin(hash);
   
-       let nonceBuf = new Uint8Array(12);
-       for(let i = 0; i < 12; i++) {
-          nonceBuf.set([index/0x100**i], 11-i);
-       }
+       // ✅ Optimized: Create 8-byte nonce with ArrayBuffer + DataView
+       const nonceBuffer = new ArrayBuffer(8);
+       const nonceView = new DataView(nonceBuffer);
+       // Fill nonce in big-endian format
+       nonceView.setBigUint64(0, BigInt(index), false); // false = big-endian
   
        // make a binary array out of raw message
        let rawMessArr = CnUtils.hextobin(rawMessage);
   
-       // typescripted chacha
-       const cha = new JSChaCha8(hashBuf, nonceBuf);
-       let _buf = cha.decrypt(rawMessArr);
+       // Decrypt message using native ChaCha8 (ChaCha is symmetric - encrypt/decrypt are the same operation)
+       let _buf: Uint8Array;
+       try {
+         // Prepare ArrayBuffers for native implementation
+         const keyBuffer = new ArrayBuffer(hashBuf.length);
+         const keyView = new Uint8Array(keyBuffer);
+         keyView.set(hashBuf);
+         
+         const inputBuffer = new ArrayBuffer(rawMessArr.length);
+         const inputView = new Uint8Array(inputBuffer);
+         inputView.set(rawMessArr);
+         
+         // Decrypt with native C++ ChaCha8
+         const nativeResult = concealCrypto.chacha8(inputBuffer, keyBuffer, nonceBuffer);
+         _buf = new Uint8Array(nativeResult);
+       } catch (error) {
+         // Fallback to JS implementation if native fails
+         console.warn('Native chacha8 decryption failed, using JS fallback:', error);
+         const nonceBuf12 = new Uint8Array(12);
+         nonceBuf12.set(new Uint8Array(nonceBuffer));
+         const cha = new JSChaCha8(hashBuf, nonceBuf12);
+         _buf = cha.decrypt(rawMessArr);
+       }
        
        console.log('decryptMessage: ChaCha8 decryption result length:', _buf.length);
        console.log('decryptMessage: Decrypted buffer preview:', Array.from(_buf.slice(0, 10)));

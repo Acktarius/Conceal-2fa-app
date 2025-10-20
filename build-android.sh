@@ -26,6 +26,11 @@ echo "✅ Android folder recreated successfully!"
 echo "🧹 Cleaning Android build..."
 cd android && ./gradlew clean && cd ..
 
+# Step 5: Add Nitro init to MainApplication.kt
+echo "🔄 Adding Nitro init to MainApplication.kt..."
+sleep 2
+node scripts/addNitroInit.js
+
 echo "Bundling!"
 # npx react-native bundle --platform android --dev false --entry-file node_modules/expo/AppEntry.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res/
 echo "📋 Next steps:"

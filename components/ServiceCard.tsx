@@ -310,11 +310,11 @@ const ServiceCard = React.forwardRef<any, ServiceCardProps>(({
                 {sharedKey.isLocal ? (
                   <View 
                     className="rounded-md px-1.5 py-0.5 ml-2"
-                    style={{ backgroundColor: theme.colors.warning + '20' }}
+                    style={{ backgroundColor: theme.colors.status + '20' }}
                   >
                     <Text 
                       className="text-xs font-semibold font-poppins-medium" 
-                      style={{ color: theme.colors.warning }}
+                      style={{ color: theme.colors.status }}
                     >
                       Local
                     </Text>
@@ -322,9 +322,9 @@ const ServiceCard = React.forwardRef<any, ServiceCardProps>(({
                 ) : (
                   <View 
                     className="rounded-md px-1.5 py-0.5 ml-2 flex-row items-center"
-                    style={{ backgroundColor: theme.colors.warning + '20' }}
+                    style={{ backgroundColor: theme.colors.status + '20' }}
                   >
-                    <Ionicons name="link" size={12} color={theme.colors.warning} />
+                    <Ionicons name="link" size={12} color={theme.colors.status} />
                   </View>
                 )}
               </View>

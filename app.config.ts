@@ -53,6 +53,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         cameraPermission: 'Allow SecureAuth to access your camera to scan QR codes.'
       }
     ],
+    './scripts/withNitroModulesPlugin',
     './withConcealConfigPlugin',
     'expo-secure-store',
     'expo-font'

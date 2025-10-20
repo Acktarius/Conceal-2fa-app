@@ -171,14 +171,14 @@ export class ImportService {
       
       if (txDetails.spendKey) {
         // Spend key is present - this is the primary case
-        console.log('QR IMPORT: Spend key provided:', txDetails.spendKey);
+        // console.log('QR IMPORT: Spend key provided:', txDetails.spendKey);
         
         let viewkey = txDetails.viewKey || '';
         if (viewkey === '') {
           // Generate view key from spend key (same as web wallet)
           console.log('QR IMPORT: No view key provided, generating from spend key');
           viewkey = Cn.generate_keys(CnUtils.cn_fast_hash(txDetails.spendKey)).sec;
-          console.log('QR IMPORT: Generated view key:', viewkey);
+          // console.log('QR IMPORT: Generated view key:', viewkey);
         } else {
           console.log('QR IMPORT: View key provided:', txDetails.viewKey);
         }
