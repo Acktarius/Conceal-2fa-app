@@ -1,36 +1,36 @@
 /**
-*     Copyright (c) 2025, Acktarius 
-*/
-import React, { useState, useEffect, useRef } from 'react';
+ *     Copyright (c) 2025, Acktarius
+ */
+
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
+import * as Clipboard from 'expo-clipboard';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
+  ActivityIndicator,
   Alert,
-  ScrollView,
-  TextInput,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
-  Keyboard,
-  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
-import * as Clipboard from 'expo-clipboard';
-
-import Header from '../components/Header';
-import { useWallet } from '../contexts/WalletContext';
-import { useTheme } from '../contexts/ThemeContext';
-import GestureNavigator from '../components/GestureNavigator';
 import { ExpandableSection } from '../components/ExpandableSection';
+import GestureNavigator from '../components/GestureNavigator';
+import Header from '../components/Header';
 import QRScannerModal from '../components/QRScannerModal';
-import { WalletService } from '../services/WalletService';
-import { Wallet} from '../model/Wallet';
 import { config } from '../config';
-import { CoinUri } from '../model/CoinUri';
+import { useTheme } from '../contexts/ThemeContext';
+import { useWallet } from '../contexts/WalletContext';
 import { JSBigInt } from '../lib/biginteger';
+import { CoinUri } from '../model/CoinUri';
+import { Wallet } from '../model/Wallet';
+import { WalletService } from '../services/WalletService';
 
 export default function WalletScreen() {
   const { wallet, balance, maxKeys, isLoading, refreshBalance, refreshWallet, refreshCounter } = useWallet();
@@ -47,7 +47,6 @@ export default function WalletScreen() {
   const [showBlockchainSyncInfo, setShowBlockchainSyncInfo] = useState<boolean>(true);
   const [isProcessingTransaction, setIsProcessingTransaction] = useState<boolean>(false);
   const scrollViewRef = useRef<ScrollView>(null);
-
 
   // Handle keyboard events
   useEffect(() => {
@@ -77,23 +76,23 @@ export default function WalletScreen() {
         const status = WalletService.getWalletSyncStatus();
         setSyncStatus(status);
       };
-      
+
       // Update immediately
       updateSyncStatus();
-      
+
       // Update every 5 seconds
       const interval = setInterval(updateSyncStatus, 5000);
-      
+
       return () => clearInterval(interval);
     }
-      setSyncStatus(null);
+    setSyncStatus(null);
   }, [wallet, refreshCounter]);
 
   // Register balance refresh callback for automatic updates
   useEffect(() => {
     // Register this screen's refreshBalance function with WalletService
     WalletService.registerBalanceRefreshCallback(refreshBalance);
-    
+
     // Cleanup: unregister when component unmounts
     return () => {
       WalletService.registerBalanceRefreshCallback(() => {}); // Clear callback
@@ -106,14 +105,14 @@ export default function WalletScreen() {
       console.log('WALLET SCREEN: Checking wallet...');
       console.log('WALLET SCREEN: wallet exists:', !!wallet);
       console.log('WALLET SCREEN: wallet isLocal:', wallet?.isLocal());
-      
+
       if (wallet && wallet.isLocal()) {
         console.log('WALLET SCREEN: Calling getOrCreateWallet("wallet")...');
         try {
           // Show upgrade prompt for local wallet
           const result = await WalletService.getOrCreateWallet('wallet');
           console.log('WALLET SCREEN: getOrCreateWallet result:', !!result);
-          
+
           // Check if wallet was actually upgraded (no longer local)
           if (result && !result.isLocal()) {
             // Wallet was upgraded, refresh the context
@@ -137,7 +136,7 @@ export default function WalletScreen() {
     React.useCallback(() => {
       // Reset to show the info when screen comes into focus
       setShowBlockchainSyncInfo(true);
-      
+
       // Hide after 20 seconds
       const timer = setTimeout(() => {
         setShowBlockchainSyncInfo(false);
@@ -164,7 +163,6 @@ export default function WalletScreen() {
       console.error('Error upgrading wallet:', error);
     }
   };
-
 
   // Check if wallet is local-only using the existing method
   const isLocalWallet = wallet && wallet.isLocal();
@@ -266,13 +264,12 @@ export default function WalletScreen() {
 
       // Success
       Alert.alert(
-        'Transaction Sent', 
+        'Transaction Sent',
         `Successfully sent ${amount} CCX to ${sendAddress.substring(0, 10)}...\n\nTransaction Hash: ${txHash.substring(0, 16)}...`
       );
 
       // Refresh wallet balance (don't resync entire wallet)
       await refreshBalance();
-
     } catch (error) {
       // Hide spinner on error
       setIsProcessingTransaction(false);
@@ -296,7 +293,7 @@ export default function WalletScreen() {
   const handleSyncCardDoubleTap = async () => {
     const now = Date.now();
     const DOUBLE_TAP_DELAY = 300; // 300ms between taps
-    
+
     if (now - lastTap < DOUBLE_TAP_DELAY) {
       // Double tap detected - trigger manual save
       try {
@@ -321,7 +318,9 @@ export default function WalletScreen() {
           <Header title="Wallet" />
           <View className="flex-1 items-center justify-center">
             <Ionicons name="wallet-outline" size={48} color={theme.colors.textSecondary} />
-            <Text className="text-base mt-3" style={{ color: theme.colors.textSecondary }}>Loading wallet...</Text>
+            <Text className="text-base mt-3" style={{ color: theme.colors.textSecondary }}>
+              Loading wallet...
+            </Text>
           </View>
         </View>
       </GestureNavigator>
@@ -332,20 +331,20 @@ export default function WalletScreen() {
     <GestureNavigator>
       <View className="flex-1" style={{ backgroundColor: theme.colors.background }}>
         <Header title="Wallet" />
-        
+
         {/* Transaction Processing Spinner - Top Right Corner */}
         {isProcessingTransaction && (
-          <View 
+          <View
             className="absolute top-[50px] right-4 z-[1000] rounded-full p-2 shadow-lg"
             style={{ backgroundColor: 'rgba(0, 0, 0, 0.1)' }}
           >
             <ActivityIndicator size="small" color={theme.colors.primary} />
           </View>
         )}
-        
-        <ScrollView 
+
+        <ScrollView
           ref={scrollViewRef}
-          className="flex-1 px-4" 
+          className="flex-1 px-4"
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           contentInsetAdjustmentBehavior="automatic"
@@ -353,13 +352,19 @@ export default function WalletScreen() {
         >
           {isLocalWallet ? (
             // Local Wallet Mode
-            <View className="rounded-2xl p-6 items-center m-4 shadow-lg border" style={{ backgroundColor: theme.colors.card, borderColor: theme.colors.border }}>
+            <View
+              className="rounded-2xl p-6 items-center m-4 shadow-lg border"
+              style={{ backgroundColor: theme.colors.card, borderColor: theme.colors.border }}
+            >
               <View className="items-center mb-4">
                 <Ionicons name="wallet-outline" size={32} color={theme.colors.textSecondary} />
-                <Text className="text-xl font-semibold mt-2" style={{ color: theme.colors.text }}>Local Wallet Mode</Text>
+                <Text className="text-xl font-semibold mt-2" style={{ color: theme.colors.text }}>
+                  Local Wallet Mode
+                </Text>
               </View>
               <Text className="text-sm text-center leading-5 mb-6" style={{ color: theme.colors.textSecondary }}>
-                Your wallet is currently in local-only mode. Upgrade to blockchain mode to sync your 2FA keys and access full features.
+                Your wallet is currently in local-only mode. Upgrade to blockchain mode to sync your 2FA keys and access
+                full features.
               </Text>
               <TouchableOpacity
                 className="flex-row items-center justify-center rounded-xl px-5 py-3"
@@ -375,10 +380,15 @@ export default function WalletScreen() {
             // Normal Wallet Mode
             <>
               {/* Balance Card */}
-              <View className="rounded-2xl p-6 items-center m-4 shadow-lg border" style={{ backgroundColor: theme.colors.card, borderColor: theme.colors.border }}>
+              <View
+                className="rounded-2xl p-6 items-center m-4 shadow-lg border"
+                style={{ backgroundColor: theme.colors.card, borderColor: theme.colors.border }}
+              >
                 <View className="flex-row items-center mb-3">
                   <Ionicons name="wallet-outline" size={24} color={theme.colors.primary} />
-                  <Text className="text-base ml-2 font-medium" style={{ color: theme.colors.text }}>CCX Balance</Text>
+                  <Text className="text-base ml-2 font-medium" style={{ color: theme.colors.text }}>
+                    CCX Balance
+                  </Text>
                 </View>
                 <Text className="text-3xl font-bold mb-1" style={{ color: theme.colors.primary }}>
                   {balance.toHuman().toFixed(4)}
@@ -393,29 +403,31 @@ export default function WalletScreen() {
                   activeOpacity={0.8}
                 >
                   <Ionicons name="refresh-outline" size={16} color={theme.colors.primary} />
-                  <Text className="text-sm font-medium ml-1" style={{ color: theme.colors.primary }}>Refresh</Text>
+                  <Text className="text-sm font-medium ml-1" style={{ color: theme.colors.primary }}>
+                    Refresh
+                  </Text>
                 </TouchableOpacity>
               </View>
 
               {/* Synchronization Status */}
               {syncStatus && (
-                <TouchableOpacity 
+                <TouchableOpacity
                   className="rounded-2xl p-4 m-4 shadow-lg border"
                   style={{ backgroundColor: theme.colors.card, borderColor: theme.colors.border }}
                   onPress={handleSyncCardDoubleTap}
                   activeOpacity={0.8}
                 >
                   <View className="flex-row items-center mb-2">
-                    <Ionicons 
-                      name={syncStatus.isRunning ? "sync-outline" : "checkmark-circle-outline"} 
-                      size={24} 
-                      color={syncStatus.isWalletSynced ? theme.colors.success : theme.colors.warning} 
+                    <Ionicons
+                      name={syncStatus.isRunning ? 'sync-outline' : 'checkmark-circle-outline'}
+                      size={24}
+                      color={syncStatus.isWalletSynced ? theme.colors.success : theme.colors.warning}
                     />
                     <Text className="text-base font-semibold ml-2" style={{ color: theme.colors.text }}>
                       {syncStatus.isWalletSynced ? 'Wallet Synced' : 'Synchronizing...'}
                     </Text>
                   </View>
-                  
+
                   {syncStatus.isRunning && (
                     <View className="mt-2">
                       <Text className="text-sm mb-1" style={{ color: theme.colors.textSecondary }}>
@@ -428,7 +440,7 @@ export default function WalletScreen() {
                       )}
                     </View>
                   )}
-                  
+
                   {syncStatus.isWalletSynced && (
                     <View>
                       <Text className="text-sm" style={{ color: theme.colors.success }}>
@@ -444,25 +456,37 @@ export default function WalletScreen() {
 
               {/* Key Storage Info */}
               {balance.compare(new JSBigInt(0)) === 0 && wallet?.getPublicAddress() ? (
-                <View className="rounded-2xl p-5 items-center m-4" style={{ backgroundColor: theme.colors.primaryLight }}>
+                <View
+                  className="rounded-2xl p-5 items-center m-4"
+                  style={{ backgroundColor: theme.colors.primaryLight }}
+                >
                   <Ionicons name="wallet-outline" size={32} color={theme.colors.primary} />
-                  <Text className="text-lg font-semibold mt-3 mb-2" style={{ color: theme.colors.primary }}>Welcome to SecureAuth!</Text>
+                  <Text className="text-lg font-semibold mt-3 mb-2" style={{ color: theme.colors.primary }}>
+                    Welcome to SecureAuth!
+                  </Text>
                   <Text className="text-sm text-center leading-5" style={{ color: theme.colors.primary }}>
-                    Your wallet has been created with 0 CCX. To sync your 2FA keys to the blockchain, 
-                    ask a friend to send you some CCX to your address below.
+                    Your wallet has been created with 0 CCX. To sync your 2FA keys to the blockchain, ask a friend to
+                    send you some CCX to your address below.
                   </Text>
                 </View>
-              ) : showBlockchainSyncInfo && (
-                <View className="rounded-2xl p-4 flex-row items-start m-4" style={{ backgroundColor: theme.colors.primaryLight }}>
-                  <Ionicons name="information-circle-outline" size={24} color={theme.colors.primary} />
-                  <View className="flex-1 ml-3">
-                    <Text className="text-base font-semibold mb-1" style={{ color: theme.colors.primary }}>Blockchain Sync Available</Text>
-                    <Text className="text-sm leading-5" style={{ color: theme.colors.primary }}>
-                      Each 2FA key sync costs {KEY_STORAGE_COST.toHuman().toFixed(4)} CCX. 
-                      You can currently sync {maxKeys.toString()} keys to the blockchain.
-                    </Text>
+              ) : (
+                showBlockchainSyncInfo && (
+                  <View
+                    className="rounded-2xl p-4 flex-row items-start m-4"
+                    style={{ backgroundColor: theme.colors.primaryLight }}
+                  >
+                    <Ionicons name="information-circle-outline" size={24} color={theme.colors.primary} />
+                    <View className="flex-1 ml-3">
+                      <Text className="text-base font-semibold mb-1" style={{ color: theme.colors.primary }}>
+                        Blockchain Sync Available
+                      </Text>
+                      <Text className="text-sm leading-5" style={{ color: theme.colors.primary }}>
+                        Each 2FA key sync costs {KEY_STORAGE_COST.toHuman().toFixed(4)} CCX. You can currently sync{' '}
+                        {maxKeys.toString()} keys to the blockchain.
+                      </Text>
+                    </View>
                   </View>
-                </View>
+                )
               )}
 
               {/* Wallet Address Card */}
@@ -476,31 +500,23 @@ export default function WalletScreen() {
               >
                 <View className="items-center mb-5 p-5 rounded-xl shadow-md" style={{ backgroundColor: 'white' }}>
                   {wallet?.getPublicAddress() && (
-                    <QRCode
-                      value={wallet.getPublicAddress()}
-                      size={250}
-                      backgroundColor="white"
-                      color="black"
-                    />
+                    <QRCode value={wallet.getPublicAddress()} size={250} backgroundColor="white" color="black" />
                   )}
                 </View>
-                
+
                 <View className="mb-4">
-                  <Text 
-                    className="text-sm mb-2 font-poppins" 
-                    style={{ color: theme.colors.textSecondary }}
-                  >
+                  <Text className="text-sm mb-2 font-poppins" style={{ color: theme.colors.textSecondary }}>
                     Your Wallet Address:
                   </Text>
-                  <Text 
-                    className="text-xs font-mono p-3 rounded-lg font-poppins" 
-                    style={{ color: theme.colors.text, backgroundColor: theme.colors.background }} 
+                  <Text
+                    className="text-xs font-mono p-3 rounded-lg font-poppins"
+                    style={{ color: theme.colors.text, backgroundColor: theme.colors.background }}
                     numberOfLines={2}
                   >
                     {wallet?.getPublicAddress() || 'Loading...'}
                   </Text>
                 </View>
-                
+
                 <TouchableOpacity
                   className="flex-row items-center justify-center rounded-xl p-3"
                   style={{ backgroundColor: theme.colors.primaryLight }}
@@ -508,8 +524,8 @@ export default function WalletScreen() {
                   activeOpacity={0.8}
                 >
                   <Ionicons name="copy-outline" size={20} color={theme.colors.primary} />
-                  <Text 
-                    className="text-base font-semibold ml-2 font-poppins-medium" 
+                  <Text
+                    className="text-base font-semibold ml-2 font-poppins-medium"
                     style={{ color: theme.colors.primary }}
                   >
                     Copy Address
@@ -534,15 +550,12 @@ export default function WalletScreen() {
                   }}
                 >
                   <View className="mb-4">
-                    <Text 
-                      className="text-sm mb-2 font-poppins-medium" 
-                      style={{ color: theme.colors.text }}
-                    >
+                    <Text className="text-sm mb-2 font-poppins-medium" style={{ color: theme.colors.text }}>
                       Recipient Address:
                     </Text>
                     <TextInput
                       className="rounded-xl p-3 text-sm border font-mono"
-                      style={{ 
+                      style={{
                         backgroundColor: theme.colors.background,
                         color: theme.colors.text,
                         borderColor: theme.colors.border,
@@ -557,10 +570,7 @@ export default function WalletScreen() {
                   </View>
 
                   <View className="mb-4">
-                    <Text 
-                      className="text-sm mb-2 font-poppins-medium" 
-                      style={{ color: theme.colors.text }}
-                    >
+                    <Text className="text-sm mb-2 font-poppins-medium" style={{ color: theme.colors.text }}>
                       Amount (CCX):
                     </Text>
                     <View className="flex-row items-center">
@@ -576,10 +586,10 @@ export default function WalletScreen() {
                       >
                         <Ionicons name="remove" size={20} color={theme.colors.primary} />
                       </TouchableOpacity>
-                      
+
                       <TextInput
                         className="flex-1 rounded-xl p-3 text-base border text-center font-mono"
-                        style={{ 
+                        style={{
                           backgroundColor: theme.colors.background,
                           color: theme.colors.text,
                           borderColor: theme.colors.border,
@@ -591,7 +601,7 @@ export default function WalletScreen() {
                         keyboardType="numeric"
                         maxLength={10}
                       />
-                      
+
                       <TouchableOpacity
                         className="w-10 h-10 rounded-lg items-center justify-center ml-2"
                         style={{ backgroundColor: theme.colors.primaryLight }}
@@ -607,17 +617,13 @@ export default function WalletScreen() {
                         <Ionicons name="add" size={20} color={theme.colors.primary} />
                       </TouchableOpacity>
                     </View>
-                    
-                    <TouchableOpacity
-                      className="mt-1"
-                      onPress={handleMaxAmount}
-                      activeOpacity={0.7}
-                    >
-                      <Text 
-                        className="text-xs italic text-center font-poppins underline" 
+
+                    <TouchableOpacity className="mt-1" onPress={handleMaxAmount} activeOpacity={0.7}>
+                      <Text
+                        className="text-xs italic text-center font-poppins underline"
                         style={{ color: theme.colors.primary }}
                       >
-                        Max: {(balance.subtract(config.coinFee.add(config.remoteNodeFee))).toHuman().toFixed(6)} CCX
+                        Max: {balance.subtract(config.coinFee.add(config.remoteNodeFee)).toHuman().toFixed(6)} CCX
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -629,23 +635,21 @@ export default function WalletScreen() {
                       onPress={handleCancelSend}
                       activeOpacity={0.8}
                     >
-                      <Text 
-                        className="text-base font-semibold font-poppins-medium" 
+                      <Text
+                        className="text-base font-semibold font-poppins-medium"
                         style={{ color: theme.colors.text }}
                       >
                         Cancel
                       </Text>
                     </TouchableOpacity>
-                    
+
                     <TouchableOpacity
                       className="flex-1 rounded-xl p-3 items-center justify-center"
                       style={{ backgroundColor: theme.colors.primary }}
                       onPress={handleSendCCX}
                       activeOpacity={0.8}
                     >
-                      <Text className="text-base font-semibold text-white font-poppins-medium">
-                        Send
-                      </Text>
+                      <Text className="text-base font-semibold text-white font-poppins-medium">Send</Text>
                     </TouchableOpacity>
                   </View>
                 </ExpandableSection>
@@ -653,13 +657,18 @@ export default function WalletScreen() {
 
               {/* Funding Info Card */}
               {balance.compare(new JSBigInt(0)) === 0 && (
-                <View className="rounded-2xl p-4 flex-row items-start m-4" style={{ backgroundColor: theme.colors.primaryLight }}>
+                <View
+                  className="rounded-2xl p-4 flex-row items-start m-4"
+                  style={{ backgroundColor: theme.colors.primaryLight }}
+                >
                   <Ionicons name="people-outline" size={24} color={theme.colors.primary} />
                   <View className="flex-1 ml-3">
-                    <Text className="text-base font-semibold mb-1" style={{ color: theme.colors.primary }}>Get Started</Text>
+                    <Text className="text-base font-semibold mb-1" style={{ color: theme.colors.primary }}>
+                      Get Started
+                    </Text>
                     <Text className="text-sm leading-5" style={{ color: theme.colors.primary }}>
-                      Share your wallet address with a friend or colleague to receive CCX. 
-                      Even a small amount (0.1 CCX) allows you to sync multiple keys!
+                      Share your wallet address with a friend or colleague to receive CCX. Even a small amount (0.1 CCX)
+                      allows you to sync multiple keys!
                     </Text>
                   </View>
                 </View>
@@ -668,13 +677,9 @@ export default function WalletScreen() {
           )}
         </ScrollView>
       </View>
-      
+
       {/* QR Scanner Modal */}
-      <QRScannerModal
-        visible={showQRScanner}
-        onClose={handleQRScannerClose}
-        onScan={handleQRScan}
-      />
+      <QRScannerModal visible={showQRScanner} onClose={handleQRScannerClose} onScan={handleQRScan} />
     </GestureNavigator>
   );
 }

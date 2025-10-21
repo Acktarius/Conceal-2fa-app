@@ -101,4 +101,3 @@ These Terms and Conditions constitute the entire agreement between you and the d
 For questions about these Terms and Conditions, please refer to the project repository or contact the maintainers through appropriate channels.
 
 BY USING THIS APP, YOU ACKNOWLEDGE THAT YOU HAVE READ, UNDERSTOOD, AND AGREE TO BE BOUND BY THESE TERMS AND CONDITIONS.`;
-

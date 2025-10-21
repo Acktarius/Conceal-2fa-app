@@ -3,19 +3,18 @@ const path = require('path');
 
 // Path to your parent app's MainApplication.kt
 const MAIN_APP_PATH = path.join(
-    __dirname,
-    '..',
-    'android',
-    'app',
-    'src',
-    'main',
-    'java',
-    'com',
-    'acktarius',
-    'conceal2faapp',
-    'MainApplication.kt'
-  );
-  
+  __dirname,
+  '..',
+  'android',
+  'app',
+  'src',
+  'main',
+  'java',
+  'com',
+  'acktarius',
+  'conceal2faapp',
+  'MainApplication.kt'
+);
 
 // Nitro module Kotlin OnLoad path
 const NITRO_INIT_PACKAGE = 'com.margelo.nitro.concealcrypto';

@@ -2,19 +2,12 @@
  * Terms and Conditions Modal Component
  * Copyright (c) 2025, Acktarius
  */
-import type React from 'react';
-import {
-  View,
-  Text,
-  Modal,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  Dimensions,
-} from 'react-native';
+
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../contexts/ThemeContext';
+import type React from 'react';
+import { Dimensions, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { TERMS_AND_CONDITIONS } from '../content/termsAndConditions';
+import { useTheme } from '../contexts/ThemeContext';
 
 const { width, height } = Dimensions.get('window');
 
@@ -27,24 +20,12 @@ export const TermsModal: React.FC<TermsModalProps> = ({ visible, onClose }) => {
   const { theme } = useTheme();
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.container}>
-        <View
-          style={[
-            styles.modalContent,
-            { backgroundColor: theme.colors.card }
-          ]}
-        >
+        <View style={[styles.modalContent, { backgroundColor: theme.colors.card }]}>
           {/* Header */}
           <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
-            <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-              Terms and Conditions
-            </Text>
+            <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Terms and Conditions</Text>
             <TouchableOpacity
               onPress={onClose}
               style={styles.closeButton}
@@ -60,9 +41,7 @@ export const TermsModal: React.FC<TermsModalProps> = ({ visible, onClose }) => {
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={true}
           >
-            <Text style={[styles.termsText, { color: theme.colors.text }]}>
-              {TERMS_AND_CONDITIONS}
-            </Text>
+            <Text style={[styles.termsText, { color: theme.colors.text }]}>{TERMS_AND_CONDITIONS}</Text>
           </ScrollView>
 
           {/* Footer Button */}
@@ -141,4 +120,3 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
-

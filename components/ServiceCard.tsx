@@ -386,7 +386,7 @@ const ServiceCard = React.forwardRef<any, ServiceCardProps>(
 
             {isSelected && (
               <Animated.View
-                className="flex-row mt-0.5 px-1"
+                className="flex-row mt-0.3 px-1"
                 style={{
                   opacity: actionsAnim,
                   transform: [

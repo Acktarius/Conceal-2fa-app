@@ -1,49 +1,51 @@
 /**
-*     Copyright (c) 2025, Acktarius 
-*/
-import type React from 'react';
-import { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Switch,
-  Alert,
-  ScrollView,
-  Dimensions,
-  TextInput,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import * as Clipboard from 'expo-clipboard';
-import QRCode from 'react-native-qrcode-svg';
+ *     Copyright (c) 2025, Acktarius
+ */
 
-import Header from '../components/Header';
-import { useTheme } from '../contexts/ThemeContext';
-import { useWallet } from '../contexts/WalletContext';
-import GestureNavigator from '../components/GestureNavigator';
-import { ExpandableSection } from '../components/ExpandableSection';
-import { ExpSectionToggle } from '../components/ExpSectionToggle';
-import { StorageService } from '../services/StorageService';
-import { WalletService } from '../services/WalletService';
-import { CnUtils } from '../model/Cn';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import packageJson from '../package.json';
-import { Mnemonic } from '../model/Mnemonic';
-import { PasswordChangeAlert } from '../components/PasswordChangeAlert';
-import { UnlockWalletAlert } from '../components/UnlockWalletAlert';
-import { PasswordCreationAlert } from '../components/PasswordCreationAlert';
-import { WalletStorageManager } from '../services/WalletStorageManager';
-import { WalletRepository } from '../model/WalletRepository';
-import { ExportService } from '../services/ExportService';
+import * as Clipboard from 'expo-clipboard';
 import * as SecureStore from 'expo-secure-store';
+import type React from 'react';
+import { useEffect, useState } from 'react';
+import {
+  Alert,
+  Dimensions,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import QRCode from 'react-native-qrcode-svg';
 import { CustomNodeModal } from '../components/CustomNodeModal';
-import { BiometricService } from '../services/BiometricService';
-import { config } from '../config';
-import { CoinUri } from '../model/CoinUri';
+import { ExpandableSection } from '../components/ExpandableSection';
+import { ExpSectionToggle } from '../components/ExpSectionToggle';
+import GestureNavigator from '../components/GestureNavigator';
+import Header from '../components/Header';
+import { PasswordChangeAlert } from '../components/PasswordChangeAlert';
+import { PasswordCreationAlert } from '../components/PasswordCreationAlert';
 import QRScannerModal from '../components/QRScannerModal';
 import { TermsModal } from '../components/TermsModal';
+import { UnlockWalletAlert } from '../components/UnlockWalletAlert';
+import { config } from '../config';
+import { useTheme } from '../contexts/ThemeContext';
+import { useWallet } from '../contexts/WalletContext';
+import { CnUtils } from '../model/Cn';
+import { CoinUri } from '../model/CoinUri';
+import { Mnemonic } from '../model/Mnemonic';
+import { WalletRepository } from '../model/WalletRepository';
+import packageJson from '../package.json';
+import { BiometricService } from '../services/BiometricService';
+import { ExportService } from '../services/ExportService';
+import { StorageService } from '../services/StorageService';
+import { WalletService } from '../services/WalletService';
+import { WalletStorageManager } from '../services/WalletStorageManager';
+import { getGlobalWorkletLogging } from '../services/interfaces/IWorkletLogging';
+
 // verifyOldPassword function moved here to avoid circular dependencies
 
 type RootStackParamList = {
@@ -58,11 +60,11 @@ export default function SettingsScreen() {
   const [autoShare, setAutoShare] = useState(false);
   const [biometricAuth, setBiometricAuth] = useState(false);
   const [showBlockchainSyncToggle, setShowBlockchainSyncToggle] = useState(false);
-  
+
   // Trust Anchor (Payment ID Whitelist) state
   const [paymentIdWhiteList, setPaymentIdWhiteList] = useState<string[]>([]);
   const [isTrustAnchorExpanded, setIsTrustAnchorExpanded] = useState(false);
-  
+
   // Custom Node Modal state
   const [showCustomNodeModal, setShowCustomNodeModal] = useState(false);
   const [currentNodeUrl, setCurrentNodeUrl] = useState('');
@@ -82,42 +84,42 @@ export default function SettingsScreen() {
   const [biometricAction, setBiometricAction] = useState<'enable' | 'disable'>('enable');
   const [manualPaymentId, setManualPaymentId] = useState('');
   const [showTermsModal, setShowTermsModal] = useState(false);
-  
+
   // Theme options
   const themeOptions = [
     { id: 'light', label: 'Light', icon: 'sunny', color: '#FFD700' },
     { id: 'orange', label: 'Orange', icon: 'flame', color: '#FF8C00' },
     { id: 'velvet', label: 'Velvet', icon: 'flower', color: '#8852d2' },
-    { id: 'dark', label: 'Dark', icon: 'moon', color: '#2C2C2C' }
+    { id: 'dark', label: 'Dark', icon: 'moon', color: '#2C2C2C' },
   ];
-  
+
   // 2FA Display options
   const futureDisplayOptions = [
     { id: 'off', label: 'OFF', icon: 'eye-off', color: '#6B7280' },
     { id: '5s', label: '5s', icon: 'time', color: '#F59E0B' },
     { id: '10s', label: '10s', icon: 'time', color: '#F59E0B' },
-    { id: 'on', label: 'ON', icon: 'eye', color: '#10B981' }
+    { id: 'on', label: 'ON', icon: 'eye', color: '#10B981' },
   ];
-  
+
   // Get current theme ID based on currentThemeId
   const getCurrentThemeId = () => {
     return currentThemeId;
   };
-  
+
   // Handle theme selection
   const handleThemeSelect = (themeId: string) => {
     setTheme(themeId);
     // Collapse section after selection
     setIsThemeExpanded(false);
   };
-  
+
   // Handle 2FA display selection
   const handle2FADisplaySelect = async (settingId: string) => {
     try {
       const settings = await StorageService.getSettings();
       await StorageService.saveSettings({
         ...settings,
-        futureCodeDisplay: settingId
+        futureCodeDisplay: settingId,
       });
       setCurrent2FADisplaySetting(settingId);
       // Collapse section after selection
@@ -155,7 +157,7 @@ export default function SettingsScreen() {
       const settings = await StorageService.getSettings();
       await StorageService.saveSettings({
         ...settings,
-        broadcastAddress: address
+        broadcastAddress: address,
       });
     } catch (error) {
       console.error('Error saving broadcast address:', error);
@@ -181,21 +183,21 @@ export default function SettingsScreen() {
       await saveBroadcastAddress(walletAddress);
     }
   };
-  
+
   // Expandable sections state
   const [showRecoverySeed, setShowRecoverySeed] = useState(false);
   const [showExportQR, setShowExportQR] = useState(false);
   const [showRescanOptions, setShowRescanOptions] = useState(false);
   const [recoverySeed, setRecoverySeed] = useState('');
   const [exportQRData, setExportQRData] = useState('');
-  
+
   // Calculate QR code size based on screen width
   const screenWidth = Dimensions.get('window').width;
   const cardPadding = 16; // 8px padding on each side of the card
   const expandablePadding = 16; // 8px padding on each side of expandable section
   const maxQRWidth = (screenWidth - cardPadding - expandablePadding) * 0.95;
   const qrSize = Math.min(maxQRWidth, 250); // Cap at 250px for readability
-  
+
   const { theme, toggleTheme, setTheme, currentThemeId } = useTheme();
   const { wallet, refreshWallet } = useWallet();
   const navigation = useNavigation<NavigationProp>();
@@ -211,7 +213,7 @@ export default function SettingsScreen() {
   const loadNodeInfo = async () => {
     try {
       const customNode = await WalletStorageManager.getCustomNode();
-      
+
       if (customNode) {
         setCurrentNodeUrl(customNode);
         // Extract domain from URL for display (HTTPS only, no port)
@@ -224,7 +226,7 @@ export default function SettingsScreen() {
       } else {
         // Get the actual current session node URL
         const currentSessionNodeUrl = WalletService.getCurrentSessionNodeUrl();
-        
+
         if (currentSessionNodeUrl) {
           setCurrentNodeUrl(currentSessionNodeUrl);
           try {
@@ -285,12 +287,14 @@ export default function SettingsScreen() {
       const shouldShow = !wallet.isLocal() && isSynced && hasBalance;
       setShowBlockchainSyncToggle(shouldShow);
 
+      /*
       console.log('Blockchain Sync Toggle Visibility Check:', {
         isLocal: wallet.isLocal(),
         isSynced,
         hasBalance,
-        shouldShow
+        shouldShow,
       });
+      */
     } catch (error) {
       console.error('Error checking blockchain sync visibility:', error);
       setShowBlockchainSyncToggle(false);
@@ -301,32 +305,32 @@ export default function SettingsScreen() {
     try {
       setBlockchainSync(value);
       await StorageService.saveSettings({
-        ...await StorageService.getSettings(),
-        blockchainSync: value
+        ...(await StorageService.getSettings()),
+        blockchainSync: value,
       });
 
       if (value) {
-        console.log('Blockchain Sync enabled: Setting local shared keys (hash=null && isLocal=true) to toBePush=true');
+        // console.log('Blockchain Sync enabled: Setting local shared keys (hash=null && isLocal=true) to toBePush=true');
         // Set ONLY shared keys with hash=null && isLocal=true to toBePush=true
         const sharedKeys = await StorageService.getSharedKeys();
         let updated = false;
-        
+
         for (const sharedKey of sharedKeys) {
           if (sharedKey.isLocal && !sharedKey.hash && !sharedKey.toBePush) {
             sharedKey.toBePush = true;
             updated = true;
-            console.log(`Blockchain Sync: Set toBePush=true for ${sharedKey.name} (hash=null, isLocal=true)`);
+            // console.log(`Blockchain Sync: Set toBePush=true for ${sharedKey.name} (hash=null, isLocal=true)`);
           }
         }
-        
+
         if (updated) {
           await StorageService.saveSharedKeys(sharedKeys);
-          console.log('Blockchain Sync: Updated local shared keys to be pushed to blockchain');
+          //console.log('Blockchain Sync: Updated local shared keys to be pushed to blockchain');
         } else {
-          console.log('Blockchain Sync: No local shared keys found to update');
+          getGlobalWorkletLogging().logging1string('Blockchain Sync: No local shared keys found to update');
         }
       } else {
-        console.log('Blockchain Sync disabled: Individual save buttons will be shown');
+        getGlobalWorkletLogging().logging1string('Blockchain Sync disabled: Individual save buttons will be shown');
         // When disabled, individual save buttons will be shown in ServiceCard
         // No need to modify existing shared keys
       }
@@ -347,11 +351,11 @@ export default function SettingsScreen() {
         // Save the custom node
         success = await WalletStorageManager.setCustomNode(newNodeUrl);
       }
-      
+
       if (success) {
         // Re-initialize blockchain explorer to pick up custom node changes
         await WalletService.reinitializeBlockchainExplorer();
-        
+
         // Reload node info to update display
         await loadNodeInfo();
         setShowCustomNodeModal(false);
@@ -445,7 +449,7 @@ export default function SettingsScreen() {
   const loadRevokedKeys = async () => {
     try {
       const sharedKeys = await StorageService.getSharedKeys();
-      const revoked = sharedKeys.filter(key => key.timeStampSharedKeyRevoke > 0);
+      const revoked = sharedKeys.filter((key) => key.timeStampSharedKeyRevoke > 0);
       setRevokedKeys(revoked);
     } catch (error) {
       console.error('Error loading revoked keys:', error);
@@ -455,21 +459,21 @@ export default function SettingsScreen() {
   const handleResuscitateKey = async (keyId: string) => {
     try {
       const sharedKeys = await StorageService.getSharedKeys();
-      const keyIndex = sharedKeys.findIndex(key => key.hash === keyId);
-      
+      const keyIndex = sharedKeys.findIndex((key) => key.hash === keyId);
+
       if (keyIndex !== -1) {
         sharedKeys[keyIndex].timeStampSharedKeyRevoke = 0;
         sharedKeys[keyIndex].isLocal = true;
         sharedKeys[keyIndex].hash = '';
         // Set toBePush based on blockchain sync toggle position
         sharedKeys[keyIndex].toBePush = blockchainSync;
-        
+
         await StorageService.saveSharedKeys(sharedKeys);
         await loadRevokedKeys(); // Refresh the list
-        
+
         // Trigger HomeScreen refresh to show resuscitated key
         WalletService.triggerSharedKeysRefresh();
-        
+
         Alert.alert('Success', 'Shared key resuscitated successfully');
       }
     } catch (error) {
@@ -479,98 +483,86 @@ export default function SettingsScreen() {
   };
 
   const handleDeleteKey = async (keyId: string) => {
-    Alert.alert(
-      'Delete Shared Key',
-      'Are you sure you want to permanently delete this shared key?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const sharedKeys = await StorageService.getSharedKeys();
-              const filteredKeys = sharedKeys.filter(key => key.hash !== keyId);
-              
-              await StorageService.saveSharedKeys(filteredKeys);
-              await loadRevokedKeys(); // Refresh the list
-              
-              Alert.alert('Success', 'Shared key deleted successfully');
-            } catch (error) {
-              console.error('Error deleting key:', error);
-              Alert.alert('Error', 'Failed to delete shared key');
-            }
+    Alert.alert('Delete Shared Key', 'Are you sure you want to permanently delete this shared key?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const sharedKeys = await StorageService.getSharedKeys();
+            const filteredKeys = sharedKeys.filter((key) => key.hash !== keyId);
+
+            await StorageService.saveSharedKeys(filteredKeys);
+            await loadRevokedKeys(); // Refresh the list
+
+            Alert.alert('Success', 'Shared key deleted successfully');
+          } catch (error) {
+            console.error('Error deleting key:', error);
+            Alert.alert('Error', 'Failed to delete shared key');
           }
-        }
-      ]
-    );
+        },
+      },
+    ]);
   };
 
   const handleResuscitateAll = () => {
-    Alert.alert(
-      'Resuscitate All',
-      'Are you sure you want to resuscitate all revoked shared keys?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Resuscitate All',
-          onPress: async () => {
-            try {
-              const sharedKeys = await StorageService.getSharedKeys();
-              
-              sharedKeys.forEach(key => {
-                if (key.timeStampSharedKeyRevoke > 0) {
-                  key.timeStampSharedKeyRevoke = 0;
-                  key.isLocal = true;
-                  key.hash = '';
-                  // Set toBePush based on blockchain sync toggle position
-                  key.toBePush = blockchainSync;
-                }
-              });
-              
-              await StorageService.saveSharedKeys(sharedKeys);
-              await loadRevokedKeys(); // Refresh the list
-              
-              // Trigger HomeScreen refresh to show resuscitated keys
-              WalletService.triggerSharedKeysRefresh();
-              
-              Alert.alert('Success', 'All revoked keys resuscitated successfully');
-            } catch (error) {
-              console.error('Error resuscitating all keys:', error);
-              Alert.alert('Error', 'Failed to resuscitate all keys');
-            }
+    Alert.alert('Resuscitate All', 'Are you sure you want to resuscitate all revoked shared keys?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Resuscitate All',
+        onPress: async () => {
+          try {
+            const sharedKeys = await StorageService.getSharedKeys();
+
+            sharedKeys.forEach((key) => {
+              if (key.timeStampSharedKeyRevoke > 0) {
+                key.timeStampSharedKeyRevoke = 0;
+                key.isLocal = true;
+                key.hash = '';
+                // Set toBePush based on blockchain sync toggle position
+                key.toBePush = blockchainSync;
+              }
+            });
+
+            await StorageService.saveSharedKeys(sharedKeys);
+            await loadRevokedKeys(); // Refresh the list
+
+            // Trigger HomeScreen refresh to show resuscitated keys
+            WalletService.triggerSharedKeysRefresh();
+
+            Alert.alert('Success', 'All revoked keys resuscitated successfully');
+          } catch (error) {
+            console.error('Error resuscitating all keys:', error);
+            Alert.alert('Error', 'Failed to resuscitate all keys');
           }
-        }
-      ]
-    );
+        },
+      },
+    ]);
   };
 
   const handleDeleteAll = () => {
-    Alert.alert(
-      'Delete All',
-      'Are you sure you want to permanently delete all revoked shared keys?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete All',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const sharedKeys = await StorageService.getSharedKeys();
-              const filteredKeys = sharedKeys.filter(key => key.timeStampSharedKeyRevoke <= 0);
-              
-              await StorageService.saveSharedKeys(filteredKeys);
-              await loadRevokedKeys(); // Refresh the list
-              
-              Alert.alert('Success', 'All revoked keys deleted successfully');
-            } catch (error) {
-              console.error('Error deleting all keys:', error);
-              Alert.alert('Error', 'Failed to delete all keys');
-            }
+    Alert.alert('Delete All', 'Are you sure you want to permanently delete all revoked shared keys?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete All',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const sharedKeys = await StorageService.getSharedKeys();
+            const filteredKeys = sharedKeys.filter((key) => key.timeStampSharedKeyRevoke <= 0);
+
+            await StorageService.saveSharedKeys(filteredKeys);
+            await loadRevokedKeys(); // Refresh the list
+
+            Alert.alert('Success', 'All revoked keys deleted successfully');
+          } catch (error) {
+            console.error('Error deleting all keys:', error);
+            Alert.alert('Error', 'Failed to delete all keys');
           }
-        }
-      ]
-    );
+        },
+      },
+    ]);
   };
 
   const handleToggleRescanOptions = () => {
@@ -589,38 +581,41 @@ export default function SettingsScreen() {
       [
         {
           text: 'Cancel',
-          style: 'cancel'
+          style: 'cancel',
         },
         {
           text: 'Confirm',
           style: 'destructive',
           onPress: async () => {
             try {
-              console.log('RESCAN: Starting rescan from creation height:', wallet.creationHeight);
-              
+              getGlobalWorkletLogging().logging1string1number(
+                'RESCAN: Starting rescan from creation height:',
+                wallet.creationHeight
+              );
+
               // Clear all transactions, deposits, and withdrawals
               wallet.clearTransactions();
-              
+
               // Set lastHeight to creationHeight
               wallet.lastHeight = wallet.creationHeight;
-              
+
               // Save the wallet with cleared data
               await WalletService.saveWallet('rescan from creation height');
-              
+
               // Trigger wallet refresh to update UI
               refreshWallet();
-              
+
               // Signal wallet update to trigger watchdog rescan
               await WalletService.signalWalletUpdate();
-              
+
               Alert.alert('Success', 'Rescan initiated from creation height. Synchronization will restart.');
               setShowRescanOptions(false);
             } catch (error) {
               console.error('Error during rescan from creation height:', error);
               Alert.alert('Error', 'Failed to initiate rescan. Please try again.');
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
@@ -637,42 +632,41 @@ export default function SettingsScreen() {
       [
         {
           text: 'Cancel',
-          style: 'cancel'
+          style: 'cancel',
         },
         {
           text: 'Confirm',
           style: 'destructive',
           onPress: async () => {
             try {
-              console.log('RESCAN: Starting rescan from block 0');
-              
+              getGlobalWorkletLogging().logging1string('RESCAN: Starting rescan from block 0');
+
               // Clear all transactions, deposits, and withdrawals
               wallet.clearTransactions();
-              
+
               // Set lastHeight to 0
               wallet.lastHeight = 0;
-              
+
               // Save the wallet with cleared data
               await WalletService.saveWallet('rescan from block 0');
-              
+
               // Trigger wallet refresh to update UI
               refreshWallet();
-              
+
               // Signal wallet update to trigger watchdog rescan
               await WalletService.signalWalletUpdate();
-              
+
               Alert.alert('Success', 'Rescan initiated from block 0. Synchronization will restart from the beginning.');
               setShowRescanOptions(false);
             } catch (error) {
               console.error('Error during rescan from zero:', error);
               Alert.alert('Error', 'Failed to initiate rescan. Please try again.');
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
-
 
   const handleClearWalletData = async () => {
     Alert.alert(
@@ -686,26 +680,21 @@ export default function SettingsScreen() {
             try {
               // Clear wallet data from storage and cache
               await WalletService.clearWalletAndCache();
-              
+
               // Reset upgrade prompt flags so new local wallet can show prompts
               await WalletService.resetUpgradeFlags();
-              
+
               // Clear the wallet context state to force reinitialization
               await refreshWallet();
-              
+
               // Navigate to HomeScreen (will show wallet creation/import options)
               navigation.reset({
                 index: 0,
                 routes: [{ name: 'Home' }],
               });
-              
             } catch (error) {
               console.error('Error in handleClearWalletData:', error);
-              Alert.alert(
-                'Error',
-                'Failed to clear wallet data. Please try again.',
-                [{ text: 'OK' }]
-              );
+              Alert.alert('Error', 'Failed to clear wallet data. Please try again.', [{ text: 'OK' }]);
             }
           },
         },
@@ -724,34 +713,30 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              console.log('=== BEFORE CLEAR ALL ===');
+              // console.log('=== BEFORE CLEAR ALL ===');
               await StorageService.debugStorage();
-              
+
               await WalletService.forceClearAll();
-              
+
               // Reset upgrade prompt flags so new local wallet can show prompts
               await WalletService.resetUpgradeFlags();
-              
-              console.log('=== AFTER CLEAR ALL ===');
+
+              // console.log('=== AFTER CLEAR ALL ===');
               await StorageService.debugStorage();
-              
+
               // Clear the wallet context state to force reinitialization
               await refreshWallet();
-              
+
               // Navigate to HomeScreen
               navigation.reset({
                 index: 0,
                 routes: [{ name: 'Home' }],
               });
-              
+
               Alert.alert('Success', 'All data cleared successfully. The app will restart.');
             } catch (error) {
               console.error('Error in handleClearData:', error);
-              Alert.alert(
-                'Error',
-                'Failed to clear data. Please try again.',
-                [{ text: 'OK' }]
-              );
+              Alert.alert('Error', 'Failed to clear data. Please try again.', [{ text: 'OK' }]);
             }
           },
         },
@@ -767,20 +752,20 @@ export default function SettingsScreen() {
         Alert.alert('Error', 'Password change is only available when biometric authentication is disabled');
         return;
       }
-      
+
       // 1. Get the current wallet with the old password (this also verifies the password)
       const currentWallet = await WalletStorageManager.getDecryptedWalletWithPassword(oldPassword);
       if (!currentWallet) {
         Alert.alert('Error', 'Current password is incorrect or could not retrieve wallet data');
         return;
       }
-      
+
       // 2. Re-encrypt the wallet with the new password
       await WalletStorageManager.saveEncryptedWallet(currentWallet, newPassword);
-      
+
       // Note: No need to update biometric salt since we're in password mode
       // Biometric salt is only relevant when biometric authentication is enabled
-      
+
       Alert.alert('Success', 'Password changed successfully');
       setShowPasswordChangeAlert(false);
     } catch (error) {
@@ -791,8 +776,11 @@ export default function SettingsScreen() {
 
   const handleEnableBiometric = async (password: string) => {
     try {
-      console.log('BIOMETRIC ENABLE: Attempting to enable biometric with password length:', password.length);
-      
+      getGlobalWorkletLogging().logging1string1number(
+        'BIOMETRIC ENABLE: Attempting to enable biometric with password length:',
+        password.length
+      );
+
       // 1. Get wallet from WalletService (already in memory, no password prompt)
       const currentWallet = WalletService.getCachedWallet();
       if (!currentWallet) {
@@ -800,7 +788,7 @@ export default function SettingsScreen() {
         Alert.alert('Error', 'No wallet available');
         return;
       }
-      
+
       // 2. Verify the password against stored hash (no wallet loading needed)
       const storedDerivedKey = await WalletStorageManager.verifyPasswordAndGetKey(password);
       if (!storedDerivedKey) {
@@ -808,33 +796,33 @@ export default function SettingsScreen() {
         Alert.alert('Error', 'Password is incorrect');
         return;
       }
-      
-      console.log('BIOMETRIC ENABLE: Password verification successful, wallet decrypted');
-      
+
+      getGlobalWorkletLogging().logging1string('BIOMETRIC ENABLE: Password verification successful, wallet decrypted');
+
       // 2. Generate and store biometric salt with the verified password
       await WalletStorageManager.generateAndStoreBiometricSalt(password);
-      
+
       // 3. Re-encrypt the wallet with the derived biometric key
       const biometricKey = await WalletStorageManager.deriveBiometricKey();
       if (!biometricKey) {
         Alert.alert('Error', 'Failed to generate biometric key');
         return;
       }
-      
+
       // Re-encrypt wallet with biometric key directly (bypass mode check)
       const encryptedWallet = WalletRepository.save(currentWallet, biometricKey);
       await WalletStorageManager.saveEncryptedWalletData(encryptedWallet);
-      
+
       // 4. Enable biometric authentication in settings
       setBiometricAuth(true);
       await StorageService.saveSettings({
-        ...await StorageService.getSettings(),
-        biometricAuth: true
+        ...(await StorageService.getSettings()),
+        biometricAuth: true,
       });
-      
+
       // Close the modal first, then show success alert
       setShowUnlockWalletAlert(false);
-      
+
       // Show success alert after modal is closed
       setTimeout(() => {
         Alert.alert('Success', 'Biometric authentication enabled successfully');
@@ -849,29 +837,29 @@ export default function SettingsScreen() {
     try {
       // 1. Get the current wallet from WalletService (already decrypted in memory)
       const currentWallet = WalletService.getCachedWallet();
-      
+
       if (!currentWallet) {
         Alert.alert('Error', 'No wallet available. Please restart the app and try again.');
         return;
       }
-      
+
       // 2. Re-encrypt the wallet with the NEW user password using persistent key approach
       await WalletStorageManager.saveEncryptedWalletWithPersistentKey(currentWallet, newPassword);
-      
+
       // 3. Store the password key for quiet saves (like after authentication)
       const passwordKey = await WalletStorageManager.derivePasswordKey(newPassword);
       WalletStorageManager.setCurrentSessionPasswordKey(passwordKey);
-      
+
       // 4. Disable biometric authentication in settings
       setBiometricAuth(false);
       await StorageService.saveSettings({
-        ...await StorageService.getSettings(),
-        biometricAuth: false
+        ...(await StorageService.getSettings()),
+        biometricAuth: false,
       });
-      
+
       // Close the modal first, then show success alert
       setShowPasswordCreationAlert(false);
-      
+
       // Show success alert after modal is closed
       setTimeout(() => {
         Alert.alert('Success', 'Biometric authentication disabled. You will now use password authentication.');
@@ -882,12 +870,12 @@ export default function SettingsScreen() {
     }
   };
 
-  const SettingItem = ({ 
-    icon, 
-    title, 
-    subtitle, 
-    onPress, 
-    rightElement 
+  const SettingItem = ({
+    icon,
+    title,
+    subtitle,
+    onPress,
+    rightElement,
   }: {
     icon: string;
     title: string;
@@ -903,8 +891,14 @@ export default function SettingsScreen() {
       <View className="flex-row items-center flex-1">
         <Ionicons name={icon as any} size={24} color={theme.colors.text} />
         <View className="ml-3 flex-1">
-          <Text className="text-base font-medium" style={{ color: theme.colors.text }}>{title}</Text>
-          {subtitle && <Text className="text-sm mt-0.5" style={{ color: theme.colors.textSecondary }}>{subtitle}</Text>}
+          <Text className="text-base font-medium" style={{ color: theme.colors.text }}>
+            {title}
+          </Text>
+          {subtitle && (
+            <Text className="text-sm mt-0.5" style={{ color: theme.colors.textSecondary }}>
+              {subtitle}
+            </Text>
+          )}
         </View>
       </View>
       {rightElement || (onPress && <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />)}
@@ -916,17 +910,17 @@ export default function SettingsScreen() {
     try {
       const generator = new CnUtils.PaymentIdGenerator();
       const newPaymentId = generator.generateRandomPaymentId();
-      
+
       const updatedList = [...paymentIdWhiteList, newPaymentId];
       setPaymentIdWhiteList(updatedList);
-      
+
       // Save to settings
       const settings = await StorageService.getSettings();
       await StorageService.saveSettings({
         ...settings,
-        paymentIdWhiteList: updatedList
+        paymentIdWhiteList: updatedList,
       });
-      
+
       Alert.alert('Success', 'New Payment ID generated and added to whitelist');
     } catch (error) {
       console.error('Error generating payment ID:', error);
@@ -945,16 +939,16 @@ export default function SettingsScreen() {
 
   const handleDeletePaymentId = async (paymentIdToDelete: string) => {
     try {
-      const updatedList = paymentIdWhiteList.filter(id => id !== paymentIdToDelete);
+      const updatedList = paymentIdWhiteList.filter((id) => id !== paymentIdToDelete);
       setPaymentIdWhiteList(updatedList);
-      
+
       // Save to settings
       const settings = await StorageService.getSettings();
       await StorageService.saveSettings({
         ...settings,
-        paymentIdWhiteList: updatedList
+        paymentIdWhiteList: updatedList,
       });
-      
+
       Alert.alert('Deleted', 'Payment ID removed from whitelist');
     } catch (error) {
       console.error('Error deleting payment ID:', error);
@@ -968,7 +962,7 @@ export default function SettingsScreen() {
 
   const handleAddManualPaymentId = async () => {
     const trimmedPaymentId = manualPaymentId.trim();
-    
+
     if (!trimmedPaymentId) {
       Alert.alert('Error', 'Please enter a payment ID');
       return;
@@ -987,14 +981,14 @@ export default function SettingsScreen() {
     try {
       const updatedList = [...paymentIdWhiteList, trimmedPaymentId];
       setPaymentIdWhiteList(updatedList);
-      
+
       // Save to settings
       const settings = await StorageService.getSettings();
       await StorageService.saveSettings({
         ...settings,
-        paymentIdWhiteList: updatedList
+        paymentIdWhiteList: updatedList,
       });
-      
+
       setManualPaymentId(''); // Clear input
       Alert.alert('Success', 'Payment ID added to whitelist');
     } catch (error) {
@@ -1051,7 +1045,9 @@ export default function SettingsScreen() {
 
           {/* Wallet Management */}
           <View className="mb-6">
-            <Text className="text-base font-semibold mb-2 ml-1" style={{ color: theme.colors.text }}>Wallet Management</Text>
+            <Text className="text-base font-semibold mb-2 ml-1" style={{ color: theme.colors.text }}>
+              Wallet Management
+            </Text>
             <View className="rounded-2xl shadow-lg" style={{ backgroundColor: theme.colors.card }}>
               {/* Only show Rescan Wallet for blockchain wallets (not local-only) */}
               {wallet && !wallet.isLocal() && (
@@ -1059,20 +1055,23 @@ export default function SettingsScreen() {
                   <SettingItem
                     icon="refresh-outline"
                     title="Rescan Wallet"
-                    subtitle={showRescanOptions ? "Hide rescan options" : "Rescan blockchain for transactions"}
+                    subtitle={showRescanOptions ? 'Hide rescan options' : 'Rescan blockchain for transactions'}
                     onPress={handleToggleRescanOptions}
                     rightElement={
-                      <Ionicons 
-                        name={showRescanOptions ? "chevron-up" : "chevron-down"} 
-                        size={20} 
-                        color={theme.colors.textSecondary} 
+                      <Ionicons
+                        name={showRescanOptions ? 'chevron-up' : 'chevron-down'}
+                        size={20}
+                        color={theme.colors.textSecondary}
                       />
                     }
                   />
-                  
+
                   {/* Rescan Options Expandable Section */}
                   {showRescanOptions && (
-                    <View className="p-4 mt-2 rounded-xl border" style={{ backgroundColor: theme.colors.background, borderColor: theme.colors.border }}>
+                    <View
+                      className="p-4 mt-2 rounded-xl border"
+                      style={{ backgroundColor: theme.colors.background, borderColor: theme.colors.border }}
+                    >
                       <TouchableOpacity
                         className="flex-row items-center p-4 rounded-lg mb-2 border"
                         style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border }}
@@ -1088,7 +1087,7 @@ export default function SettingsScreen() {
                           </Text>
                         </View>
                       </TouchableOpacity>
-                      
+
                       <TouchableOpacity
                         className="flex-row items-center p-4 rounded-lg border"
                         style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border }}
@@ -1112,21 +1111,27 @@ export default function SettingsScreen() {
               <SettingItem
                 icon="key-outline"
                 title="Show Recovery Seed"
-                subtitle={showRecoverySeed ? "Hide recovery phrase" : "View your 25-word recovery phrase"}
+                subtitle={showRecoverySeed ? 'Hide recovery phrase' : 'View your 25-word recovery phrase'}
                 onPress={handleShowSeed}
                 rightElement={
-                  <Ionicons 
-                    name={showRecoverySeed ? "chevron-up" : "chevron-down"} 
-                    size={20} 
-                    color={theme.colors.textSecondary} 
+                  <Ionicons
+                    name={showRecoverySeed ? 'chevron-up' : 'chevron-down'}
+                    size={20}
+                    color={theme.colors.textSecondary}
                   />
                 }
               />
-              
+
               {/* Recovery Seed Expandable Section */}
               {showRecoverySeed && (
-                <View className="p-4 mt-2 rounded-xl border" style={{ backgroundColor: theme.colors.background, borderColor: theme.colors.border }}>
-                  <Text className="text-sm font-mono p-3 rounded-lg mb-3 leading-5" style={{ color: theme.colors.text, backgroundColor: theme.colors.surface }}>
+                <View
+                  className="p-4 mt-2 rounded-xl border"
+                  style={{ backgroundColor: theme.colors.background, borderColor: theme.colors.border }}
+                >
+                  <Text
+                    className="text-sm font-mono p-3 rounded-lg mb-3 leading-5"
+                    style={{ color: theme.colors.text, backgroundColor: theme.colors.surface }}
+                  >
                     {recoverySeed}
                   </Text>
                   <TouchableOpacity
@@ -1135,7 +1140,9 @@ export default function SettingsScreen() {
                     onPress={handleCopySeed}
                   >
                     <Ionicons name="copy-outline" size={16} color={theme.colors.primary} />
-                    <Text className="text-sm font-semibold ml-2" style={{ color: theme.colors.primary }}>Copy Seed</Text>
+                    <Text className="text-sm font-semibold ml-2" style={{ color: theme.colors.primary }}>
+                      Copy Seed
+                    </Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -1143,27 +1150,25 @@ export default function SettingsScreen() {
               <SettingItem
                 icon="download-outline"
                 title="Export Wallet"
-                subtitle={showExportQR ? "Hide QR code" : "Backup your wallet"}
+                subtitle={showExportQR ? 'Hide QR code' : 'Backup your wallet'}
                 onPress={handleExportWallet}
                 rightElement={
-                  <Ionicons 
-                    name={showExportQR ? "chevron-up" : "chevron-down"} 
-                    size={20} 
-                    color={theme.colors.textSecondary} 
+                  <Ionicons
+                    name={showExportQR ? 'chevron-up' : 'chevron-down'}
+                    size={20}
+                    color={theme.colors.textSecondary}
                   />
                 }
               />
-              
+
               {/* Export QR Expandable Section */}
               {showExportQR && (
-                <View className="p-4 mt-2 rounded-xl border" style={{ backgroundColor: theme.colors.background, borderColor: theme.colors.border }}>
+                <View
+                  className="p-4 mt-2 rounded-xl border"
+                  style={{ backgroundColor: theme.colors.background, borderColor: theme.colors.border }}
+                >
                   <View className="items-center p-5 rounded-xl mb-3 shadow-md" style={{ backgroundColor: 'white' }}>
-                    <QRCode
-                      value={exportQRData}
-                      size={qrSize}
-                      backgroundColor="white"
-                      color="black"
-                    />
+                    <QRCode value={exportQRData} size={qrSize} backgroundColor="white" color="black" />
                   </View>
                   <Text className="text-sm text-center mb-3 italic" style={{ color: theme.colors.textSecondary }}>
                     Scan this QR code to import the wallet
@@ -1174,7 +1179,9 @@ export default function SettingsScreen() {
                     onPress={handleCopyQRData}
                   >
                     <Ionicons name="copy-outline" size={16} color={theme.colors.primary} />
-                    <Text className="text-sm font-semibold ml-2" style={{ color: theme.colors.primary }}>Copy QR Data</Text>
+                    <Text className="text-sm font-semibold ml-2" style={{ color: theme.colors.primary }}>
+                      Copy QR Data
+                    </Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -1183,7 +1190,9 @@ export default function SettingsScreen() {
 
           {/* Blockchain Settings */}
           <View className="mb-6">
-            <Text className="text-base font-semibold mb-2 ml-1" style={{ color: theme.colors.text }}>Blockchain</Text>
+            <Text className="text-base font-semibold mb-2 ml-1" style={{ color: theme.colors.text }}>
+              Blockchain
+            </Text>
             <View className="rounded-2xl shadow-lg" style={{ backgroundColor: theme.colors.card }}>
               {/* Remote Node Configuration */}
               <SettingItem
@@ -1191,15 +1200,9 @@ export default function SettingsScreen() {
                 title="Remote Node"
                 subtitle={nodeDisplayName}
                 onPress={() => setShowCustomNodeModal(true)}
-                rightElement={
-                  <Ionicons 
-                    name="chevron-forward" 
-                    size={20} 
-                    color={theme.colors.textSecondary} 
-                  />
-                }
+                rightElement={<Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />}
               />
-              
+
               {showBlockchainSyncToggle && (
                 <SettingItem
                   icon="cloud-outline"
@@ -1209,9 +1212,9 @@ export default function SettingsScreen() {
                     <Switch
                       value={blockchainSync}
                       onValueChange={handleBlockchainSyncToggle}
-                      trackColor={{ 
+                      trackColor={{
                         false: theme.colors.border,
-                        true: theme.colors.primary
+                        true: theme.colors.primary,
                       }}
                       thumbColor={theme.colors.background}
                       ios_backgroundColor={theme.colors.border}
@@ -1219,49 +1222,53 @@ export default function SettingsScreen() {
                   }
                 />
               )}
-              
+
               {showBlockchainSyncToggle && (
                 <>
                   <SettingItem
                     icon="radio-outline"
                     title="Broadcast Code"
-                    subtitle={broadcastAddress ? `Send to: ${broadcastAddress.substring(0, 10)}...` : "Send 2FA codes via auto-destruct message"}
+                    subtitle={
+                      broadcastAddress
+                        ? `Send to: ${broadcastAddress.substring(0, 10)}...`
+                        : 'Send 2FA codes via auto-destruct message'
+                    }
                     onPress={() => setIsBroadcastExpanded(!isBroadcastExpanded)}
                     rightElement={
-                      <Ionicons 
-                        name={isBroadcastExpanded ? "chevron-up" : "chevron-down"} 
-                        size={20} 
-                        color={theme.colors.textSecondary} 
+                      <Ionicons
+                        name={isBroadcastExpanded ? 'chevron-up' : 'chevron-down'}
+                        size={20}
+                        color={theme.colors.textSecondary}
                       />
                     }
                   />
-                  
+
                   {/* Broadcast Options Expandable Section */}
                   {isBroadcastExpanded && (
-                    <View className="p-4 mt-2 rounded-xl border" style={{ backgroundColor: theme.colors.background, borderColor: theme.colors.border }}>
-                      <Text 
-                        className="text-sm font-medium mb-3 font-poppins-medium" 
+                    <View
+                      className="p-4 mt-2 rounded-xl border"
+                      style={{ backgroundColor: theme.colors.background, borderColor: theme.colors.border }}
+                    >
+                      <Text
+                        className="text-sm font-medium mb-3 font-poppins-medium"
                         style={{ color: theme.colors.textSecondary }}
                       >
                         Choose broadcast destination:
                       </Text>
-                      
+
                       {/* Current Address Display */}
                       <View className="mb-3 p-3 rounded-lg" style={{ backgroundColor: theme.colors.surface }}>
-                        <Text 
-                          className="text-sm font-medium mb-1 font-poppins-medium" 
+                        <Text
+                          className="text-sm font-medium mb-1 font-poppins-medium"
                           style={{ color: theme.colors.text }}
                         >
                           Current Destination:
                         </Text>
-                        <Text 
-                          className="text-xs font-mono" 
-                          style={{ color: theme.colors.textSecondary }}
-                        >
+                        <Text className="text-xs font-mono" style={{ color: theme.colors.textSecondary }}>
                           {broadcastAddress || wallet?.getPublicAddress() || 'Wallet Address'}
                         </Text>
                       </View>
-                      
+
                       {/* QR Scanner Option */}
                       <TouchableOpacity
                         className="flex-row items-center p-3 rounded-lg mb-2 border"
@@ -1278,7 +1285,7 @@ export default function SettingsScreen() {
                           </Text>
                         </View>
                       </TouchableOpacity>
-                      
+
                       {/* Manual Input Option */}
                       <TouchableOpacity
                         className="flex-row items-center p-3 rounded-lg mb-2 border"
@@ -1289,14 +1296,14 @@ export default function SettingsScreen() {
                             'Enter the CCX address to broadcast to:',
                             [
                               { text: 'Cancel', style: 'cancel' },
-                              { 
-                                text: 'Save', 
+                              {
+                                text: 'Save',
                                 onPress: (text) => {
                                   if (text) {
                                     handleManualBroadcastAddress(text.trim());
                                   }
-                                }
-                              }
+                                },
+                              },
                             ],
                             'plain-text',
                             broadcastAddress || wallet?.getPublicAddress() || '',
@@ -1314,7 +1321,7 @@ export default function SettingsScreen() {
                           </Text>
                         </View>
                       </TouchableOpacity>
-                      
+
                       {/* Reset to Wallet Address */}
                       <TouchableOpacity
                         className="flex-row items-center p-3 rounded-lg border"
@@ -1341,126 +1348,139 @@ export default function SettingsScreen() {
           {/* Trust Anchor (Payment ID Whitelist) */}
           {showBlockchainSyncToggle && (
             <View className="mb-6">
-            <Text className="text-base font-semibold mb-2 ml-1" style={{ color: theme.colors.text }}>Trust Anchor</Text>
-            <View className="rounded-2xl shadow-lg" style={{ backgroundColor: theme.colors.card }}>
-              <SettingItem
-                icon="shield-checkmark-outline"
-                title="Payment ID Whitelist"
-                subtitle={`${paymentIdWhiteList.length} trusted payment IDs`}
-                onPress={() => setIsTrustAnchorExpanded(!isTrustAnchorExpanded)}
-                rightElement={
-                  <Ionicons 
-                    name={isTrustAnchorExpanded ? "chevron-up" : "chevron-down"} 
-                    size={20} 
-                    color={theme.colors.textSecondary} 
-                  />
-                }
-              />
-              
-              {/* Trust Anchor Expandable Section */}
-              {isTrustAnchorExpanded && (
-                <View className="p-4 mt-2 rounded-xl border" style={{ backgroundColor: theme.colors.background, borderColor: theme.colors.border }}>
-                  <Text 
-                    className="text-sm font-medium mb-3 font-poppins-medium" 
-                    style={{ color: theme.colors.textSecondary }}
+              <Text className="text-base font-semibold mb-2 ml-1" style={{ color: theme.colors.text }}>
+                Trust Anchor
+              </Text>
+              <View className="rounded-2xl shadow-lg" style={{ backgroundColor: theme.colors.card }}>
+                <SettingItem
+                  icon="shield-checkmark-outline"
+                  title="Payment ID Whitelist"
+                  subtitle={`${paymentIdWhiteList.length} trusted payment IDs`}
+                  onPress={() => setIsTrustAnchorExpanded(!isTrustAnchorExpanded)}
+                  rightElement={
+                    <Ionicons
+                      name={isTrustAnchorExpanded ? 'chevron-up' : 'chevron-down'}
+                      size={20}
+                      color={theme.colors.textSecondary}
+                    />
+                  }
+                />
+
+                {/* Trust Anchor Expandable Section */}
+                {isTrustAnchorExpanded && (
+                  <View
+                    className="p-4 mt-2 rounded-xl border"
+                    style={{ backgroundColor: theme.colors.background, borderColor: theme.colors.border }}
                   >
-                    Whitelist of trusted payment IDs for smart messages
-                  </Text>
-                  
-                  {/* Generate Button */}
-                  <TouchableOpacity
-                    className="flex-row items-center justify-center p-3 mb-4 rounded-lg border-2 border-dashed"
-                    style={{ borderColor: theme.colors.primary }}
-                    onPress={handleGeneratePaymentId}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="add-circle-outline" size={20} color={theme.colors.primary} />
-                    <Text className="ml-2 font-medium" style={{ color: theme.colors.primary }}>Generate Payment ID</Text>
-                  </TouchableOpacity>
-                  
-                  {/* Manual Payment ID Input */}
-                  <View className="mb-4">
-                    <Text 
-                      className="text-sm font-medium mb-2 font-poppins-medium" 
+                    <Text
+                      className="text-sm font-medium mb-3 font-poppins-medium"
                       style={{ color: theme.colors.textSecondary }}
                     >
-                      Or enter a payment ID manually:
+                      Whitelist of trusted payment IDs for smart messages
                     </Text>
-                    <View className="flex-row items-center">
-                      <TextInput
-                        className="flex-1 p-3 rounded-lg border mr-2 font-mono text-xs"
-                        style={{ 
-                          backgroundColor: theme.colors.surface, 
-                          borderColor: theme.colors.border,
-                          color: theme.colors.text 
-                        }}
-                        placeholder="Enter 64-character payment ID..."
-                        placeholderTextColor={theme.colors.textSecondary}
-                        value={manualPaymentId}
-                        onChangeText={setManualPaymentId}
-                        maxLength={64}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                      />
-                      <TouchableOpacity
-                        className="px-4 py-3 rounded-lg"
-                        style={{ backgroundColor: theme.colors.primary }}
-                        onPress={handleAddManualPaymentId}
-                        activeOpacity={0.7}
+
+                    {/* Generate Button */}
+                    <TouchableOpacity
+                      className="flex-row items-center justify-center p-3 mb-4 rounded-lg border-2 border-dashed"
+                      style={{ borderColor: theme.colors.primary }}
+                      onPress={handleGeneratePaymentId}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="add-circle-outline" size={20} color={theme.colors.primary} />
+                      <Text className="ml-2 font-medium" style={{ color: theme.colors.primary }}>
+                        Generate Payment ID
+                      </Text>
+                    </TouchableOpacity>
+
+                    {/* Manual Payment ID Input */}
+                    <View className="mb-4">
+                      <Text
+                        className="text-sm font-medium mb-2 font-poppins-medium"
+                        style={{ color: theme.colors.textSecondary }}
                       >
-                        <Ionicons name="checkmark" size={16} color={theme.colors.background} />
-                      </TouchableOpacity>
+                        Or enter a payment ID manually:
+                      </Text>
+                      <View className="flex-row items-center">
+                        <TextInput
+                          className="flex-1 p-3 rounded-lg border mr-2 font-mono text-xs"
+                          style={{
+                            backgroundColor: theme.colors.surface,
+                            borderColor: theme.colors.border,
+                            color: theme.colors.text,
+                          }}
+                          placeholder="Enter 64-character payment ID..."
+                          placeholderTextColor={theme.colors.textSecondary}
+                          value={manualPaymentId}
+                          onChangeText={setManualPaymentId}
+                          maxLength={64}
+                          autoCapitalize="none"
+                          autoCorrect={false}
+                        />
+                        <TouchableOpacity
+                          className="px-4 py-3 rounded-lg"
+                          style={{ backgroundColor: theme.colors.primary }}
+                          onPress={handleAddManualPaymentId}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="checkmark" size={16} color={theme.colors.background} />
+                        </TouchableOpacity>
+                      </View>
+                      {manualPaymentId.length > 0 && (
+                        <Text
+                          className="text-xs mt-1"
+                          style={{
+                            color: handleValidatePaymentId(manualPaymentId) ? theme.colors.success : theme.colors.error,
+                          }}
+                        >
+                          {handleValidatePaymentId(manualPaymentId) ? 'Valid payment ID' : 'Invalid payment ID format'}
+                        </Text>
+                      )}
                     </View>
-                    {manualPaymentId.length > 0 && (
-                      <Text 
-                        className="text-xs mt-1" 
-                        style={{ 
-                          color: handleValidatePaymentId(manualPaymentId) ? theme.colors.success : theme.colors.error 
-                        }}
-                      >
-                        {handleValidatePaymentId(manualPaymentId) ? 'Valid payment ID' : 'Invalid payment ID format'}
+
+                    {/* Payment ID List */}
+                    {paymentIdWhiteList.length > 0 ? (
+                      <View>
+                        {paymentIdWhiteList.map((paymentId, index) => (
+                          <View
+                            key={index}
+                            className="flex-row items-center justify-between p-3 mb-2 rounded-lg"
+                            style={{ backgroundColor: theme.colors.card }}
+                          >
+                            <TouchableOpacity
+                              className="flex-1"
+                              onPress={() => handleCopyPaymentId(paymentId)}
+                              activeOpacity={0.7}
+                            >
+                              <Text className="text-xs font-mono" style={{ color: theme.colors.text }}>
+                                {paymentId.substring(0, 16)}...{paymentId.substring(48)}
+                              </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              className="p-2"
+                              onPress={() => handleDeletePaymentId(paymentId)}
+                              activeOpacity={0.7}
+                            >
+                              <Ionicons name="trash-outline" size={16} color={theme.colors.warning} />
+                            </TouchableOpacity>
+                          </View>
+                        ))}
+                      </View>
+                    ) : (
+                      <Text className="text-sm text-center py-4" style={{ color: theme.colors.textSecondary }}>
+                        No payment IDs in whitelist
                       </Text>
                     )}
                   </View>
-                  
-                  {/* Payment ID List */}
-                  {paymentIdWhiteList.length > 0 ? (
-                    <View>
-                      {paymentIdWhiteList.map((paymentId, index) => (
-                        <View key={index} className="flex-row items-center justify-between p-3 mb-2 rounded-lg" style={{ backgroundColor: theme.colors.card }}>
-                          <TouchableOpacity
-                            className="flex-1"
-                            onPress={() => handleCopyPaymentId(paymentId)}
-                            activeOpacity={0.7}
-                          >
-                            <Text className="text-xs font-mono" style={{ color: theme.colors.text }}>
-                              {paymentId.substring(0, 16)}...{paymentId.substring(48)}
-                            </Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            className="p-2"
-                            onPress={() => handleDeletePaymentId(paymentId)}
-                            activeOpacity={0.7}
-                          >
-                            <Ionicons name="trash-outline" size={16} color={theme.colors.warning} />
-                          </TouchableOpacity>
-                        </View>
-                      ))}
-                    </View>
-                  ) : (
-                    <Text className="text-sm text-center py-4" style={{ color: theme.colors.textSecondary }}>
-                      No payment IDs in whitelist
-                    </Text>
-                  )}
-                </View>
-              )}
+                )}
+              </View>
             </View>
-          </View>
           )}
-          
+
           {/* Security Settings */}
           <View className="mb-6">
-            <Text className="text-base font-semibold mb-2 ml-1" style={{ color: theme.colors.text }}>Security</Text>
+            <Text className="text-base font-semibold mb-2 ml-1" style={{ color: theme.colors.text }}>
+              Security
+            </Text>
             <View className="rounded-2xl shadow-lg" style={{ backgroundColor: theme.colors.card }}>
               <SettingItem
                 icon="finger-print-outline"
@@ -1482,7 +1502,7 @@ export default function SettingsScreen() {
                                 // Don't change the toggle, keep it enabled
                                 setBiometricAuth(true);
                               },
-                              style: 'cancel'
+                              style: 'cancel',
                             },
                             {
                               text: 'Confirm',
@@ -1490,8 +1510,8 @@ export default function SettingsScreen() {
                                 // Show password input alert for disabling biometric
                                 setBiometricAction('disable');
                                 setShowPasswordCreationAlert(true);
-                              }
-                            }
+                              },
+                            },
                           ]
                         );
                       } else {
@@ -1506,7 +1526,7 @@ export default function SettingsScreen() {
                                 // Don't change the toggle, keep it disabled
                                 setBiometricAuth(false);
                               },
-                              style: 'cancel'
+                              style: 'cancel',
                             },
                             {
                               text: 'Enable',
@@ -1514,22 +1534,22 @@ export default function SettingsScreen() {
                                 // Show password input alert
                                 setBiometricAction('enable');
                                 setShowUnlockWalletAlert(true);
-                              }
-                            }
+                              },
+                            },
                           ]
                         );
                       }
                     }}
-                    trackColor={{ 
+                    trackColor={{
                       false: theme.colors.border,
-                      true: theme.colors.primary
+                      true: theme.colors.primary,
                     }}
                     thumbColor={theme.colors.background}
                     ios_backgroundColor={theme.colors.border}
                   />
                 }
               />
-              
+
               {/* Change Password option - only visible when biometric is disabled */}
               {!biometricAuth && (
                 <SettingItem
@@ -1541,7 +1561,6 @@ export default function SettingsScreen() {
               )}
             </View>
           </View>
-
 
           {/* Storage */}
           <ExpandableSection
@@ -1562,58 +1581,55 @@ export default function SettingsScreen() {
               {revokedKeys.length > 0 ? (
                 <View>
                   {revokedKeys.map((key) => (
-                  <View key={key.hash} className="flex-row items-center justify-between p-3 border-b border-gray-200">
-                    {/* Resuscitate icon on the left */}
-                    <TouchableOpacity
-                      onPress={() => handleResuscitateKey(key.hash)}
-                      className="p-2 rounded-full mr-3"
-                      style={{ backgroundColor: theme.colors.primary + '20' }}
-                    >
-                      <Ionicons name="refresh-outline" size={20} color={theme.colors.primary} />
-                    </TouchableOpacity>
-                    
-                    {/* Key info in the middle */}
-                    <View className="flex-1">
-                      <Text className="text-base font-medium" style={{ color: theme.colors.text }}>
-                        {key.name.length > 10 ? key.name.substring(0, 10) + '...' : key.name}
-                      </Text>
-                      <Text className="text-sm" style={{ color: theme.colors.textSecondary }}>
-                        {key.issuer}
-                      </Text>
+                    <View key={key.hash} className="flex-row items-center justify-between p-3 border-b border-gray-200">
+                      {/* Resuscitate icon on the left */}
+                      <TouchableOpacity
+                        onPress={() => handleResuscitateKey(key.hash)}
+                        className="p-2 rounded-full mr-3"
+                        style={{ backgroundColor: theme.colors.primary + '20' }}
+                      >
+                        <Ionicons name="refresh-outline" size={20} color={theme.colors.primary} />
+                      </TouchableOpacity>
+
+                      {/* Key info in the middle */}
+                      <View className="flex-1">
+                        <Text className="text-base font-medium" style={{ color: theme.colors.text }}>
+                          {key.name.length > 10 ? key.name.substring(0, 10) + '...' : key.name}
+                        </Text>
+                        <Text className="text-sm" style={{ color: theme.colors.textSecondary }}>
+                          {key.issuer}
+                        </Text>
+                      </View>
+
+                      {/* Delete icon on the right */}
+                      <TouchableOpacity
+                        onPress={() => handleDeleteKey(key.hash)}
+                        className="p-2 rounded-full"
+                        style={{ backgroundColor: theme.colors.error + '20' }}
+                      >
+                        <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
+                      </TouchableOpacity>
                     </View>
-                    
-                    {/* Delete icon on the right */}
+                  ))}
+                  <View className="flex-row justify-between p-3">
                     <TouchableOpacity
-                      onPress={() => handleDeleteKey(key.hash)}
-                      className="p-2 rounded-full"
-                      style={{ backgroundColor: theme.colors.error + '20' }}
+                      onPress={handleResuscitateAll}
+                      className="flex-1 bg-green-500 p-3 rounded-lg mr-2"
                     >
-                      <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
+                      <Text className="text-white text-center font-medium">Resuscitate All</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={handleDeleteAll} className="flex-1 bg-red-500 p-3 rounded-lg ml-2">
+                      <Text className="text-white text-center font-medium">Delete All</Text>
                     </TouchableOpacity>
                   </View>
-                ))}
-                <View className="flex-row justify-between p-3">
-                  <TouchableOpacity
-                    onPress={handleResuscitateAll}
-                    className="flex-1 bg-green-500 p-3 rounded-lg mr-2"
-                  >
-                    <Text className="text-white text-center font-medium">Resuscitate All</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={handleDeleteAll}
-                    className="flex-1 bg-red-500 p-3 rounded-lg ml-2"
-                  >
-                    <Text className="text-white text-center font-medium">Delete All</Text>
-                  </TouchableOpacity>
                 </View>
-                  </View>
-                ) : (
-                  <View className="p-4">
-                    <Text className="text-center" style={{ color: theme.colors.textSecondary }}>
-                      No revoked shared keys found
-                    </Text>
-                  </View>
-                )}
+              ) : (
+                <View className="p-4">
+                  <Text className="text-center" style={{ color: theme.colors.textSecondary }}>
+                    No revoked shared keys found
+                  </Text>
+                </View>
+              )}
             </ExpandableSection>
 
             <SettingItem
@@ -1621,38 +1637,24 @@ export default function SettingsScreen() {
               title="Clear Wallet Data"
               subtitle="Clear wallet data and recreate empty local-only wallet"
               onPress={handleClearWalletData}
-              rightElement={
-                <Ionicons 
-                  name="chevron-forward" 
-                  size={20} 
-                  color={theme.colors.textSecondary} 
-                />
-              }
+              rightElement={<Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />}
             />
             <SettingItem
               icon="trash-outline"
               title="Clear All Data"
               subtitle="Remove all services, wallet data, and settings"
               onPress={handleClearData}
-              rightElement={
-                <Ionicons 
-                  name="chevron-forward" 
-                  size={20} 
-                  color={theme.colors.textSecondary} 
-                />
-              }
+              rightElement={<Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />}
             />
           </ExpandableSection>
 
           {/* About */}
           <View className="mb-6">
-            <Text className="text-base font-semibold mb-2 ml-1" style={{ color: theme.colors.text }}>About</Text>
+            <Text className="text-base font-semibold mb-2 ml-1" style={{ color: theme.colors.text }}>
+              About
+            </Text>
             <View className="rounded-2xl shadow-lg" style={{ backgroundColor: theme.colors.card }}>
-              <SettingItem
-                icon="information-circle-outline"
-                title="Version"
-                subtitle={packageJson.version}
-              />
+              <SettingItem icon="information-circle-outline" title="Version" subtitle={packageJson.version} />
               <SettingItem
                 icon="document-text-outline"
                 title="Terms and Conditions"
@@ -1660,10 +1662,9 @@ export default function SettingsScreen() {
               />
             </View>
           </View>
-
         </ScrollView>
       </View>
-      
+
       <PasswordChangeAlert
         visible={showPasswordChangeAlert}
         title="Change Password"
@@ -1671,7 +1672,7 @@ export default function SettingsScreen() {
         onCancel={() => setShowPasswordChangeAlert(false)}
         onConfirm={handlePasswordChange}
       />
-      
+
       <UnlockWalletAlert
         visible={showUnlockWalletAlert}
         title="Enable Biometric Authentication"
@@ -1679,7 +1680,7 @@ export default function SettingsScreen() {
         onCancel={() => setShowUnlockWalletAlert(false)}
         onConfirm={handleEnableBiometric}
       />
-      
+
       <PasswordCreationAlert
         visible={showPasswordCreationAlert}
         title="Set New Password"
@@ -1687,7 +1688,7 @@ export default function SettingsScreen() {
         onCancel={() => setShowPasswordCreationAlert(false)}
         onConfirm={handleDisableBiometric}
       />
-      
+
       {/* Custom Node Modal */}
       <CustomNodeModal
         visible={showCustomNodeModal}
@@ -1695,20 +1696,16 @@ export default function SettingsScreen() {
         onCancel={handleCustomNodeCancel}
         onSave={handleCustomNodeSave}
       />
-      
+
       {/* Broadcast QR Scanner Modal */}
       <QRScannerModal
         visible={showBroadcastQRScanner}
         onClose={handleBroadcastQRClose}
         onScan={handleBroadcastQRScan}
       />
-      
+
       {/* Terms and Conditions Modal */}
-      <TermsModal
-        visible={showTermsModal}
-        onClose={() => setShowTermsModal(false)}
-      />
-      
+      <TermsModal visible={showTermsModal} onClose={() => setShowTermsModal(false)} />
     </GestureNavigator>
   );
 }

@@ -1,19 +1,20 @@
 /*
  * Copyright (c) 2025 Acktarius, Conceal Devs
- * 
+ *
  * This file is part of Conceal-2FA-App
- * 
+ *
  * Distributed under the BSD 3-Clause License, see the accompanying
  * file LICENSE or https://opensource.org/licenses/BSD-3-Clause.
  */
-import * as SecureStore from 'expo-secure-store';
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
+import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { SharedKey } from '../model/Transaction';
-import { WalletStorageManager } from './WalletStorageManager';
-import type { IStorageService } from './interfaces/IStorageService';
 import { dependencyContainer } from './DependencyContainer';
+import type { IStorageService } from './interfaces/IStorageService';
+import { WalletStorageManager } from './WalletStorageManager';
 
 export class StorageService implements IStorageService {
   private static readonly SHARED_KEYS_KEY = 'shared_keys';
@@ -60,15 +61,15 @@ export class StorageService implements IStorageService {
   private static async decryptData(encryptedData: string): Promise<string> {
     const decoded = atob(encryptedData);
     const [data, hash] = decoded.split('|');
-    
+
     // Verify the data integrity
     const combined = data + StorageService.ENCRYPTION_SALT;
     const expectedHash = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, combined);
-    
+
     if (hash !== expectedHash) {
       throw new Error('Invalid encrypted data');
     }
-    
+
     return data;
   }
 
@@ -76,7 +77,7 @@ export class StorageService implements IStorageService {
     try {
       const data = JSON.stringify(sharedKeys);
       const encryptedData = await StorageService.encryptData(data);
-      
+
       if (Platform.OS === 'web') {
         localStorage.setItem(StorageService.SHARED_KEYS_KEY, encryptedData);
       } else {
@@ -96,9 +97,9 @@ export class StorageService implements IStorageService {
       } else {
         encryptedData = await AsyncStorage.getItem(StorageService.SHARED_KEYS_KEY);
       }
-      
+
       if (!encryptedData) return [];
-      
+
       const data = await StorageService.decryptData(encryptedData);
       const parsed = JSON.parse(data);
       return parsed.map((item: any) => {
@@ -119,7 +120,7 @@ export class StorageService implements IStorageService {
           timeStampSharedKeyCreate: item.timeStampSharedKeyCreate || Date.now(),
           timeStampSharedKeyRevoke: item.timeStampSharedKeyRevoke !== undefined ? item.timeStampSharedKeyRevoke : -1, // Include timeStampSharedKeyRevoke property
           isLocal: item.isLocal !== undefined ? item.isLocal : true, // Default to true for backward compatibility
-          unknownSource: item.unknownSource || false // Default to false for backward compatibility
+          unknownSource: item.unknownSource || false, // Default to false for backward compatibility
         });
         return sharedKey;
       });
@@ -128,8 +129,6 @@ export class StorageService implements IStorageService {
       return [];
     }
   }
-
-
 
   static async saveSettings(settings: any): Promise<void> {
     try {
@@ -163,7 +162,7 @@ export class StorageService implements IStorageService {
   static async clearAll(): Promise<void> {
     try {
       console.log('Starting clearAll...');
-      
+
       if (Platform.OS === 'web') {
         console.log('Clearing web storage...');
         // Clear all known keys
@@ -189,7 +188,7 @@ export class StorageService implements IStorageService {
         // Clear AsyncStorage
         await AsyncStorage.removeItem(StorageService.SHARED_KEYS_KEY);
       }
-      
+
       // Clear wallet data
       await WalletStorageManager.clearWallet();
 
@@ -203,7 +202,7 @@ export class StorageService implements IStorageService {
   static async debugStorage(): Promise<void> {
     try {
       console.log('=== STORAGE DEBUG ===');
-      
+
       // Check shared keys
       const sharedKeys = await StorageService.getSharedKeys();
       console.log('Shared keys count:', sharedKeys.length);
@@ -213,21 +212,21 @@ export class StorageService implements IStorageService {
           issuer: key.issuer,
           hash: key.hash,
           isLocal: key.isLocal,
-          unknownSource: key.unknownSource
+          unknownSource: key.unknownSource,
         });
       });
-      
+
       // Check wallet
       const wallet = await WalletStorageManager.getWallet();
       console.log('Wallet exists:', !!wallet);
       if (wallet) {
         console.log('Wallet address:', wallet.getPublicAddress());
       }
-      
+
       // Check settings
       const settings = await StorageService.getSettings();
       console.log('Settings:', settings);
-      
+
       console.log('=== END STORAGE DEBUG ===');
     } catch (error) {
       console.error('Error debugging storage:', error);

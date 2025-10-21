@@ -1,20 +1,19 @@
-import {Constants} from "../model/Constants";
-import {Transaction} from "../model/Transaction";
-import {Wallet, WalletOptions} from "../model/Wallet";
-import {TransactionData} from "../model/Transaction";
-import {TransactionsExplorer} from "../model/TransactionsExplorer";
-import type {RawDaemon_Transaction} from "../model/blockchain/BlockchainExplorer";
+import type { RawDaemon_Transaction } from '../model/blockchain/BlockchainExplorer';
+import { Constants } from '../model/Constants';
+import { Transaction, TransactionData } from '../model/Transaction';
+import { TransactionsExplorer } from '../model/TransactionsExplorer';
+import { Wallet, WalletOptions } from '../model/Wallet';
 
 onmessage = (data: MessageEvent) => {
-	// if(data.isTrusted){
-	const event: any = data.data;
+  // if(data.isTrusted){
+  const event: any = data.data;
   try {
     if (event.type === 'initWallet') {
-      postMessage({ type: 'readyWallet'	});
+      postMessage({ type: 'readyWallet' });
     } else if (event.type === 'process') {
       const readMinersTx = typeof event.readMinersTx !== 'undefined' && event.readMinersTx;
       const rawTransactions: RawDaemon_Transaction[] = event.transactions;
-      const maxBlockNumber: number = event.maxBlock; 
+      const maxBlockNumber: number = event.maxBlock;
       let currentWallet: Wallet | null = null;
       const transactions = [];
 
@@ -42,12 +41,12 @@ onmessage = (data: MessageEvent) => {
                 // parse the raw transaction to include it into the wallet
                 const txData = TransactionsExplorer.parse(rawTransaction, currentWallet);
 
-                if (txData && txData.transaction) {              
+                if (txData && txData.transaction) {
                   currentWallet.addNew(txData.transaction);
                   transactions.push(txData.export());
                 }
-              } catch(err) {
-                console.error('Failed to parse tx:', rawTransaction);  
+              } catch (err) {
+                console.error('Failed to parse tx:', rawTransaction);
               }
             }
           }
@@ -57,12 +56,12 @@ onmessage = (data: MessageEvent) => {
       postMessage({
         type: 'processed',
         maxHeight: maxBlockNumber,
-        transactions: transactions
+        transactions: transactions,
       });
-	  }
-  } catch(err: any) {
+    }
+  } catch (err: any) {
     reportError(err);
-  } 
+  }
 };
 
 postMessage('ready');

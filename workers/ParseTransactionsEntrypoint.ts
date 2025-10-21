@@ -13,12 +13,13 @@ importScripts('../lib/nacl-util.min.js');
 importScripts('../lib/sha3.js');
 
 try {
-	importScripts('../lib/cn_utils_native.js');
-	(<any>self).Module_native['onRuntimeInitialized'] = () => {
-		requirejs(['./ParseTransactions.js'], (App) => {});
-	};
-}catch(e) {
-	setTimeout(()=> {//wait 5s due to crypto //TODO find a better fix
-		requirejs(['./ParseTransactions.js'], (App) => {});
-	}, 5*1000);
+  importScripts('../lib/cn_utils_native.js');
+  (<any>self).Module_native['onRuntimeInitialized'] = () => {
+    requirejs(['./ParseTransactions.js'], (App) => {});
+  };
+} catch (e) {
+  setTimeout(() => {
+    //wait 5s due to crypto //TODO find a better fix
+    requirejs(['./ParseTransactions.js'], (App) => {});
+  }, 5 * 1000);
 }

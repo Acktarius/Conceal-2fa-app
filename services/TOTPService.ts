@@ -1,14 +1,14 @@
 /*
  * Copyright (c) 2025 Acktarius, Conceal Devs
- * 
+ *
  * This file is part of Conceal-2FA-App
- * 
+ *
  * Distributed under the BSD 3-Clause License, see the accompanying
  * file LICENSE or https://opensource.org/licenses/BSD-3-Clause.
  */
 import * as Crypto from 'expo-crypto';
-import { CryptoService } from './CryptoService';
 import concealCrypto from 'react-native-conceal-crypto';
+import { CryptoService } from './CryptoService';
 
 export class TOTPService {
   private static readonly PERIOD = 30; // 30 seconds
@@ -18,21 +18,21 @@ export class TOTPService {
     try {
       // Decode base32 secret
       const secretBytes = CryptoService.base32Decode(secret.replace(/\s/g, '').toUpperCase());
-      
+
       // Calculate time counter
       const time = timestamp || Math.floor(Date.now() / 1000);
       const counter = Math.floor(time / TOTPService.PERIOD);
-      
+
       // ✅ Optimized ArrayBuffer with DataView (faster than manual byte manipulation)
       const counterBuffer = new ArrayBuffer(8);
       const counterView = new DataView(counterBuffer);
       counterView.setBigUint64(0, BigInt(counter), false); // false = big-endian
-      
+
       // Prepare secret as ArrayBuffer for native implementation
       const secretBuffer = new ArrayBuffer(secretBytes.length);
       const secretView = new Uint8Array(secretBuffer);
       secretView.set(secretBytes);
-      
+
       // Generate HMAC-SHA1 using native C++ implementation
       let hmac: Uint8Array;
       try {
@@ -44,14 +44,15 @@ export class TOTPService {
         const counterBytes = new Uint8Array(counterBuffer);
         hmac = await CryptoService.hmacSha1(secretBytes, counterBytes);
       }
-     
+
       // Dynamic truncation
       const offset = hmac[hmac.length - 1] & 0x0f;
-      const code = ((hmac[offset] & 0x7f) << 24) |
-                   ((hmac[offset + 1] & 0xff) << 16) |
-                   ((hmac[offset + 2] & 0xff) << 8) |
-                   (hmac[offset + 3] & 0xff);
-      
+      const code =
+        ((hmac[offset] & 0x7f) << 24) |
+        ((hmac[offset + 1] & 0xff) << 16) |
+        ((hmac[offset + 2] & 0xff) << 8) |
+        (hmac[offset + 3] & 0xff);
+
       // Generate final code
       const otp = (code % 10 ** TOTPService.DIGITS).toString().padStart(TOTPService.DIGITS, '0');
       return otp;
@@ -65,17 +66,17 @@ export class TOTPService {
     try {
       // Decode base32 secret
       const secretBytes = CryptoService.base32Decode(secret.replace(/\s/g, '').toUpperCase());
-      
+
       // ✅ Optimized ArrayBuffer with DataView (faster than manual byte manipulation)
       const counterBuffer = new ArrayBuffer(8);
       const counterView = new DataView(counterBuffer);
       counterView.setBigUint64(0, BigInt(timeStep), false); // false = big-endian
-      
+
       // Prepare secret as ArrayBuffer for native implementation
       const secretBuffer = new ArrayBuffer(secretBytes.length);
       const secretView = new Uint8Array(secretBuffer);
       secretView.set(secretBytes);
-      
+
       // Generate HMAC-SHA1 using native C++ implementation
       let hmac: Uint8Array;
       try {
@@ -87,14 +88,15 @@ export class TOTPService {
         const counterBytes = new Uint8Array(counterBuffer);
         hmac = await CryptoService.hmacSha1(secretBytes, counterBytes);
       }
-      
+
       // Dynamic truncation
       const offset = hmac[hmac.length - 1] & 0x0f;
-      const code = ((hmac[offset] & 0x7f) << 24) |
-                   ((hmac[offset + 1] & 0xff) << 16) |
-                   ((hmac[offset + 2] & 0xff) << 8) |
-                   (hmac[offset + 3] & 0xff);
-      
+      const code =
+        ((hmac[offset] & 0x7f) << 24) |
+        ((hmac[offset + 1] & 0xff) << 16) |
+        ((hmac[offset + 2] & 0xff) << 8) |
+        (hmac[offset + 3] & 0xff);
+
       // Generate final code
       const otp = (code % 10 ** TOTPService.DIGITS).toString().padStart(TOTPService.DIGITS, '0');
       return otp;
@@ -117,13 +119,13 @@ export class TOTPService {
     try {
       // Remove spaces and convert to uppercase
       const cleanSecret = secret.replace(/\s/g, '').toUpperCase();
-      
+
       // Check if it's valid base32
       const base32Regex = /^[A-Z2-7]+=*$/;
       if (!base32Regex.test(cleanSecret)) {
         return false;
       }
-      
+
       // Try to decode it
       CryptoService.base32Decode(cleanSecret);
       return cleanSecret.length >= 16;

@@ -1,37 +1,17 @@
-# Dependencies
 node_modules
-
-# Build outputs
-android/
-ios/
+android
+ios
 dist
 build
 .expo
-
-# External libraries - DO NOT TOUCH ANYTHING IN LIB FOLDER
-lib/
-lib/**
-
-# Type definitions from external sources
-d/
-d/**
-
-# Generated/build files
+.expo-shared
+lib
+d
 *.apk
 *.ipa
 *.js.map
-
-# Lock files
 package-lock.json
 yarn.lock
-
-# Expo
-.expo-shared
-
-# Metro
 .metro-health-check*
-
-# External plugin scripts (from templates)
 withAndroidStrategiesPlugin.js
 withConcealConfigPlugin.js
-
