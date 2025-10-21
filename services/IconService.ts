@@ -1,6 +1,6 @@
 /**
- *     Copyright (c) 2025, Acktarius 
- * 
+ *     Copyright (c) 2025, Acktarius
+ *
  * Comprehensive icon service for matching service names to appropriate icons
  * Uses multiple icon families from @expo/vector-icons with fallback logic
  */
@@ -14,307 +14,307 @@ export class IconService {
   // Primary icon mappings using Ionicons (most comprehensive)
   private static readonly ioniconsMap: { [key: string]: string } = {
     // Social Media
-    'facebook': 'logo-facebook',
-    'twitter': 'logo-twitter',
-    'instagram': 'logo-instagram',
-    'linkedin': 'logo-linkedin',
-    'discord': 'logo-discord',
-    'telegram': 'paper-plane',
-    'whatsapp': 'logo-whatsapp',
-    'snapchat': 'logo-snapchat',
-    'tiktok': 'musical-notes',
-    'youtube': 'logo-youtube',
-    'twitch': 'logo-twitch',
-    
+    facebook: 'logo-facebook',
+    twitter: 'logo-twitter',
+    instagram: 'logo-instagram',
+    linkedin: 'logo-linkedin',
+    discord: 'logo-discord',
+    telegram: 'paper-plane',
+    whatsapp: 'logo-whatsapp',
+    snapchat: 'logo-snapchat',
+    tiktok: 'musical-notes',
+    youtube: 'logo-youtube',
+    twitch: 'logo-twitch',
+
     // Email & Communication
-    'gmail': 'mail',
-    'google': 'logo-google',
-    'outlook': 'mail',
-    'yahoo': 'mail',
-    'protonmail': 'mail',
-    'icloud': 'cloud',
-    
+    gmail: 'mail',
+    google: 'logo-google',
+    outlook: 'mail',
+    yahoo: 'mail',
+    protonmail: 'mail',
+    icloud: 'cloud',
+
     // Cloud & Storage
-    'dropbox': 'cloud',
-    'onedrive': 'cloud',
+    dropbox: 'cloud',
+    onedrive: 'cloud',
     'google drive': 'cloud',
-    'mega': 'cloud',
-    
+    mega: 'cloud',
+
     // Gaming
-    'steam': 'game-controller',
-    'epic': 'game-controller',
-    'origin': 'game-controller',
+    steam: 'game-controller',
+    epic: 'game-controller',
+    origin: 'game-controller',
     'battle.net': 'game-controller',
-    'playstation': 'game-controller',
-    'xbox': 'game-controller',
-    'nintendo': 'game-controller',
-    
+    playstation: 'game-controller',
+    xbox: 'game-controller',
+    nintendo: 'game-controller',
+
     // Finance & Crypto
-    'paypal': 'card',
-    'stripe': 'card',
-    'coinbase': 'logo-bitcoin',
-    'binance': 'logo-bitcoin',
-    'kraken': 'logo-bitcoin',
-    'metamask': 'logo-bitcoin',
+    paypal: 'card',
+    stripe: 'card',
+    coinbase: 'logo-bitcoin',
+    binance: 'logo-bitcoin',
+    kraken: 'logo-bitcoin',
+    metamask: 'logo-bitcoin',
     'trust wallet': 'logo-bitcoin',
-    'bank': 'card',
-    'chase': 'card',
+    bank: 'card',
+    chase: 'card',
     'wells fargo': 'card',
     'bank of america': 'card',
-    
+
     // Development & Tech
-    'github': 'logo-github',
-    'gitlab': 'logo-github',
-    'bitbucket': 'logo-github',
-    'aws': 'cloud',
-    'azure': 'cloud',
-    'heroku': 'cloud',
-    'digitalocean': 'cloud',
-    'vultr': 'cloud',
-    'linode': 'cloud',
-    
+    github: 'logo-github',
+    gitlab: 'logo-github',
+    bitbucket: 'logo-github',
+    aws: 'cloud',
+    azure: 'cloud',
+    heroku: 'cloud',
+    digitalocean: 'cloud',
+    vultr: 'cloud',
+    linode: 'cloud',
+
     // Productivity & Tools
-    'slack': 'chatbubbles',
-    'teams': 'chatbubbles',
-    'zoom': 'videocam',
-    'skype': 'videocam',
-    'trello': 'list',
-    'asana': 'list',
-    'notion': 'document',
-    'evernote': 'document',
-    'onenote': 'document',
-    
+    slack: 'chatbubbles',
+    teams: 'chatbubbles',
+    zoom: 'videocam',
+    skype: 'videocam',
+    trello: 'list',
+    asana: 'list',
+    notion: 'document',
+    evernote: 'document',
+    onenote: 'document',
+
     // E-commerce
-    'amazon': 'storefront',
-    'ebay': 'storefront',
-    'shopify': 'storefront',
-    'etsy': 'storefront',
-    
+    amazon: 'storefront',
+    ebay: 'storefront',
+    shopify: 'storefront',
+    etsy: 'storefront',
+
     // Streaming & Media
-    'netflix': 'play',
-    'spotify': 'musical-notes',
-    'hulu': 'play',
-    'disney': 'play',
-    'hbo': 'play',
-    
+    netflix: 'play',
+    spotify: 'musical-notes',
+    hulu: 'play',
+    disney: 'play',
+    hbo: 'play',
+
     // Security & VPN
-    'nordvpn': 'shield',
-    'expressvpn': 'shield',
-    'surfshark': 'shield',
-    'protonvpn': 'shield',
-    'lastpass': 'key',
+    nordvpn: 'shield',
+    expressvpn: 'shield',
+    surfshark: 'shield',
+    protonvpn: 'shield',
+    lastpass: 'key',
     '1password': 'key',
-    'bitwarden': 'key',
-    'dashlane': 'key',
-    
+    bitwarden: 'key',
+    dashlane: 'key',
+
     // Default icons for common patterns
-    'vpn': 'shield',
-    'password': 'key',
-    'auth': 'shield',
-    'login': 'log-in',
-    'account': 'person',
-    'profile': 'person',
-    'user': 'person',
-    'admin': 'person-circle',
-    'api': 'code',
-    'web': 'globe',
-    'app': 'phone-portrait',
-    'mobile': 'phone-portrait',
-    'desktop': 'desktop',
-    'server': 'server',
-    'database': 'server',
-    'backup': 'cloud-upload',
-    'sync': 'sync',
+    vpn: 'shield',
+    password: 'key',
+    auth: 'shield',
+    login: 'log-in',
+    account: 'person',
+    profile: 'person',
+    user: 'person',
+    admin: 'person-circle',
+    api: 'code',
+    web: 'globe',
+    app: 'phone-portrait',
+    mobile: 'phone-portrait',
+    desktop: 'desktop',
+    server: 'server',
+    database: 'server',
+    backup: 'cloud-upload',
+    sync: 'sync',
   };
 
   // Fallback mappings using MaterialIcons
   private static readonly materialIconsMap: { [key: string]: string } = {
-    'facebook': 'facebook',
-    'twitter': 'alternate-email',
-    'instagram': 'photo-camera',
-    'linkedin': 'work',
-    'discord': 'chat',
-    'telegram': 'send',
-    'whatsapp': 'message',
-    'snapchat': 'camera-alt',
-    'tiktok': 'music-note',
-    'youtube': 'play-circle-filled',
-    'twitch': 'live-tv',
-    'gmail': 'email',
-    'google': 'search',
-    'outlook': 'email',
-    'yahoo': 'email',
-    'protonmail': 'email',
-    'icloud': 'cloud',
-    'dropbox': 'cloud',
-    'onedrive': 'cloud',
+    facebook: 'facebook',
+    twitter: 'alternate-email',
+    instagram: 'photo-camera',
+    linkedin: 'work',
+    discord: 'chat',
+    telegram: 'send',
+    whatsapp: 'message',
+    snapchat: 'camera-alt',
+    tiktok: 'music-note',
+    youtube: 'play-circle-filled',
+    twitch: 'live-tv',
+    gmail: 'email',
+    google: 'search',
+    outlook: 'email',
+    yahoo: 'email',
+    protonmail: 'email',
+    icloud: 'cloud',
+    dropbox: 'cloud',
+    onedrive: 'cloud',
     'google drive': 'cloud',
-    'mega': 'cloud',
-    'steam': 'sports-esports',
-    'epic': 'sports-esports',
-    'origin': 'sports-esports',
+    mega: 'cloud',
+    steam: 'sports-esports',
+    epic: 'sports-esports',
+    origin: 'sports-esports',
     'battle.net': 'sports-esports',
-    'playstation': 'sports-esports',
-    'xbox': 'sports-esports',
-    'nintendo': 'sports-esports',
-    'paypal': 'payment',
-    'stripe': 'payment',
-    'coinbase': 'currency-bitcoin',
-    'binance': 'currency-bitcoin',
-    'kraken': 'currency-bitcoin',
-    'metamask': 'currency-bitcoin',
+    playstation: 'sports-esports',
+    xbox: 'sports-esports',
+    nintendo: 'sports-esports',
+    paypal: 'payment',
+    stripe: 'payment',
+    coinbase: 'currency-bitcoin',
+    binance: 'currency-bitcoin',
+    kraken: 'currency-bitcoin',
+    metamask: 'currency-bitcoin',
     'trust wallet': 'currency-bitcoin',
-    'bank': 'account-balance',
-    'chase': 'account-balance',
+    bank: 'account-balance',
+    chase: 'account-balance',
     'wells fargo': 'account-balance',
     'bank of america': 'account-balance',
-    'github': 'code',
-    'gitlab': 'code',
-    'bitbucket': 'code',
-    'aws': 'cloud',
-    'azure': 'cloud',
-    'heroku': 'cloud',
-    'digitalocean': 'cloud',
-    'vultr': 'cloud',
-    'linode': 'cloud',
-    'slack': 'chat',
-    'teams': 'chat',
-    'zoom': 'video-call',
-    'skype': 'video-call',
-    'trello': 'view-list',
-    'asana': 'view-list',
-    'notion': 'description',
-    'evernote': 'description',
-    'onenote': 'description',
-    'amazon': 'store',
-    'ebay': 'store',
-    'shopify': 'store',
-    'etsy': 'store',
-    'netflix': 'play-circle-filled',
-    'spotify': 'music-note',
-    'hulu': 'play-circle-filled',
-    'disney': 'play-circle-filled',
-    'hbo': 'play-circle-filled',
-    'nordvpn': 'security',
-    'expressvpn': 'security',
-    'surfshark': 'security',
-    'protonvpn': 'security',
-    'lastpass': 'vpn-key',
+    github: 'code',
+    gitlab: 'code',
+    bitbucket: 'code',
+    aws: 'cloud',
+    azure: 'cloud',
+    heroku: 'cloud',
+    digitalocean: 'cloud',
+    vultr: 'cloud',
+    linode: 'cloud',
+    slack: 'chat',
+    teams: 'chat',
+    zoom: 'video-call',
+    skype: 'video-call',
+    trello: 'view-list',
+    asana: 'view-list',
+    notion: 'description',
+    evernote: 'description',
+    onenote: 'description',
+    amazon: 'store',
+    ebay: 'store',
+    shopify: 'store',
+    etsy: 'store',
+    netflix: 'play-circle-filled',
+    spotify: 'music-note',
+    hulu: 'play-circle-filled',
+    disney: 'play-circle-filled',
+    hbo: 'play-circle-filled',
+    nordvpn: 'security',
+    expressvpn: 'security',
+    surfshark: 'security',
+    protonvpn: 'security',
+    lastpass: 'vpn-key',
     '1password': 'vpn-key',
-    'bitwarden': 'vpn-key',
-    'dashlane': 'vpn-key',
-    'vpn': 'security',
-    'password': 'vpn-key',
-    'auth': 'security',
-    'login': 'login',
-    'account': 'person',
-    'profile': 'person',
-    'user': 'person',
-    'admin': 'admin-panel-settings',
-    'api': 'api',
-    'web': 'language',
-    'app': 'phone-android',
-    'mobile': 'phone-android',
-    'desktop': 'computer',
-    'server': 'dns',
-    'database': 'storage',
-    'backup': 'cloud-upload',
-    'sync': 'sync',
+    bitwarden: 'vpn-key',
+    dashlane: 'vpn-key',
+    vpn: 'security',
+    password: 'vpn-key',
+    auth: 'security',
+    login: 'login',
+    account: 'person',
+    profile: 'person',
+    user: 'person',
+    admin: 'admin-panel-settings',
+    api: 'api',
+    web: 'language',
+    app: 'phone-android',
+    mobile: 'phone-android',
+    desktop: 'computer',
+    server: 'dns',
+    database: 'storage',
+    backup: 'cloud-upload',
+    sync: 'sync',
   };
 
   // FontAwesome fallback mappings
   private static readonly fontAwesomeMap: { [key: string]: string } = {
-    'facebook': 'facebook',
-    'twitter': 'twitter',
-    'instagram': 'instagram',
-    'linkedin': 'linkedin',
-    'discord': 'discord',
-    'telegram': 'telegram',
-    'whatsapp': 'whatsapp',
-    'snapchat': 'snapchat',
-    'tiktok': 'tiktok',
-    'youtube': 'youtube',
-    'twitch': 'twitch',
-    'gmail': 'envelope',
-    'google': 'google',
-    'outlook': 'envelope',
-    'yahoo': 'envelope',
-    'protonmail': 'envelope',
-    'icloud': 'cloud',
-    'dropbox': 'dropbox',
-    'onedrive': 'cloud',
+    facebook: 'facebook',
+    twitter: 'twitter',
+    instagram: 'instagram',
+    linkedin: 'linkedin',
+    discord: 'discord',
+    telegram: 'telegram',
+    whatsapp: 'whatsapp',
+    snapchat: 'snapchat',
+    tiktok: 'tiktok',
+    youtube: 'youtube',
+    twitch: 'twitch',
+    gmail: 'envelope',
+    google: 'google',
+    outlook: 'envelope',
+    yahoo: 'envelope',
+    protonmail: 'envelope',
+    icloud: 'cloud',
+    dropbox: 'dropbox',
+    onedrive: 'cloud',
     'google drive': 'google-drive',
-    'mega': 'cloud',
-    'steam': 'steam',
-    'epic': 'gamepad',
-    'origin': 'gamepad',
+    mega: 'cloud',
+    steam: 'steam',
+    epic: 'gamepad',
+    origin: 'gamepad',
     'battle.net': 'gamepad',
-    'playstation': 'playstation',
-    'xbox': 'xbox',
-    'nintendo': 'gamepad',
-    'paypal': 'paypal',
-    'stripe': 'cc-stripe',
-    'coinbase': 'bitcoin',
-    'binance': 'bitcoin',
-    'kraken': 'bitcoin',
-    'metamask': 'bitcoin',
+    playstation: 'playstation',
+    xbox: 'xbox',
+    nintendo: 'gamepad',
+    paypal: 'paypal',
+    stripe: 'cc-stripe',
+    coinbase: 'bitcoin',
+    binance: 'bitcoin',
+    kraken: 'bitcoin',
+    metamask: 'bitcoin',
     'trust wallet': 'bitcoin',
-    'bank': 'university',
-    'chase': 'university',
+    bank: 'university',
+    chase: 'university',
     'wells fargo': 'university',
     'bank of america': 'university',
-    'github': 'github',
-    'gitlab': 'gitlab',
-    'bitbucket': 'bitbucket',
-    'aws': 'aws',
-    'azure': 'microsoft',
-    'heroku': 'cloud',
-    'digitalocean': 'cloud',
-    'vultr': 'cloud',
-    'linode': 'cloud',
-    'slack': 'slack',
-    'teams': 'microsoft',
-    'zoom': 'video',
-    'skype': 'skype',
-    'trello': 'trello',
-    'asana': 'asana',
-    'notion': 'file-alt',
-    'evernote': 'evernote',
-    'onenote': 'microsoft',
-    'amazon': 'amazon',
-    'ebay': 'ebay',
-    'shopify': 'shopify',
-    'etsy': 'etsy',
-    'netflix': 'netflix',
-    'spotify': 'spotify',
-    'hulu': 'hulu',
-    'disney': 'disney',
-    'hbo': 'hbo',
-    'nordvpn': 'shield-alt',
-    'expressvpn': 'shield-alt',
-    'surfshark': 'shield-alt',
-    'protonvpn': 'shield-alt',
-    'lastpass': 'key',
+    github: 'github',
+    gitlab: 'gitlab',
+    bitbucket: 'bitbucket',
+    aws: 'aws',
+    azure: 'microsoft',
+    heroku: 'cloud',
+    digitalocean: 'cloud',
+    vultr: 'cloud',
+    linode: 'cloud',
+    slack: 'slack',
+    teams: 'microsoft',
+    zoom: 'video',
+    skype: 'skype',
+    trello: 'trello',
+    asana: 'asana',
+    notion: 'file-alt',
+    evernote: 'evernote',
+    onenote: 'microsoft',
+    amazon: 'amazon',
+    ebay: 'ebay',
+    shopify: 'shopify',
+    etsy: 'etsy',
+    netflix: 'netflix',
+    spotify: 'spotify',
+    hulu: 'hulu',
+    disney: 'disney',
+    hbo: 'hbo',
+    nordvpn: 'shield-alt',
+    expressvpn: 'shield-alt',
+    surfshark: 'shield-alt',
+    protonvpn: 'shield-alt',
+    lastpass: 'key',
     '1password': 'key',
-    'bitwarden': 'key',
-    'dashlane': 'key',
-    'vpn': 'shield-alt',
-    'password': 'key',
-    'auth': 'shield-alt',
-    'login': 'sign-in-alt',
-    'account': 'user',
-    'profile': 'user',
-    'user': 'user',
-    'admin': 'user-shield',
-    'api': 'code',
-    'web': 'globe',
-    'app': 'mobile-alt',
-    'mobile': 'mobile-alt',
-    'desktop': 'desktop',
-    'server': 'server',
-    'database': 'database',
-    'backup': 'cloud-upload-alt',
-    'sync': 'sync',
+    bitwarden: 'key',
+    dashlane: 'key',
+    vpn: 'shield-alt',
+    password: 'key',
+    auth: 'shield-alt',
+    login: 'sign-in-alt',
+    account: 'user',
+    profile: 'user',
+    user: 'user',
+    admin: 'user-shield',
+    api: 'code',
+    web: 'globe',
+    app: 'mobile-alt',
+    mobile: 'mobile-alt',
+    desktop: 'desktop',
+    server: 'server',
+    database: 'database',
+    backup: 'cloud-upload-alt',
+    sync: 'sync',
   };
 
   /**
@@ -326,81 +326,84 @@ export class IconService {
   static getServiceIcon(serviceName: string, issuerName?: string): IconInfo {
     const name = serviceName.toLowerCase();
     const issuer = issuerName?.toLowerCase() || '';
-    
+
     // Helper function to extract the main service name (remove email addresses, etc.)
     const extractMainServiceName = (fullName: string): string => {
       const withoutEmail = fullName.replace(/@.*$/, '');
       // Remove special characters and extra spaces
-      const cleaned = withoutEmail.replace(/[^a-zA-Z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+      const cleaned = withoutEmail
+        .replace(/[^a-zA-Z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
       // Return only the first word (the service name)
       return cleaned.split(' ')[0];
     };
-    
+
     // Helper function to try matching against icon maps
     const tryMatch = (searchName: string): IconInfo | null => {
       // Try exact match first
       if (IconService.ioniconsMap[searchName]) {
         return {
           name: IconService.ioniconsMap[searchName],
-          family: 'Ionicons'
+          family: 'Ionicons',
         };
       }
-      
+
       // Try partial matches in Ionicons
       for (const [key, icon] of Object.entries(IconService.ioniconsMap)) {
         if (searchName.includes(key) || key.includes(searchName)) {
           return {
             name: icon,
-            family: 'Ionicons'
+            family: 'Ionicons',
           };
         }
       }
-      
+
       // Try MaterialIcons as fallback
       if (IconService.materialIconsMap[searchName]) {
         return {
           name: IconService.materialIconsMap[searchName],
-          family: 'MaterialIcons'
+          family: 'MaterialIcons',
         };
       }
-      
+
       // Try partial matches in MaterialIcons
       for (const [key, icon] of Object.entries(IconService.materialIconsMap)) {
         if (searchName.includes(key) || key.includes(searchName)) {
           return {
             name: icon,
-            family: 'MaterialIcons'
+            family: 'MaterialIcons',
           };
         }
       }
-      
+
       // Try FontAwesome as final fallback
       if (IconService.fontAwesomeMap[searchName]) {
         return {
           name: IconService.fontAwesomeMap[searchName],
-          family: 'FontAwesome'
+          family: 'FontAwesome',
         };
       }
-      
+
       // Try partial matches in FontAwesome
       for (const [key, icon] of Object.entries(IconService.fontAwesomeMap)) {
         if (searchName.includes(key) || key.includes(searchName)) {
           return {
             name: icon,
-            family: 'FontAwesome'
+            family: 'FontAwesome',
           };
         }
       }
-      
+
       return null;
     };
-    
+
     // Step 1: Try issuer name first (most reliable for service identification)
     let result: IconInfo | null = null;
     if (issuer && issuer !== name) {
       result = tryMatch(issuer);
       if (result) return result;
-      
+
       // Try cleaned issuer name
       const cleanedIssuerName = extractMainServiceName(issuer);
       if (cleanedIssuerName !== issuer) {
@@ -408,38 +411,40 @@ export class IconService {
         if (result) return result;
       }
     }
-    
+
     // Step 2: Try exact service name match
     result = tryMatch(name);
     if (result) return result;
-    
+
     // Step 3: Try cleaned service name (remove email addresses, etc.)
     const cleanedServiceName = extractMainServiceName(name);
     if (cleanedServiceName !== name) {
       result = tryMatch(cleanedServiceName);
       if (result) return result;
     }
-    
+
     // Step 4: Try individual words from service name
-    const words = cleanedServiceName.split(' ').filter(word => word.length > 2);
+    const words = cleanedServiceName.split(' ').filter((word) => word.length > 2);
     for (const word of words) {
       result = tryMatch(word);
       if (result) return result;
     }
-    
+
     // Step 5: Try individual words from issuer name
     if (issuer) {
-      const issuerWords = extractMainServiceName(issuer).split(' ').filter(word => word.length > 2);
+      const issuerWords = extractMainServiceName(issuer)
+        .split(' ')
+        .filter((word) => word.length > 2);
       for (const word of issuerWords) {
         result = tryMatch(word);
         if (result) return result;
       }
     }
-    
+
     // Default fallback
     return {
       name: 'shield',
-      family: 'Ionicons'
+      family: 'Ionicons',
     };
   }
 
@@ -469,7 +474,7 @@ export class IconService {
     const allNames = new Set([
       ...Object.keys(IconService.ioniconsMap),
       ...Object.keys(IconService.materialIconsMap),
-      ...Object.keys(IconService.fontAwesomeMap)
+      ...Object.keys(IconService.fontAwesomeMap),
     ]);
     return Array.from(allNames);
   }
@@ -481,8 +486,10 @@ export class IconService {
    */
   static hasIcon(serviceName: string): boolean {
     const name = serviceName.toLowerCase();
-    return IconService.ioniconsMap[name] !== undefined || 
-           IconService.materialIconsMap[name] !== undefined || 
-           IconService.fontAwesomeMap[name] !== undefined;
+    return (
+      IconService.ioniconsMap[name] !== undefined ||
+      IconService.materialIconsMap[name] !== undefined ||
+      IconService.fontAwesomeMap[name] !== undefined
+    );
   }
 }

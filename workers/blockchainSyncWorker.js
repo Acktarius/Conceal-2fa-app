@@ -11,7 +11,7 @@ let processedBlocks = 0;
 self.onmessage = (message) => {
   try {
     const data = JSON.parse(message);
-    
+
     switch (data.type) {
       case 'start':
         startSync(data.payload);
@@ -30,10 +30,12 @@ self.onmessage = (message) => {
     }
   } catch (error) {
     console.error('Worker thread error:', error);
-    self.postMessage(JSON.stringify({
-      type: 'error',
-      error: error.message
-    }));
+    self.postMessage(
+      JSON.stringify({
+        type: 'error',
+        error: error.message,
+      })
+    );
   }
 };
 
@@ -43,10 +45,10 @@ function startSync(payload) {
   targetHeight = payload.targetHeight;
   isRunning = true;
   processedBlocks = 0;
-  
+
   // Send initial status
   sendStatus();
-  
+
   // Start processing blocks
   processBlocks();
 }
@@ -54,11 +56,13 @@ function startSync(payload) {
 function stopSync() {
   console.log('Worker: Stopping blockchain sync');
   isRunning = false;
-  
-  self.postMessage(JSON.stringify({
-    type: 'stopped',
-    processedBlocks: processedBlocks
-  }));
+
+  self.postMessage(
+    JSON.stringify({
+      type: 'stopped',
+      processedBlocks: processedBlocks,
+    })
+  );
 }
 
 function updateTargetHeight(newTargetHeight) {
@@ -68,35 +72,39 @@ function updateTargetHeight(newTargetHeight) {
 
 function processBlocks() {
   if (!isRunning) return;
-  
+
   // Simulate block processing (in real implementation, this would fetch and process actual blocks)
   const blocksToProcess = Math.min(100, targetHeight - currentHeight);
-  
+
   if (blocksToProcess > 0) {
     // Simulate processing time
     setTimeout(() => {
       currentHeight += blocksToProcess;
       processedBlocks += blocksToProcess;
-      
+
       // Send progress update
-      self.postMessage(JSON.stringify({
-        type: 'progress',
-        currentHeight: currentHeight,
-        targetHeight: targetHeight,
-        processedBlocks: processedBlocks,
-        isComplete: currentHeight >= targetHeight
-      }));
-      
+      self.postMessage(
+        JSON.stringify({
+          type: 'progress',
+          currentHeight: currentHeight,
+          targetHeight: targetHeight,
+          processedBlocks: processedBlocks,
+          isComplete: currentHeight >= targetHeight,
+        })
+      );
+
       // Continue processing if not complete
       if (currentHeight < targetHeight && isRunning) {
         processBlocks();
       } else if (currentHeight >= targetHeight) {
         // Sync complete
-        self.postMessage(JSON.stringify({
-          type: 'complete',
-          finalHeight: currentHeight,
-          totalProcessed: processedBlocks
-        }));
+        self.postMessage(
+          JSON.stringify({
+            type: 'complete',
+            finalHeight: currentHeight,
+            totalProcessed: processedBlocks,
+          })
+        );
         isRunning = false;
       }
     }, 100); // Simulate 100ms processing time
@@ -104,13 +112,15 @@ function processBlocks() {
 }
 
 function sendStatus() {
-  self.postMessage(JSON.stringify({
-    type: 'status',
-    isRunning: isRunning,
-    currentHeight: currentHeight,
-    targetHeight: targetHeight,
-    processedBlocks: processedBlocks
-  }));
+  self.postMessage(
+    JSON.stringify({
+      type: 'status',
+      isRunning: isRunning,
+      currentHeight: currentHeight,
+      targetHeight: targetHeight,
+      processedBlocks: processedBlocks,
+    })
+  );
 }
 
 // Handle thread termination

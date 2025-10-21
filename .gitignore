@@ -3,6 +3,7 @@ node_modules/
 .env
 .cursorrules
 .expo/
+.idea
 
 # Custom quick-crypto build artifacts
 custom-quick-crypto/react-native-quick-crypto/lib/
@@ -11,5 +12,8 @@ custom-quick-crypto/react-native-quick-crypto/*.js
 custom-quick-crypto/react-native-quick-crypto/*.js.map
 
 *.apk
+
+android/app/build/
+android/.kotlin/
 
 add.sh

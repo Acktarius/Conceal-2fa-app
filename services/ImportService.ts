@@ -1,20 +1,20 @@
 /*
  * Copyright (c) 2025 Acktarius, Conceal Devs
- * 
+ *
  * This file is part of Conceal-2FA-App
- * 
+ *
  * Distributed under the BSD 3-Clause License, see the accompanying
  * file LICENSE or https://opensource.org/licenses/BSD-3-Clause.
  */
 import { Alert } from 'react-native';
-import type { Wallet } from '../model/Wallet';
-import { KeysRepository } from '../model/KeysRepository';
-import { Cn, CnUtils } from '../model/Cn';
 import { BlockchainExplorerRpcDaemon } from '../model/blockchain/BlockchainExplorerRPCDaemon';
-import { Mnemonic } from '../model/Mnemonic';
+import { Cn, CnUtils } from '../model/Cn';
 import { CoinUri } from '../model/CoinUri';
-import { WalletStorageManager } from './WalletStorageManager';
+import { KeysRepository } from '../model/KeysRepository';
+import { Mnemonic } from '../model/Mnemonic';
+import type { Wallet } from '../model/Wallet';
 import { BiometricService } from './BiometricService';
+import { WalletStorageManager } from './WalletStorageManager';
 // Removed WalletService import to break require cycle
 
 export class ImportService {
@@ -28,7 +28,8 @@ export class ImportService {
         await ImportService.blockchainExplorer.initialize();
       }
 
-      while (true) { // Loop to allow returning to method selection on cancel
+      while (true) {
+        // Loop to allow returning to method selection on cancel
         try {
           // Let user choose import method
           const importMethod = await new Promise<'mnemonic' | 'qr' | 'cancel'>((resolve) => {
@@ -61,17 +62,15 @@ export class ImportService {
           if (importMethod === 'mnemonic') {
             return await ImportService.importFromMnemonic();
           }
-            return await ImportService.importFromQR();
+          return await ImportService.importFromQR();
         } catch (error) {
           if (error instanceof Error && error.message === 'USER_CANCELLED') {
             throw error; // Propagate cancel up to wallet creation
           }
           // For other errors, show error and loop back to method selection
-          Alert.alert(
-            'Import Error',
-            error instanceof Error ? error.message : 'Failed to import wallet',
-            [{ text: 'OK' }]
-          );
+          Alert.alert('Import Error', error instanceof Error ? error.message : 'Failed to import wallet', [
+            { text: 'OK' },
+          ]);
         }
       }
     } catch (error) {
@@ -87,10 +86,10 @@ export class ImportService {
     try {
       // Get current blockchain height
       const currentHeight = await ImportService.blockchainExplorer!.getHeight();
-      
+
       // Get mnemonic and creation height from user using our custom modal
       const { mnemonicSeed, providedHeight } = await ImportService.getMnemonicFromUser();
-      
+
       // Detect language and decode mnemonic
       const detectedMnemonicLang = Mnemonic.detectLang(mnemonicSeed.trim());
       if (!detectedMnemonicLang) {
@@ -113,18 +112,18 @@ export class ImportService {
 
       // Upgrade the existing wallet with blockchain keys
       existingWallet.keys = KeysRepository.fromPriv(keys.spend.sec, keys.view.sec);
-      
+
       console.log('QR IMPORT: Wallet keys after upgrade:', {
         spendKey: existingWallet.keys.priv.spend,
-        viewKey: existingWallet.keys.priv.view
+        viewKey: existingWallet.keys.priv.view,
       });
-      
+
       console.log('QR IMPORT: Wallet keys structure:', {
         hasKeys: !!existingWallet.keys,
         hasSpendKey: !!existingWallet.keys?.priv?.spend,
         hasViewKey: !!existingWallet.keys?.priv?.view,
         spendKeyLength: existingWallet.keys?.priv?.spend?.length || 0,
-        viewKeyLength: existingWallet.keys?.priv?.view?.length || 0
+        viewKeyLength: existingWallet.keys?.priv?.view?.length || 0,
       });
 
       // Calculate creation height based on user input
@@ -165,18 +164,18 @@ export class ImportService {
       // Get QR data using our custom scanner
       const qrResult = await ImportService.getQRFromUser();
       const txDetails = CoinUri.decodeWallet(qrResult);
-      
+
       if (!txDetails || !txDetails.spendKey) {
         throw new Error('Invalid QR code format - spend key required');
       }
 
       // Extract keys from QR code (focus on keys, not mnemonic)
       let keys;
-      
+
       if (txDetails.spendKey) {
         // Spend key is present - this is the primary case
         // console.log('QR IMPORT: Spend key provided:', txDetails.spendKey);
-        
+
         let viewkey = txDetails.viewKey || '';
         if (viewkey === '') {
           // Generate view key from spend key (same as web wallet)
@@ -186,13 +185,13 @@ export class ImportService {
         } else {
           console.log('QR IMPORT: View key provided:', txDetails.viewKey);
         }
-        
+
         // Use KeysRepository to create proper key structure
         keys = KeysRepository.fromPriv(txDetails.spendKey, viewkey);
-        
+
         console.log('QR IMPORT: Keys after KeysRepository.fromPriv:', {
           spendKey: keys.priv.spend,
-          viewKey: keys.priv.view
+          viewKey: keys.priv.view,
         });
       } else if (txDetails.viewKey && txDetails.address) {
         // View key only case (if public address is provided)
@@ -201,12 +200,12 @@ export class ImportService {
         keys = {
           priv: {
             spend: '',
-            view: txDetails.viewKey
+            view: txDetails.viewKey,
           },
           pub: {
             spend: decodedPublic.spend,
             view: decodedPublic.view,
-          }
+          },
         };
         console.log('QR IMPORT: Keys for view-only case:', keys);
       } else {
@@ -225,15 +224,20 @@ export class ImportService {
         hasKeys: !!existingWallet.keys,
         hasSpendKey: !!existingWallet.keys?.priv?.spend,
         spendKeyLength: existingWallet.keys?.priv?.spend?.length || 0,
-        isLocal: existingWallet.isLocal()
+        isLocal: existingWallet.isLocal(),
       });
 
       // Use provided height or default to current height - 10
       const height = txDetails.height ? parseInt(txDetails.height.toString()) : Math.max(0, currentHeight - 10);
       existingWallet.creationHeight = height;
       existingWallet.lastHeight = height;
-      
-      console.log('QR IMPORT: Set wallet heights - creationHeight:', existingWallet.creationHeight, 'lastHeight:', existingWallet.lastHeight);
+
+      console.log(
+        'QR IMPORT: Set wallet heights - creationHeight:',
+        existingWallet.creationHeight,
+        'lastHeight:',
+        existingWallet.lastHeight
+      );
 
       // Update the cached wallet instance with imported data (no re-authentication needed)
       // Note: WalletService will handle this via the returned wallet
@@ -253,7 +257,7 @@ export class ImportService {
     return new Promise((resolve, reject) => {
       // Get the seed input context from global state
       const seedInputContext = (global as any).seedInputContext;
-      
+
       if (!seedInputContext) {
         throw new Error('Seed input context not available. App must be properly initialized.');
       }
@@ -275,13 +279,13 @@ export class ImportService {
       if (await BiometricService.isBiometricChecked()) {
         // Biometric mode: Encrypt with biometric key
         console.log('IMPORT: Encrypting imported wallet with biometric key');
-        
+
         // Use existing biometric salt (should already exist from wallet creation)
         const existingSalt = await WalletStorageManager.getBiometricSalt();
         if (!existingSalt) {
           throw new Error('Biometric salt not found. Wallet must be properly initialized first.');
         }
-        
+
         // Derive biometric key and encrypt
         const biometricKey = await WalletStorageManager.deriveBiometricKey();
         if (!biometricKey) {
@@ -295,18 +299,18 @@ export class ImportService {
         if (!passwordPromptContext) {
           throw new Error('Password prompt context not available');
         }
-        
+
         const password = await passwordPromptContext.showPasswordPromptAlert(
           'Secure Imported Wallet',
           'Enter a password to secure your imported wallet:'
         );
-        
+
         if (!password) {
           throw new Error('Password required to secure imported wallet');
         }
-        
+
         await WalletStorageManager.saveEncryptedWallet(wallet, password);
-        
+
         // Generate biometric salt from user password (for future biometric enablement)
         await WalletStorageManager.generateAndStoreBiometricSalt(password);
       }
@@ -320,7 +324,7 @@ export class ImportService {
     return new Promise((resolve, reject) => {
       // Get the QR input context from global state
       const qrInputContext = (global as any).qrInputContext;
-      
+
       if (!qrInputContext) {
         throw new Error('QR input context not available. App must be properly initialized.');
       }
@@ -336,4 +340,4 @@ export class ImportService {
       );
     });
   }
-} 
+}

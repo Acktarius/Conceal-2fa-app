@@ -1,8 +1,8 @@
 /**
- * Copyright (c) 2025, Acktarius 
- * 
+ * Copyright (c) 2025, Acktarius
+ *
  * SmartMessage System for Conceal Network
- * 
+ *
  * This system enables structured commands in blockchain transactions
  * to support 2FA management, vault management, and other modules
  * without requiring blockchain changes.
@@ -21,9 +21,9 @@ export interface SmartMessageResult {
 }
 
 export class SmartMessageParser {
-  private static readonly VERSION = "1.0";
-  private static readonly SMART_MESSAGE_PREFIX = "{";
-  private static readonly SMART_MESSAGE_SUFFIX = "}";
+  private static readonly VERSION = '1.0';
+  private static readonly SMART_MESSAGE_PREFIX = '{';
+  private static readonly SMART_MESSAGE_SUFFIX = '}';
 
   /**
    * Check if a message is a smart message
@@ -32,10 +32,12 @@ export class SmartMessageParser {
     if (!message || typeof message !== 'string') {
       return false;
     }
-    
+
     const trimmed = message.trim();
-    return trimmed.startsWith(SmartMessageParser.SMART_MESSAGE_PREFIX) && 
-           trimmed.endsWith(SmartMessageParser.SMART_MESSAGE_SUFFIX);
+    return (
+      trimmed.startsWith(SmartMessageParser.SMART_MESSAGE_PREFIX) &&
+      trimmed.endsWith(SmartMessageParser.SMART_MESSAGE_SUFFIX)
+    );
   }
 
   /**
@@ -49,11 +51,11 @@ export class SmartMessageParser {
 
       // Extract command from {command} format
       const command = message.trim().slice(1, -1); // Remove { and }
-      
+
       return {
         version: SmartMessageParser.VERSION,
         command: command,
-        paymentId: undefined // Will be extracted from transaction context
+        paymentId: undefined, // Will be extracted from transaction context
       };
     } catch (error) {
       console.error('Error parsing smart message:', error);
@@ -67,17 +69,17 @@ export class SmartMessageParser {
   static encode(module: string, action: string, ...data: string[]): string {
     // Semi-serialize actions to reduce blockchain payload
     const actionMap: { [key: string]: string } = {
-      'create': 'c',
-      'update': 'u', 
-      'delete': 'd',
-      'complete': 'x', // for to-do completion
-      'authorize': 'a', // for agent authorization
-      'execute': 'e', // for agent execution
-      'register': 'r', // for trust registration
-      'verify': 'v', // for trust verification
-      'revoke': 'k' // for trust revocation
+      create: 'c',
+      update: 'u',
+      delete: 'd',
+      complete: 'x', // for to-do completion
+      authorize: 'a', // for agent authorization
+      execute: 'e', // for agent execution
+      register: 'r', // for trust registration
+      verify: 'v', // for trust verification
+      revoke: 'k', // for trust revocation
     };
-    
+
     const serializedAction = actionMap[action] || action;
     const commandParts = [module, serializedAction, ...data];
     const command = commandParts.join(',');
@@ -102,25 +104,25 @@ export class SmartMessageParser {
       switch (module) {
         case '2FA':
           return await SmartMessageParser.process2FA(action, data, wallet);
-        
+
         case 'vault':
           return await SmartMessageParser.processVault(action, data, wallet);
-        
+
         case 'to-do':
           return await SmartMessageParser.processToDo(action, data, wallet);
-        
+
         case 'medical':
           return await SmartMessageParser.processMedical(action, data, wallet);
-        
+
         case 'agent':
           return await SmartMessageParser.processAgent(action, data, wallet);
-        
+
         case 'trust':
           return await SmartMessageParser.processTrust(action, data, wallet);
-        
+
         case 'contact':
           return await SmartMessageParser.processContact(action, data, wallet);
-        
+
         default:
           return { success: false, message: `Unknown module: ${module}` };
       }
@@ -137,30 +139,33 @@ export class SmartMessageParser {
   private static async process2FA(action: string, data: string[], wallet: any): Promise<SmartMessageResult> {
     try {
       switch (action) {
-        case 'c': { // create
+        case 'c': {
+          // create
           if (data.length < 3) {
             return { success: false, message: 'Invalid 2FA create command' };
           }
           const [name, issuer, sharedKey] = data;
           return await SmartMessageParser.parse2FA('c', wallet, name, issuer, sharedKey);
         }
-        
-        case 'u': { // update
+
+        case 'u': {
+          // update
           if (data.length < 2) {
             return { success: false, message: 'Invalid 2FA update command' };
           }
           const [hash, updateData] = data;
           return await SmartMessageParser.update2FA(hash, updateData, wallet);
         }
-        
-        case 'd': { // delete
+
+        case 'd': {
+          // delete
           if (data.length < 1) {
             return { success: false, message: 'Invalid 2FA delete command' };
           }
           const [deleteHash] = data;
           return await SmartMessageParser.parse2FA('d', wallet, deleteHash);
         }
-        
+
         default:
           return { success: false, message: `Unknown 2FA action: ${action}` };
       }
@@ -184,29 +189,30 @@ export class SmartMessageParser {
         }
         const [name, issuer, sharedKey] = data;
         console.log('2FA ENCODE CREATE:', { name, issuer, sharedKey: sharedKey.substring(0, 10) + '...' });
-        
+
         const encodedMessage = SmartMessageParser.encode('2FA', 'create', name, issuer, sharedKey);
-        return { 
-          success: true, 
+        return {
+          success: true,
           message: `2FA create command encoded successfully`,
-          data: encodedMessage
+          data: encodedMessage,
         };
-      }if (action === 'd') {
+      }
+      if (action === 'd') {
         // Delete command: requires 1 field
         if (data.length < 1) {
           return { success: false, message: 'Delete command requires hash' };
         }
         const [hash] = data;
         console.log('2FA ENCODE DELETE:', { hash });
-        
+
         const encodedMessage = SmartMessageParser.encode('2FA', 'delete', hash);
-        return { 
-          success: true, 
+        return {
+          success: true,
           message: `2FA delete command encoded successfully`,
-          data: encodedMessage
+          data: encodedMessage,
         };
       }
-        return { success: false, message: `Invalid action: ${action}. Use 'c' for create or 'd' for delete` };
+      return { success: false, message: `Invalid action: ${action}. Use 'c' for create or 'd' for delete` };
     } catch (error) {
       return { success: false, message: error.message };
     }
@@ -222,13 +228,13 @@ export class SmartMessageParser {
       // 2. Parse updateData (e.g., "name:new-name")
       // 3. Update local storage
       // 4. Return success
-      
+
       console.log('2FA UPDATE:', { hash, updateData });
-      
-      return { 
-        success: true, 
+
+      return {
+        success: true,
         message: `2FA service updated successfully`,
-        data: { hash, updateData }
+        data: { hash, updateData },
       };
     } catch (error) {
       return { success: false, message: error.message };
@@ -236,7 +242,7 @@ export class SmartMessageParser {
   }
 
   /**
-   * Parse 2FA command from blockchain 
+   * Parse 2FA command from blockchain
    * @param action - 'c' for create, 'd' for delete
    * @param wallet - Wallet instance for local storage operations
    * @param data - For create: [name, issuer, sharedKey], For delete: [hash]
@@ -250,38 +256,39 @@ export class SmartMessageParser {
         }
         const [name, issuer, sharedKey] = data;
         console.log('2FA PARSE CREATE:', { name, issuer, sharedKey: sharedKey.substring(0, 10) + '...' });
-        
+
         // Blue-Print: Implement 2FA creation from smart message
         // 1. Create SharedKey object from data
         // 2. Add to local storage
         // 3. Set isLocal: false, toBePush: false
         // 4. Return success
-        
-        return { 
-          success: true, 
+
+        return {
+          success: true,
           message: `2FA service ${name} imported successfully`,
-          data: { name, issuer, sharedKey }
+          data: { name, issuer, sharedKey },
         };
-      }if (action === 'd') {
+      }
+      if (action === 'd') {
         // Delete command: requires 1 field
         if (data.length < 1) {
           return { success: false, message: 'Delete command requires hash' };
         }
         const [hash] = data;
         console.log('2FA PARSE DELETE:', { hash });
-        
+
         // Blue-Print: Implement 2FA deletion from smart message
         // 1. Find existing SharedKey by hash
         // 2. Remove from local storage
         // 3. Return success
-        
-        return { 
-          success: true, 
+
+        return {
+          success: true,
           message: `2FA service deleted successfully`,
-          data: { hash }
+          data: { hash },
         };
       }
-        return { success: false, message: `Invalid action: ${action}. Use 'c' for create or 'd' for delete` };
+      return { success: false, message: `Invalid action: ${action}. Use 'c' for create or 'd' for delete` };
     } catch (error) {
       return { success: false, message: error.message };
     }
@@ -297,30 +304,30 @@ export class SmartMessageParser {
         case 'c': // create
           // Blue-Print: Implement vault creation
           console.log('VAULT CREATE:', { data });
-          return { 
-            success: true, 
+          return {
+            success: true,
             message: `Vault item created`,
-            data: { action, data }
+            data: { action, data },
           };
-        
+
         case 'u': // update
           // Blue-Print: Implement vault update
           console.log('VAULT UPDATE:', { data });
-          return { 
-            success: true, 
+          return {
+            success: true,
             message: `Vault item updated`,
-            data: { action, data }
+            data: { action, data },
           };
-        
+
         case 'd': // delete
           // Blue-Print: Implement vault deletion
           console.log('VAULT DELETE:', { data });
-          return { 
-            success: true, 
+          return {
+            success: true,
             message: `Vault item deleted`,
-            data: { action, data }
+            data: { action, data },
           };
-        
+
         default:
           return { success: false, message: `Unknown vault action: ${action}` };
       }
@@ -339,39 +346,39 @@ export class SmartMessageParser {
         case 'c': // create
           // Blue-Print: Implement to-do creation
           console.log('TO-DO CREATE:', { data });
-          return { 
-            success: true, 
+          return {
+            success: true,
             message: `To-do item created`,
-            data: { action, data }
+            data: { action, data },
           };
-        
+
         case 'x': // complete
           // Blue-Print: Implement to-do completion
           console.log('TO-DO COMPLETE:', { data });
-          return { 
-            success: true, 
+          return {
+            success: true,
             message: `To-do item completed`,
-            data: { action, data }
+            data: { action, data },
           };
-        
+
         case 'u': // update
           // Blue-Print: Implement to-do update
           console.log('TO-DO UPDATE:', { data });
-          return { 
-            success: true, 
+          return {
+            success: true,
             message: `To-do item updated`,
-            data: { action, data }
+            data: { action, data },
           };
-        
+
         case 'd': // delete
           // Blue-Print: Implement to-do deletion
           console.log('TO-DO DELETE:', { data });
-          return { 
-            success: true, 
+          return {
+            success: true,
             message: `To-do item deleted`,
-            data: { action, data }
+            data: { action, data },
           };
-        
+
         default:
           return { success: false, message: `Unknown to-do action: ${action}` };
       }
@@ -390,30 +397,30 @@ export class SmartMessageParser {
         case 'c': // create
           // Blue-Print: Implement medical record creation
           console.log('MEDICAL CREATE:', { data });
-          return { 
-            success: true, 
+          return {
+            success: true,
             message: `Medical record created`,
-            data: { action, data }
+            data: { action, data },
           };
-        
+
         case 'u': // update
           // Blue-Print: Implement medical record update
           console.log('MEDICAL UPDATE:', { data });
-          return { 
-            success: true, 
+          return {
+            success: true,
             message: `Medical record updated`,
-            data: { action, data }
+            data: { action, data },
           };
-        
+
         case 'd': // delete
           // Blue-Print: Implement medical record deletion
           console.log('MEDICAL DELETE:', { data });
-          return { 
-            success: true, 
+          return {
+            success: true,
             message: `Medical record deleted`,
-            data: { action, data }
+            data: { action, data },
           };
-        
+
         default:
           return { success: false, message: `Unknown medical action: ${action}` };
       }
@@ -432,30 +439,30 @@ export class SmartMessageParser {
         case 'a': // authorize
           // Blue-Print: Implement agent authorization
           console.log('AGENT AUTHORIZE:', { data });
-          return { 
-            success: true, 
+          return {
+            success: true,
             message: `Agent authorized`,
-            data: { action, data }
+            data: { action, data },
           };
-        
+
         case 'e': // execute
           // Blue-Print: Implement agent execution
           console.log('AGENT EXECUTE:', { data });
-          return { 
-            success: true, 
+          return {
+            success: true,
             message: `Agent executed`,
-            data: { action, data }
+            data: { action, data },
           };
-        
+
         case 'k': // revoke
           // Blue-Print: Implement agent revocation
           console.log('AGENT REVOKE:', { data });
-          return { 
-            success: true, 
+          return {
+            success: true,
             message: `Agent revoked`,
-            data: { action, data }
+            data: { action, data },
           };
-        
+
         default:
           return { success: false, message: `Unknown agent action: ${action}` };
       }
@@ -474,30 +481,30 @@ export class SmartMessageParser {
         case 'r': // register
           // Blue-Print: Implement trust registration
           console.log('TRUST REGISTER:', { data });
-          return { 
-            success: true, 
+          return {
+            success: true,
             message: `Trust relationship registered`,
-            data: { action, data }
+            data: { action, data },
           };
-        
+
         case 'v': // verify
           // Blue-Print: Implement trust verification
           console.log('TRUST VERIFY:', { data });
-          return { 
-            success: true, 
+          return {
+            success: true,
             message: `Trust relationship verified`,
-            data: { action, data }
+            data: { action, data },
           };
-        
+
         case 'k': // revoke
           // Blue-Print: Implement trust revocation
           console.log('TRUST REVOKE:', { data });
-          return { 
-            success: true, 
+          return {
+            success: true,
             message: `Trust relationship revoked`,
-            data: { action, data }
+            data: { action, data },
           };
-        
+
         default:
           return { success: false, message: `Unknown trust action: ${action}` };
       }
@@ -513,30 +520,36 @@ export class SmartMessageParser {
   private static async processContact(action: string, data: string[], wallet: any): Promise<SmartMessageResult> {
     try {
       switch (action) {
-        case 'c': { // create
+        case 'c': {
+          // create
           if (data.length < 4) {
-            return { success: false, message: 'Invalid contact create command - requires name, email, ccx_address, paymentId' };
+            return {
+              success: false,
+              message: 'Invalid contact create command - requires name, email, ccx_address, paymentId',
+            };
           }
           const [name, email, ccxAddress, paymentId] = data;
           return await SmartMessageParser.createContact(name, email, ccxAddress, paymentId, wallet);
         }
-        
-        case 'u': { // update
+
+        case 'u': {
+          // update
           if (data.length < 2) {
             return { success: false, message: 'Invalid contact update command - requires hash and updateData' };
           }
           const [hash, updateData] = data;
           return await SmartMessageParser.updateContact(hash, updateData, wallet);
         }
-        
-        case 'd': { // delete
+
+        case 'd': {
+          // delete
           if (data.length < 1) {
             return { success: false, message: 'Invalid contact delete command - requires hash' };
           }
           const [deleteHash] = data;
           return await SmartMessageParser.deleteContact(deleteHash, wallet);
         }
-        
+
         default:
           return { success: false, message: `Unknown contact action: ${action}` };
       }
@@ -549,7 +562,13 @@ export class SmartMessageParser {
   /**
    * Create contact from smart message
    */
-  private static async createContact(name: string, email: string, ccxAddress: string, paymentId: string, wallet: any): Promise<SmartMessageResult> {
+  private static async createContact(
+    name: string,
+    email: string,
+    ccxAddress: string,
+    paymentId: string,
+    wallet: any
+  ): Promise<SmartMessageResult> {
     try {
       // Blue-Print: Implement contact creation
       // 1. Validate email format
@@ -558,18 +577,18 @@ export class SmartMessageParser {
       // 4. Add to local storage
       // 5. Set isLocal: false, toBePush: false
       // 6. Return success
-      
-      console.log('CONTACT CREATE:', { 
-        name, 
-        email, 
-        ccxAddress: ccxAddress.substring(0, 10) + '...', 
-        paymentId: paymentId.substring(0, 10) + '...' 
+
+      console.log('CONTACT CREATE:', {
+        name,
+        email,
+        ccxAddress: ccxAddress.substring(0, 10) + '...',
+        paymentId: paymentId.substring(0, 10) + '...',
       });
-      
-      return { 
-        success: true, 
+
+      return {
+        success: true,
         message: `Contact ${name} created successfully`,
-        data: { name, email, ccxAddress, paymentId }
+        data: { name, email, ccxAddress, paymentId },
       };
     } catch (error) {
       return { success: false, message: error.message };
@@ -586,13 +605,13 @@ export class SmartMessageParser {
       // 2. Parse updateData (e.g., "name:new-name,email:new-email")
       // 3. Update local storage
       // 4. Return success
-      
+
       console.log('CONTACT UPDATE:', { hash, updateData });
-      
-      return { 
-        success: true, 
+
+      return {
+        success: true,
         message: `Contact updated successfully`,
-        data: { hash, updateData }
+        data: { hash, updateData },
       };
     } catch (error) {
       return { success: false, message: error.message };
@@ -608,13 +627,13 @@ export class SmartMessageParser {
       // 1. Find existing Contact by hash
       // 2. Remove from local storage
       // 3. Return success
-      
+
       console.log('CONTACT DELETE:', { hash });
-      
-      return { 
-        success: true, 
+
+      return {
+        success: true,
         message: `Contact deleted successfully`,
-        data: { hash }
+        data: { hash },
       };
     } catch (error) {
       return { success: false, message: error.message };
@@ -637,19 +656,19 @@ export class TrustManager {
     // 2. Verify permissions for the operation
     // 3. Check if trust relationship is expired
     // 4. Return validation result
-    
+
     if (!TrustManager.isTrustedPaymentId(paymentId)) {
-      return { valid: false, reason: "Untrusted paymentId" };
+      return { valid: false, reason: 'Untrusted paymentId' };
     }
-    
+
     if (!TrustManager.hasPermission(paymentId, message.command)) {
-      return { valid: false, reason: "Insufficient permissions" };
+      return { valid: false, reason: 'Insufficient permissions' };
     }
-    
+
     if (TrustManager.isTrustExpired(paymentId)) {
-      return { valid: false, reason: "Trust relationship expired" };
+      return { valid: false, reason: 'Trust relationship expired' };
     }
-    
+
     return { valid: true };
   }
 

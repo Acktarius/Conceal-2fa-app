@@ -55,10 +55,10 @@ import './lib/cn_utils.js';
 
 // Debug nacl availability after all imports
 console.log('APP: After crypto imports - nacl available:', !!(global as any).nacl);
-console.log('APP: nacl.ll available:', !!(global as any).nacl?.ll);
-console.log('APP: nacl.ll.ge_add available:', !!(global as any).nacl?.ll?.ge_add);
-console.log('APP: nacl.ll.ge_scalarmult_base available:', !!(global as any).nacl?.ll?.ge_scalarmult_base);
-console.log('APP: nacl.util available:', !!(global as any).nacl?.util);
+//console.log('APP: nacl.ll available:', !!(global as any).nacl?.ll);
+//console.log('APP: nacl.ll.ge_add available:', !!(global as any).nacl?.ll?.ge_add);
+//console.log('APP: nacl.ll.ge_scalarmult_base available:', !!(global as any).nacl?.ll?.ge_scalarmult_base);
+//console.log('APP: nacl.util available:', !!(global as any).nacl?.util);
 
 // Debug Module availability (from crypto.js)
 console.log('APP: self.Module available:', typeof self !== 'undefined' && !!(self as any).Module);

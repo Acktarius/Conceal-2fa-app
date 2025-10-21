@@ -1,9 +1,9 @@
-import {TransactionsExplorer} from "../model/TransactionsExplorer";
-import {Wallet, WalletOptions} from "../model/Wallet";
-import {Mnemonic} from "../model/Mnemonic";
-import {Transaction} from "../model/Transaction";
-import {Constants} from "../model/Constants";
-import type {RawDaemon_Transaction} from "../model/blockchain/BlockchainExplorer";
+import type { RawDaemon_Transaction } from '../model/blockchain/BlockchainExplorer';
+import { Constants } from '../model/Constants';
+import { Mnemonic } from '../model/Mnemonic';
+import { Transaction } from '../model/Transaction';
+import { TransactionsExplorer } from '../model/TransactionsExplorer';
+import { Wallet, WalletOptions } from '../model/Wallet';
 
 //bridge for cnUtil with the new mnemonic class
 (<any>self).mn_random = Mnemonic.mn_random;
@@ -11,17 +11,17 @@ import type {RawDaemon_Transaction} from "../model/blockchain/BlockchainExplorer
 (<any>self).mn_encode = Mnemonic.mn_encode;
 
 onmessage = (data: MessageEvent) => {
-	// if(data.isTrusted){
-	const event: any = data.data;
+  // if(data.isTrusted){
+  const event: any = data.data;
   try {
     if (event.type === 'initWallet') {
-      postMessage({ type: 'readyWallet'	});
+      postMessage({ type: 'readyWallet' });
     } else if (event.type === 'process') {
       logDebugMsg(`process new transactions...`);
 
       const readMinersTx = typeof event.readMinersTx !== 'undefined' && event.readMinersTx;
       const rawTransactions: RawDaemon_Transaction[] = event.transactions;
-      const maxBlockNumber: number = event.maxBlock; 
+      const maxBlockNumber: number = event.maxBlock;
       let currentWallet: Wallet | null = null;
       const transactions: any[] = [];
 
@@ -45,10 +45,10 @@ onmessage = (data: MessageEvent) => {
 
             try {
               // parse the transaction to see if we need to include it in the wallet
-              if (TransactionsExplorer.ownsTx(rawTransaction, currentWallet)) {              
+              if (TransactionsExplorer.ownsTx(rawTransaction, currentWallet)) {
                 transactions.push(rawTransaction);
               }
-            } catch(err) {
+            } catch (err) {
               console.error('Failed to process ownsTx for tx:', rawTransaction);
             }
           }
@@ -58,12 +58,12 @@ onmessage = (data: MessageEvent) => {
       postMessage({
         type: 'processed',
         maxHeight: maxBlockNumber,
-        transactions: transactions
+        transactions: transactions,
       });
-	  }
-  } catch(err: any) {
+    }
+  } catch (err: any) {
     reportError(err);
-  } 
+  }
 };
 
 postMessage('ready');

@@ -1,9 +1,9 @@
-import {TransactionsExplorer} from "../model/TransactionsExplorer";
-import {Wallet, WalletOptions} from "../model/Wallet";
-import {Mnemonic} from "../model/Mnemonic";
-import {Transaction} from "../model/Transaction";
-import {Constants} from "../model/Constants";
-import type {RawDaemon_Transaction} from "../model/blockchain/BlockchainExplorer";
+import type { RawDaemon_Transaction } from '../model/blockchain/BlockchainExplorer';
+import { Constants } from '../model/Constants';
+import { Mnemonic } from '../model/Mnemonic';
+import { Transaction } from '../model/Transaction';
+import { TransactionsExplorer } from '../model/TransactionsExplorer';
+import { Wallet, WalletOptions } from '../model/Wallet';
 
 // React Native thread worker for transfer processing
 // Adapted from TransferProcessing.ts for react-native-threads
@@ -21,7 +21,7 @@ let isReady = false;
 function initializeWorker() {
   console.log('TransferProcessingRN: Worker initializing...');
   isReady = true;
-  
+
   // Send ready signal
   if (typeof self !== 'undefined' && self.postMessage) {
     self.postMessage('ready');
@@ -44,7 +44,7 @@ function handleMessage(data: any) {
     if (typeof self !== 'undefined' && self.postMessage) {
       self.postMessage({
         type: 'error',
-        error: error.message
+        error: error.message,
       });
     }
   }
@@ -95,7 +95,7 @@ function processTransfers(data: any) {
       self.postMessage({
         type: 'processed',
         maxHeight: maxBlockNumber,
-        transactions: transactions
+        transactions: transactions,
       });
     }
   } catch (err: any) {
@@ -103,7 +103,7 @@ function processTransfers(data: any) {
     if (typeof self !== 'undefined' && self.postMessage) {
       self.postMessage({
         type: 'error',
-        error: err.message
+        error: err.message,
       });
     }
   }

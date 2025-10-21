@@ -26,13 +26,9 @@ export default function Header({ title }: HeaderProps) {
             opacity: 0.15,
           }}
         />
-        <Image
-          source={require('../assets/icon-192.png')}
-          className="w-10 h-10"
-          resizeMode="contain"
-        />
+        <Image source={require('../assets/icon-192.png')} className="w-10 h-10" resizeMode="contain" />
       </View>
-      
+
       <Text className="text-2xl font-semibold font-poppins-medium tracking-wider" style={{ color: theme.colors.text }}>
         {title}
       </Text>

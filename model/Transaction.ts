@@ -32,8 +32,9 @@
  *     NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  *     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-import { Currency } from './Currency';
+
 import { config } from '../config';
+import { Currency } from './Currency';
 
 export class TransactionOut {
   amount: number = 0;
@@ -84,7 +85,7 @@ export class Transaction {
   message: string = '';
   extraType: string = '';
   extraStatus: string = '';
-  extraSharedKey: string = '';  //encrypted
+  extraSharedKey: string = ''; //encrypted
   messageViewed: boolean = false;
   ttl: number = 0;
 
@@ -111,73 +112,85 @@ export class Transaction {
   getAmount = () => {
     let amount = 0;
     for (const out of this.outs) {
-      if (out.type !== "03") {
+      if (out.type !== '03') {
         amount += out.amount;
-      }      
+      }
     }
     for (const nin of this.ins) {
-      if (nin.type !== "03") {
+      if (nin.type !== '03') {
         amount -= nin.amount;
-      }      
+      }
     }
     return amount;
-  }
+  };
 
   isCoinbase = () => {
-      return this.outs.length == 1 && this.outs[0].rtcAmount === '';
-  }
+    return this.outs.length == 1 && this.outs[0].rtcAmount === '';
+  };
 
   isConfirmed = (blockchainHeight: number) => {
     if (this.blockHeight === 0) {
       return false;
-    }if (this.isCoinbase() && this.blockHeight + config.txCoinbaseMinConfirms < blockchainHeight) {
-      return true;
-    }if (!this.isCoinbase() && this.blockHeight + config.txMinConfirms < blockchainHeight) {
+    }
+    if (this.isCoinbase() && this.blockHeight + config.txCoinbaseMinConfirms < blockchainHeight) {
       return true;
     }
-    
+    if (!this.isCoinbase() && this.blockHeight + config.txMinConfirms < blockchainHeight) {
+      return true;
+    }
+
     return false;
-  }
+  };
 
   isFullyChecked = () => {
-    if (this.getAmount() === 0 || this.getAmount() === (-1 * config.minimumFee_V2)) {
+    if (this.getAmount() === 0 || this.getAmount() === -1 * config.minimumFee_V2) {
       if (this.isFusion) {
         return true;
-      }if (this.ttl > 0) {
+      }
+      if (this.ttl > 0) {
         return true;
       }
-        return false;
+      return false;
     }
-      for (const input of this.ins) {
-        if (input.amount < 0) {
-          return false;
-        }
+    for (const input of this.ins) {
+      if (input.amount < 0) {
+        return false;
       }
-      return true;
-  }
+    }
+    return true;
+  };
 
   hasMessage = () => {
     const txAmount = this.getAmount();
-    return (this.message !== '') && (txAmount > 0) && (txAmount !== (1 * config.remoteNodeFee)) && (txAmount !== (10 * config.remoteNodeFee)); // no envelope for a suspectedremote node fee transaction
-  }
+    return (
+      this.message !== '' &&
+      txAmount > 0 &&
+      txAmount !== 1 * config.remoteNodeFee &&
+      txAmount !== 10 * config.remoteNodeFee
+    ); // no envelope for a suspectedremote node fee transaction
+  };
 
   get isDeposit() {
     // Check if any of the outputs has a type "03", which indicates it's a deposit transaction
-    return this.outs.some(out => out.type === "03");
+    return this.outs.some((out) => out.type === '03');
   }
 
   get isWithdrawal() {
     // Check if any of the inputs has a type "03", which indicates it's a withdrawal transaction
-    return this.ins.some(input => input.type === "03");
+    return this.ins.some((input) => input.type === '03');
   }
 
   get isFusion() {
     const outputsCount = this.outs.length;
     const inputsCount = this.ins.length;
-    if (this.outs.some(out => out.type === "03") || this.ins.some(input => input.type === "03")) {
+    if (this.outs.some((out) => out.type === '03') || this.ins.some((input) => input.type === '03')) {
       return false;
     }
-    return (((inputsCount > Currency.fusionTxMinInputCount) && ((inputsCount / outputsCount) > config.fusionTxMinInOutCountRatio)) || this.fusion);
+    return (
+      (inputsCount > Currency.fusionTxMinInputCount &&
+        inputsCount / outputsCount > config.fusionTxMinInOutCountRatio) ||
+      this.fusion
+    );
   }
 
   export() {
@@ -196,7 +209,7 @@ export class Transaction {
       messageViewed: this.messageViewed,
       ttl: this.ttl,
       outs: this.outs,
-      ins: this.ins
+      ins: this.ins,
     };
   }
 
@@ -241,7 +254,7 @@ class BaseBanking {
     deposit.interest = raw.interest;
     deposit.timestamp = raw.timestamp;
     deposit.blockHeight = raw.blockHeight;
-    deposit.unlockHeight = raw.unlockHeight || (raw.blockHeight + raw.term);
+    deposit.unlockHeight = raw.unlockHeight || raw.blockHeight + raw.term;
     deposit.globalOutputIndex = raw.globalOutputIndex;
     deposit.indexInVout = raw.indexInVout;
     deposit.txPubKey = raw.txPubKey;
@@ -260,11 +273,11 @@ class BaseBanking {
       unlockHeight: this.unlockHeight,
       globalOutputIndex: this.globalOutputIndex,
       indexInVout: this.indexInVout,
-      txPubKey: this.txPubKey
+      txPubKey: this.txPubKey,
     };
   }
 
-  copy() { 
+  copy() {
     const aCopy = new Deposit();
 
     aCopy.term = this.term;
@@ -277,7 +290,7 @@ class BaseBanking {
     aCopy.globalOutputIndex = this.globalOutputIndex;
     aCopy.indexInVout = this.indexInVout;
     aCopy.txPubKey = this.txPubKey;
-  
+
     return aCopy;
   }
 }
@@ -286,20 +299,20 @@ export class Deposit extends BaseBanking {
   spentTx: string = '';
   keys: string[] = []; // Array of public keys for multisignature deposit
   withdrawPending: boolean = false;
-  
+
   static fromRaw(raw: any) {
     const deposit = new Deposit();
     deposit.term = raw.term;
     deposit.txHash = raw.txHash;
     deposit.amount = raw.amount;
     deposit.interest = raw.interest;
-    deposit.spentTx = raw.spentTx; 
+    deposit.spentTx = raw.spentTx;
     deposit.timestamp = raw.timestamp;
     deposit.blockHeight = raw.blockHeight;
-    deposit.globalOutputIndex = raw.globalOutputIndex;      //used to build Multisig input for withdrawals
-    deposit.indexInVout = raw.indexInVout;                  //used to generate_signature for withdrawals
+    deposit.globalOutputIndex = raw.globalOutputIndex; //used to build Multisig input for withdrawals
+    deposit.indexInVout = raw.indexInVout; //used to generate_signature for withdrawals
     deposit.txPubKey = raw.txPubKey;
-    deposit.unlockHeight = raw.unlockHeight || (raw.blockHeight + raw.term);
+    deposit.unlockHeight = raw.unlockHeight || raw.blockHeight + raw.term;
     deposit.keys = raw.keys || [];
     deposit.withdrawPending = raw.withdrawPending;
     return deposit;
@@ -309,43 +322,43 @@ export class Deposit extends BaseBanking {
     return Object.assign(super.export(), {
       spentTx: this.spentTx,
       withdrawPending: this.withdrawPending,
-      keys: this.keys
+      keys: this.keys,
     });
   }
 
-  copy = () => { 
-    const aCopy = super.copy();  
+  copy = () => {
+    const aCopy = super.copy();
     aCopy.spentTx = this.spentTx;
     aCopy.withdrawPending = this.withdrawPending;
     aCopy.keys = [...this.keys];
     return aCopy;
-  }
-  
+  };
+
   // Get total amount (principal + interest)
   getTotalAmount(): number {
     return this.amount + this.interest;
   }
-  
+
   // Check if deposit is unlocked at current height
   isUnlocked(currentHeight: number): boolean {
     return currentHeight >= this.unlockHeight;
   }
-  
+
   // Check if deposit has been spent
   isSpent(): boolean {
     return !!this.spentTx;
   }
-  
+
   // Get deposit status
   getStatus(currentHeight: number): 'Locked' | 'Unlocked' | 'Spent' {
     if (this.isSpent()) {
       return 'Spent';
-    }if (this.isUnlocked(currentHeight)) {
+    }
+    if (this.isUnlocked(currentHeight)) {
       return 'Unlocked';
     }
-      return 'Locked';
+    return 'Locked';
   }
-  
 }
 
 export class Withdrawal extends BaseBanking {}
@@ -355,7 +368,7 @@ export class TransactionData {
   withdrawals: Deposit[] = [];
   deposits: Deposit[] = [];
 
-  static fromRaw = (raw: any) =>  {
+  static fromRaw = (raw: any) => {
     const txData = new TransactionData();
     txData.transaction = Transaction.fromRaw(raw.transaction);
 
@@ -366,13 +379,13 @@ export class TransactionData {
     }
 
     if (raw.deposits) {
-      for (const deposit  of raw.deposits) {
+      for (const deposit of raw.deposits) {
         txData.deposits.push(Deposit.fromRaw(deposit));
       }
     }
 
     return txData;
-  }
+  };
 
   export = () => {
     const txData: any = {};
@@ -393,15 +406,15 @@ export class TransactionData {
       for (const withdrawal of this.withdrawals) {
         withdrawals.push(withdrawal.export());
       }
-    }    
+    }
 
     txData.deposits = deposits;
     txData.withdrawals = withdrawals;
 
     return txData;
-  }
+  };
 
-  copy = () => { 
+  copy = () => {
     const aCopy = new TransactionData();
     aCopy.transaction = this.transaction ? this.transaction.copy() : null;
 
@@ -413,14 +426,14 @@ export class TransactionData {
     }
 
     return aCopy;
-  }
+  };
 }
 
 export class SharedKey extends Transaction {
   timeStampSharedKeyCreate: number = 0;
   timeStampSharedKeyRevoke: number = -1;
-  sharedKeySaved: boolean = false;     //becomes true when saved to blockchain (chain icon)
-  
+  sharedKeySaved: boolean = false; //becomes true when saved to blockchain (chain icon)
+
   // 2FA specific properties
   name: string = '';
   issuer: string = '';
@@ -431,7 +444,7 @@ export class SharedKey extends Transaction {
   toBePush: boolean = false; // Flag to indicate if shared key needs to be pushed to blockchain
   unknownSource: boolean = false; // Flag to indicate if shared key comes from unknown source
   isLocal: boolean = true; // Flag to indicate if shared key is local-only (not on blockchain)
-  
+
   static fromRaw(serviceData: { name: string; issuer: string; secret: string }): SharedKey {
     const sharedKey = new SharedKey();
     sharedKey.name = serviceData.name;
@@ -445,7 +458,7 @@ export class SharedKey extends Transaction {
     sharedKey.isLocal = true; // User-created services start as local
     return sharedKey;
   }
-  
+
   static fromBlockchain(txData: any): SharedKey {
     const sharedKey = new SharedKey();
     sharedKey.hash = txData.hash;
@@ -453,7 +466,7 @@ export class SharedKey extends Transaction {
     sharedKey.timestamp = txData.timestamp;
     sharedKey.sharedKeySaved = true;
     sharedKey.isLocal = false; // Blockchain-imported services are not local
-    
+
     // Parse extra data (second byte indicates creation, rest contains name, issuer, secret)
     if (txData.extraType && txData.extraType.length > 1) {
       const isCreation = txData.extraType[1] === '01'; // Second byte indicates creation
@@ -469,20 +482,20 @@ export class SharedKey extends Transaction {
         }
       }
     }
-    
+
     return sharedKey;
   }
-  
+
   isLocalOnly(): boolean {
     return this.isLocal;
   }
-  
+
   getExtraData(): string {
     // Second byte '01' indicates creation, followed by JSON data
     const data = JSON.stringify({
       name: this.name,
       issuer: this.issuer,
-      secret: this.secret
+      secret: this.secret,
     });
     return '01' + data; // '01' prefix for creation type
   }

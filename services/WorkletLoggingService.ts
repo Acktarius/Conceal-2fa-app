@@ -1,8 +1,8 @@
 /*
  * Copyright (c) 2025 Acktarius, Conceal Devs
- * 
+ *
  * This file is part of Conceal-2FA-App
- * 
+ *
  * Distributed under the BSD 3-Clause License, see the accompanying
  * file LICENSE or https://opensource.org/licenses/BSD-3-Clause.
  */
@@ -41,26 +41,36 @@ export class WorkletLoggingService implements IWorkletLogging {
   }
 
   loggingWithString(template: string, variable: string): void {
-    scheduleOnRuntime(this.runtime, (varValue: string) => {
-      console.log(template.replace('{}', varValue));
-    }, variable);
+    scheduleOnRuntime(
+      this.runtime,
+      (varValue: string) => {
+        console.log(template.replace('{}', varValue));
+      },
+      variable
+    );
   }
 
   loggingWithNumber(template: string, variable: number): void {
-    scheduleOnRuntime(this.runtime, (varValue: number) => {
-      console.log(template.replace('{}', varValue.toString()));
-    }, variable);
+    scheduleOnRuntime(
+      this.runtime,
+      (varValue: number) => {
+        console.log(template.replace('{}', varValue.toString()));
+      },
+      variable
+    );
   }
-
 
   loggingWith_s_d(template: string, variable1: any, variable2: any): void {
-    scheduleOnRuntime(this.runtime, (varValue1: any, varValue2: any) => {
-      const formattedMessage = template.replace('%s', varValue1.toString()).replace('%d', varValue2.toString());
-      console.log(formattedMessage);
-    }, variable1, variable2);
+    scheduleOnRuntime(
+      this.runtime,
+      (varValue1: any, varValue2: any) => {
+        const formattedMessage = template.replace('%s', varValue1.toString()).replace('%d', varValue2.toString());
+        console.log(formattedMessage);
+      },
+      variable1,
+      variable2
+    );
   }
-
-
 }
 
 /**
