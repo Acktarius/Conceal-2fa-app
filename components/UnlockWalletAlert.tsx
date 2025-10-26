@@ -46,12 +46,7 @@ export const UnlockWalletAlert: React.FC<UnlockWalletAlertProps> = ({
       confirmText={confirmText}
     >
       <View style={styles.content}>
-        <PasswordInput
-          placeholder="Enter wallet password"
-          value={password}
-          onChangeText={setPassword}
-          showValidation={false}
-        />
+        <PasswordInput placeholder="Enter wallet password" value={password} onChangeText={setPassword} showValidation={false} />
       </View>
     </CustomAlert>
   );

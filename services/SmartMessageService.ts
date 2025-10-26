@@ -25,12 +25,7 @@ export class SmartMessageService {
   /**
    * Handle smart message result and update localStorage
    */
-  static async handleSmartMessageResult(
-    data: any,
-    smartMessage: any,
-    transactionHash?: string,
-    paymentId?: string
-  ): Promise<void> {
+  static async handleSmartMessageResult(data: any, smartMessage: any, transactionHash?: string, paymentId?: string): Promise<void> {
     try {
       if (smartMessage.command.startsWith('2FA,')) {
         const parts = smartMessage.command.split(',');

@@ -131,10 +131,7 @@ export const ExpSectionToggle: React.FC<ExpSectionToggleProps> = ({
         {isExpanded && hasMoreThanTwoOptions && (
           <View className="px-4 pb-4 border-t" style={{ borderTopColor: theme.colors.border }}>
             <View className="pt-3">
-              <Text
-                className="text-sm font-medium mb-3 font-poppins-medium"
-                style={{ color: theme.colors.textSecondary }}
-              >
+              <Text className="text-sm font-medium mb-3 font-poppins-medium" style={{ color: theme.colors.textSecondary }}>
                 Choose an option:
               </Text>
 
@@ -148,12 +145,7 @@ export const ExpSectionToggle: React.FC<ExpSectionToggleProps> = ({
                     activeOpacity={0.7}
                   >
                     {option.icon && (
-                      <Ionicons
-                        name={option.icon as any}
-                        size={16}
-                        color={theme.colors.textSecondary}
-                        style={{ marginRight: 4 }}
-                      />
+                      <Ionicons name={option.icon as any} size={16} color={theme.colors.textSecondary} style={{ marginRight: 4 }} />
                     )}
                     <Text
                       className="text-sm font-poppins-medium"

@@ -198,10 +198,7 @@ export class WalletRepository {
     return null;
   }
 
-  static decodeWithoutPassword(
-    rawWallet: RawWallet | RawFullyEncryptedWallet,
-    biometricPassword: string
-  ): Wallet | null {
+  static decodeWithoutPassword(rawWallet: RawWallet | RawFullyEncryptedWallet, biometricPassword: string): Wallet | null {
     // For biometric wallets, use the stored biometric password for decryption
     // The wallet data is still encrypted, but the password is retrieved from biometric storage
     return WalletRepository.decodeWithPassword(rawWallet, biometricPassword);
@@ -266,8 +263,7 @@ export class WalletRepository {
     try {
       // Optimized ArrayBuffer preparation - avoid copy if already aligned
       const messageBuffer =
-        uint8EncryptedContent.byteOffset === 0 &&
-        uint8EncryptedContent.byteLength === uint8EncryptedContent.buffer.byteLength
+        uint8EncryptedContent.byteOffset === 0 && uint8EncryptedContent.byteLength === uint8EncryptedContent.buffer.byteLength
           ? (uint8EncryptedContent.buffer as ArrayBuffer)
           : (() => {
               const buf = new ArrayBuffer(uint8EncryptedContent.length);
@@ -335,11 +331,7 @@ export class WalletRepository {
         wallet.keys.priv.view,
         wallet.creationHeight
       ),
-      coinWalletUriM: CoinUri.encodeWalletKeys(
-        wallet.getPublicAddress(),
-        wallet.keys.priv.spend,
-        wallet.keys.priv.view
-      ),
+      coinWalletUriM: CoinUri.encodeWalletKeys(wallet.getPublicAddress(), wallet.keys.priv.spend, wallet.keys.priv.view),
     };
   }
 }

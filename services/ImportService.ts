@@ -68,9 +68,7 @@ export class ImportService {
             throw error; // Propagate cancel up to wallet creation
           }
           // For other errors, show error and loop back to method selection
-          Alert.alert('Import Error', error instanceof Error ? error.message : 'Failed to import wallet', [
-            { text: 'OK' },
-          ]);
+          Alert.alert('Import Error', error instanceof Error ? error.message : 'Failed to import wallet', [{ text: 'OK' }]);
         }
       }
     } catch (error) {

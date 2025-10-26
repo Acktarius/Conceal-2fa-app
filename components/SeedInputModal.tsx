@@ -132,11 +132,7 @@ export const SeedInputModal: React.FC<SeedInputModalProps> = ({ visible, onCance
             </View>
 
             <View style={styles.buttonContainer}>
-              <TouchableOpacity
-                style={[styles.button, styles.cancelButton]}
-                onPress={handleCancel}
-                disabled={isValidating}
-              >
+              <TouchableOpacity style={[styles.button, styles.cancelButton]} onPress={handleCancel} disabled={isValidating}>
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
 

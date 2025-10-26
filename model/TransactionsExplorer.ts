@@ -123,11 +123,7 @@ export class TransactionsExplorer {
         let extraSize = 0;
         let startOffset = 0;
 
-        if (
-          extra[0] === TX_EXTRA_NONCE ||
-          extra[0] === TX_EXTRA_MERGE_MINING_TAG ||
-          extra[0] === TX_EXTRA_MYSTERIOUS_MINERGATE_TAG
-        ) {
+        if (extra[0] === TX_EXTRA_NONCE || extra[0] === TX_EXTRA_MERGE_MINING_TAG || extra[0] === TX_EXTRA_MYSTERIOUS_MINERGATE_TAG) {
           extraSize = extra[1];
           startOffset = 2;
         } else if (extra[0] === TX_EXTRA_TAG_PUBKEY) {
@@ -325,12 +321,7 @@ export class TransactionsExplorer {
     return hasMessageToUs;
   }
 
-  static decryptMessage(
-    index: number,
-    txPubKey: string,
-    recepientSecretSpendKey: string,
-    rawMessage: string
-  ): string | any {
+  static decryptMessage(index: number, txPubKey: string, recepientSecretSpendKey: string, rawMessage: string): string | any {
     /*console.log('decryptMessage: Starting decryption with params:', {
          index,
          txPubKey: txPubKey.substring(0, 10) + '...',
@@ -1416,9 +1407,7 @@ export class TransactionsExplorer {
 
         // Remove this global index from the object with MORE mixouts
         // This leaves the duplicate in the object with fewer mixouts
-        mixOuts[objectToRemoveFrom].outs = mixOuts[objectToRemoveFrom].outs.filter(
-          (mixout: any) => mixout.global_index !== globalIndex
-        );
+        mixOuts[objectToRemoveFrom].outs = mixOuts[objectToRemoveFrom].outs.filter((mixout: any) => mixout.global_index !== globalIndex);
       }
     }
 

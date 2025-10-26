@@ -27,9 +27,7 @@ export function PasswordPromptProvider({ children }: { children: React.ReactNode
   const [showPasswordCreation, setShowPasswordCreation] = useState(false);
   const [passwordCreationMessage, setPasswordCreationMessage] = useState('');
   const [passwordCreationTitle, setPasswordCreationTitle] = useState('');
-  const [passwordCreationResolve, setPasswordCreationResolve] = useState<((password: string | null) => void) | null>(
-    null
-  );
+  const [passwordCreationResolve, setPasswordCreationResolve] = useState<((password: string | null) => void) | null>(null);
 
   const showPasswordPromptAlert = (title: string, message: string): Promise<string | null> => {
     console.log('PASSWORD CONTEXT: showPasswordPromptAlert called with:', title, message);

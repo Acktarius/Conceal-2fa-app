@@ -48,10 +48,7 @@ export class TOTPService {
       // Dynamic truncation
       const offset = hmac[hmac.length - 1] & 0x0f;
       const code =
-        ((hmac[offset] & 0x7f) << 24) |
-        ((hmac[offset + 1] & 0xff) << 16) |
-        ((hmac[offset + 2] & 0xff) << 8) |
-        (hmac[offset + 3] & 0xff);
+        ((hmac[offset] & 0x7f) << 24) | ((hmac[offset + 1] & 0xff) << 16) | ((hmac[offset + 2] & 0xff) << 8) | (hmac[offset + 3] & 0xff);
 
       // Generate final code
       const otp = (code % 10 ** TOTPService.DIGITS).toString().padStart(TOTPService.DIGITS, '0');
@@ -92,10 +89,7 @@ export class TOTPService {
       // Dynamic truncation
       const offset = hmac[hmac.length - 1] & 0x0f;
       const code =
-        ((hmac[offset] & 0x7f) << 24) |
-        ((hmac[offset + 1] & 0xff) << 16) |
-        ((hmac[offset + 2] & 0xff) << 8) |
-        (hmac[offset + 3] & 0xff);
+        ((hmac[offset] & 0x7f) << 24) | ((hmac[offset + 1] & 0xff) << 16) | ((hmac[offset + 2] & 0xff) << 8) | (hmac[offset + 3] & 0xff);
 
       // Generate final code
       const otp = (code % 10 ** TOTPService.DIGITS).toString().padStart(TOTPService.DIGITS, '0');

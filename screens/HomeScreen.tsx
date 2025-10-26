@@ -160,10 +160,7 @@ export default function HomeScreen() {
           getGlobalWorkletLogging().logging2string('DEBUG: Error triggering CronBuddy for new service:', String(error));
         }
       } else {
-        Alert.alert(
-          'Success',
-          'Service added locally! Enable blockchain sync or use individual save buttons to sync to blockchain.'
-        );
+        Alert.alert('Success', 'Service added locally! Enable blockchain sync or use individual save buttons to sync to blockchain.');
       }
     } catch (error) {
       getGlobalWorkletLogging().logging2string('Error adding service:', String(error));
@@ -172,9 +169,7 @@ export default function HomeScreen() {
   };
 
   const handleBroadcastCode = async (sharedKeyHash: string, futureCode?: string) => {
-    const sharedKey = sharedKeys.find(
-      (sk) => sk.hash === sharedKeyHash || sk.name + '_' + sk.timeStampSharedKeyCreate === sharedKeyHash
-    );
+    const sharedKey = sharedKeys.find((sk) => sk.hash === sharedKeyHash || sk.name + '_' + sk.timeStampSharedKeyCreate === sharedKeyHash);
     if (!sharedKey) return;
 
     try {
@@ -209,9 +204,7 @@ export default function HomeScreen() {
   };
 
   const handleSaveToBlockchain = async (sharedKeyId: string) => {
-    const sharedKey = sharedKeys.find(
-      (sk) => sk.hash === sharedKeyId || sk.name + '_' + sk.timeStampSharedKeyCreate === sharedKeyId
-    );
+    const sharedKey = sharedKeys.find((sk) => sk.hash === sharedKeyId || sk.name + '_' + sk.timeStampSharedKeyCreate === sharedKeyId);
     if (!sharedKey) return;
 
     try {
@@ -249,18 +242,12 @@ export default function HomeScreen() {
       if (!CronBuddy.isActive()) {
         getGlobalWorkletLogging().logging1string('DEBUG: CronBuddy not active, starting it...');
         CronBuddy.start();
-        getGlobalWorkletLogging().logging2string(
-          'DEBUG: CronBuddy started, is now active:',
-          String(CronBuddy.isActive())
-        );
+        getGlobalWorkletLogging().logging2string('DEBUG: CronBuddy started, is now active:', String(CronBuddy.isActive()));
       } else {
         getGlobalWorkletLogging().logging1string('DEBUG: CronBuddy already active');
       }
 
-      Alert.alert(
-        'Success',
-        'Service will be saved to blockchain automatically. Operation will be processed in the background.'
-      );
+      Alert.alert('Success', 'Service will be saved to blockchain automatically. Operation will be processed in the background.');
 
       // Debug: Check CronBuddy status and force a check
       /*

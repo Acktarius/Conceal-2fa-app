@@ -27,11 +27,7 @@ function withConcealConfigPlugin(config) {
     }
 
     const permissions = androidManifest.manifest['uses-permission'];
-    const requiredPermissions = [
-      'android.permission.INTERNET',
-      'android.permission.ACCESS_NETWORK_STATE',
-      'android.permission.VIBRATE',
-    ];
+    const requiredPermissions = ['android.permission.INTERNET', 'android.permission.ACCESS_NETWORK_STATE', 'android.permission.VIBRATE'];
 
     // Add missing permissions
     requiredPermissions.forEach((permission) => {

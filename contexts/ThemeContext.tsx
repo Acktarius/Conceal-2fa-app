@@ -236,11 +236,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const theme = getTheme(currentThemeId);
   const isDark = theme.isDark;
 
-  return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme, isDark, currentThemeId }}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={{ theme, toggleTheme, setTheme, isDark, currentThemeId }}>{children}</ThemeContext.Provider>;
 }
 
 export function useTheme() {

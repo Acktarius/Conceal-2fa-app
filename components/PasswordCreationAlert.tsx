@@ -82,20 +82,13 @@ export const PasswordCreationAlert: React.FC<PasswordCreationAlertProps> = ({
           value={confirmPassword}
           onChangeText={handleConfirmPasswordChange}
           isValid={passwordsMatch}
-          errorMessage={
-            showValidation && !passwordsMatch && confirmPassword.length > 0 ? 'Passwords do not match' : undefined
-          }
+          errorMessage={showValidation && !passwordsMatch && confirmPassword.length > 0 ? 'Passwords do not match' : undefined}
           showValidation={showValidation}
         />
 
         {showValidation && password.length > 0 && (
           <View style={styles.validationContainer}>
-            <Text
-              style={[
-                styles.validationText,
-                passwordValidation.isValid ? styles.validationSuccess : styles.validationError,
-              ]}
-            >
+            <Text style={[styles.validationText, passwordValidation.isValid ? styles.validationSuccess : styles.validationError]}>
               {getPasswordStrengthText(passwordValidation)}
             </Text>
 

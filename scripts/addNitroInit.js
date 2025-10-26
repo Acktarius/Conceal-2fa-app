@@ -33,10 +33,7 @@ function insertInit(source) {
 
   // Insert initializer into onCreate()
   if (!result.includes(NITRO_INIT_CALL)) {
-    result = result.replace(
-      /(override fun onCreate\(\)\s*\{\s*super\.onCreate\(\);?)/,
-      `$1\n        ${NITRO_INIT_CALL}`
-    );
+    result = result.replace(/(override fun onCreate\(\)\s*\{\s*super\.onCreate\(\);?)/, `$1\n        ${NITRO_INIT_CALL}`);
   }
 
   return result;

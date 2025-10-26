@@ -162,12 +162,7 @@ export class Transaction {
 
   hasMessage = () => {
     const txAmount = this.getAmount();
-    return (
-      this.message !== '' &&
-      txAmount > 0 &&
-      txAmount !== 1 * config.remoteNodeFee &&
-      txAmount !== 10 * config.remoteNodeFee
-    ); // no envelope for a suspectedremote node fee transaction
+    return this.message !== '' && txAmount > 0 && txAmount !== 1 * config.remoteNodeFee && txAmount !== 10 * config.remoteNodeFee; // no envelope for a suspectedremote node fee transaction
   };
 
   get isDeposit() {
@@ -186,11 +181,7 @@ export class Transaction {
     if (this.outs.some((out) => out.type === '03') || this.ins.some((input) => input.type === '03')) {
       return false;
     }
-    return (
-      (inputsCount > Currency.fusionTxMinInputCount &&
-        inputsCount / outputsCount > config.fusionTxMinInOutCountRatio) ||
-      this.fusion
-    );
+    return (inputsCount > Currency.fusionTxMinInputCount && inputsCount / outputsCount > config.fusionTxMinInOutCountRatio) || this.fusion;
   }
 
   export() {

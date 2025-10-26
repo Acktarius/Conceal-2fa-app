@@ -26,30 +26,19 @@ export const TermsModal: React.FC<TermsModalProps> = ({ visible, onClose }) => {
           {/* Header */}
           <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
             <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Terms and Conditions</Text>
-            <TouchableOpacity
-              onPress={onClose}
-              style={styles.closeButton}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
+            <TouchableOpacity onPress={onClose} style={styles.closeButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Ionicons name="close" size={28} color={theme.colors.text} />
             </TouchableOpacity>
           </View>
 
           {/* Content */}
-          <ScrollView
-            style={styles.scrollView}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={true}
-          >
+          <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={true}>
             <Text style={[styles.termsText, { color: theme.colors.text }]}>{TERMS_AND_CONDITIONS}</Text>
           </ScrollView>
 
           {/* Footer Button */}
           <View style={[styles.footer, { borderTopColor: theme.colors.border }]}>
-            <TouchableOpacity
-              style={[styles.closeFooterButton, { backgroundColor: theme.colors.primary }]}
-              onPress={onClose}
-            >
+            <TouchableOpacity style={[styles.closeFooterButton, { backgroundColor: theme.colors.primary }]} onPress={onClose}>
               <Text style={styles.closeButtonText}>Close</Text>
             </TouchableOpacity>
           </View>

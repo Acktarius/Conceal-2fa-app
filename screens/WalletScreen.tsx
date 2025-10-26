@@ -363,8 +363,7 @@ export default function WalletScreen() {
                 </Text>
               </View>
               <Text className="text-sm text-center leading-5 mb-6" style={{ color: theme.colors.textSecondary }}>
-                Your wallet is currently in local-only mode. Upgrade to blockchain mode to sync your 2FA keys and access
-                full features.
+                Your wallet is currently in local-only mode. Upgrade to blockchain mode to sync your 2FA keys and access full features.
               </Text>
               <TouchableOpacity
                 className="flex-row items-center justify-center rounded-xl px-5 py-3"
@@ -456,33 +455,27 @@ export default function WalletScreen() {
 
               {/* Key Storage Info */}
               {balance.compare(new JSBigInt(0)) === 0 && wallet?.getPublicAddress() ? (
-                <View
-                  className="rounded-2xl p-5 items-center m-4"
-                  style={{ backgroundColor: theme.colors.primaryLight }}
-                >
+                <View className="rounded-2xl p-5 items-center m-4" style={{ backgroundColor: theme.colors.primaryLight }}>
                   <Ionicons name="wallet-outline" size={32} color={theme.colors.primary} />
                   <Text className="text-lg font-semibold mt-3 mb-2" style={{ color: theme.colors.primary }}>
                     Welcome to SecureAuth!
                   </Text>
                   <Text className="text-sm text-center leading-5" style={{ color: theme.colors.primary }}>
-                    Your wallet has been created with 0 CCX. To sync your 2FA keys to the blockchain, ask a friend to
-                    send you some CCX to your address below.
+                    Your wallet has been created with 0 CCX. To sync your 2FA keys to the blockchain, ask a friend to send you some CCX to
+                    your address below.
                   </Text>
                 </View>
               ) : (
                 showBlockchainSyncInfo && (
-                  <View
-                    className="rounded-2xl p-4 flex-row items-start m-4"
-                    style={{ backgroundColor: theme.colors.primaryLight }}
-                  >
+                  <View className="rounded-2xl p-4 flex-row items-start m-4" style={{ backgroundColor: theme.colors.primaryLight }}>
                     <Ionicons name="information-circle-outline" size={24} color={theme.colors.primary} />
                     <View className="flex-1 ml-3">
                       <Text className="text-base font-semibold mb-1" style={{ color: theme.colors.primary }}>
                         Blockchain Sync Available
                       </Text>
                       <Text className="text-sm leading-5" style={{ color: theme.colors.primary }}>
-                        Each 2FA key sync costs {KEY_STORAGE_COST.toHuman().toFixed(4)} CCX. You can currently sync{' '}
-                        {maxKeys.toString()} keys to the blockchain.
+                        Each 2FA key sync costs {KEY_STORAGE_COST.toHuman().toFixed(4)} CCX. You can currently sync {maxKeys.toString()}{' '}
+                        keys to the blockchain.
                       </Text>
                     </View>
                   </View>
@@ -524,10 +517,7 @@ export default function WalletScreen() {
                   activeOpacity={0.8}
                 >
                   <Ionicons name="copy-outline" size={20} color={theme.colors.primary} />
-                  <Text
-                    className="text-base font-semibold ml-2 font-poppins-medium"
-                    style={{ color: theme.colors.primary }}
-                  >
+                  <Text className="text-base font-semibold ml-2 font-poppins-medium" style={{ color: theme.colors.primary }}>
                     Copy Address
                   </Text>
                 </TouchableOpacity>
@@ -619,10 +609,7 @@ export default function WalletScreen() {
                     </View>
 
                     <TouchableOpacity className="mt-1" onPress={handleMaxAmount} activeOpacity={0.7}>
-                      <Text
-                        className="text-xs italic text-center font-poppins underline"
-                        style={{ color: theme.colors.primary }}
-                      >
+                      <Text className="text-xs italic text-center font-poppins underline" style={{ color: theme.colors.primary }}>
                         Max: {balance.subtract(config.coinFee.add(config.remoteNodeFee)).toHuman().toFixed(6)} CCX
                       </Text>
                     </TouchableOpacity>
@@ -635,10 +622,7 @@ export default function WalletScreen() {
                       onPress={handleCancelSend}
                       activeOpacity={0.8}
                     >
-                      <Text
-                        className="text-base font-semibold font-poppins-medium"
-                        style={{ color: theme.colors.text }}
-                      >
+                      <Text className="text-base font-semibold font-poppins-medium" style={{ color: theme.colors.text }}>
                         Cancel
                       </Text>
                     </TouchableOpacity>
@@ -657,18 +641,15 @@ export default function WalletScreen() {
 
               {/* Funding Info Card */}
               {balance.compare(new JSBigInt(0)) === 0 && (
-                <View
-                  className="rounded-2xl p-4 flex-row items-start m-4"
-                  style={{ backgroundColor: theme.colors.primaryLight }}
-                >
+                <View className="rounded-2xl p-4 flex-row items-start m-4" style={{ backgroundColor: theme.colors.primaryLight }}>
                   <Ionicons name="people-outline" size={24} color={theme.colors.primary} />
                   <View className="flex-1 ml-3">
                     <Text className="text-base font-semibold mb-1" style={{ color: theme.colors.primary }}>
                       Get Started
                     </Text>
                     <Text className="text-sm leading-5" style={{ color: theme.colors.primary }}>
-                      Share your wallet address with a friend or colleague to receive CCX. Even a small amount (0.1 CCX)
-                      allows you to sync multiple keys!
+                      Share your wallet address with a friend or colleague to receive CCX. Even a small amount (0.1 CCX) allows you to sync
+                      multiple keys!
                     </Text>
                   </View>
                 </View>

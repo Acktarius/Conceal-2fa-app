@@ -29,14 +29,19 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-build-properties',
       {
+        ios: {
+          useFrameworks: 'static',
+          deploymentTarget: '15.1',
+          useModularHeaders: true,
+        },
         android: {
           compileSdkVersion: 35,
           targetSdkVersion: 35,
           buildToolsVersion: '35.0.0',
           kotlinVersion: '2.2.0',
-          'org.gradle.java.home': '/usr/lib/jvm/java-17-openjdk-amd64',
-          androidSdkPath: '/home/katana/Android/Sdk',
-          'android.abiFilters': 'armeabi-v7a,arm64-v8a',
+          // 'org.gradle.java.home': '/usr/lib/jvm/java-17-openjdk-amd64',
+          // androidSdkPath: '/home/katana/Android/Sdk',
+          // 'android.abiFilters': 'armeabi-v7a,arm64-v8a',
         },
         newArchEnabled: true,
         hermesEnabled: true,
@@ -51,6 +56,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ],
     './scripts/withNitroModulesPlugin',
     './withConcealConfigPlugin',
+    './withCustomPodfile.plugin.js',
     'expo-secure-store',
     'expo-font',
   ],

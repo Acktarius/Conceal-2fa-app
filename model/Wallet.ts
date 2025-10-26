@@ -425,10 +425,7 @@ export class Wallet extends Observable {
     // 4. Update withdrawals array - fallback to amount & outputIndex if needed
     if (!foundMatchWithdrawal) {
       for (let i = 0; i < this.withdrawals.length; ++i) {
-        if (
-          this.withdrawals[i].amount === withdrawal.amount &&
-          this.withdrawals[i].globalOutputIndex === withdrawal.globalOutputIndex
-        ) {
+        if (this.withdrawals[i].amount === withdrawal.amount && this.withdrawals[i].globalOutputIndex === withdrawal.globalOutputIndex) {
           this.withdrawals[i] = withdrawal;
           foundMatchWithdrawal = true;
           break;
@@ -813,10 +810,7 @@ export class Wallet extends Observable {
    * @param blockchainHeight The current blockchain height.
    * @returns { unspentOutsCount: number, fusionReadyCount: number }
    */
-  estimateFusionReadyness = (
-    threshold: number,
-    blockchainHeight: number
-  ): { unspentOutsCount: number; fusionReadyCount: number } => {
+  estimateFusionReadyness = (threshold: number, blockchainHeight: number): { unspentOutsCount: number; fusionReadyCount: number } => {
     // Number of buckets: 20 (uint64_t has 19 digits + 1)
     const NUM_BUCKETS = 20;
     const bucketSizes = new Array<number>(NUM_BUCKETS).fill(0);
@@ -1029,11 +1023,7 @@ export class Wallet extends Observable {
             0
           );
 
-          transactionSize = Currency.getApproximateTransactionSize(
-            data.signed.vin.length,
-            data.signed.vout.length,
-            config.defaultMixin
-          );
+          transactionSize = Currency.getApproximateTransactionSize(data.signed.vin.length, data.signed.vout.length, config.defaultMixin);
           fusionTransaction = data;
 
           round++;
