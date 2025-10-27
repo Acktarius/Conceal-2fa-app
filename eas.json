@@ -23,8 +23,9 @@
     "preview": {
       "extends": "production",
       "distribution": "internal",
+      "developmentClient": true,
       "ios": {
-        "buildConfiguration": "Release"
+        "buildConfiguration": "Debug"
       },
       "env": {
         "NODE_ENV": "preview",
