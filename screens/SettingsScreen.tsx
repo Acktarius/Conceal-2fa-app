@@ -274,20 +274,12 @@ export default function SettingsScreen() {
       // 1. Wallet is not local (!wallet.isLocal())
       // 2. Wallet is synchronized with blockchain
       // 3. Wallet has sufficient balance (> 0.0111 CCX)
-      const isSynced = await WalletService.getWalletSyncStatus().isWalletSynced;
+      const syncStatus = WalletService.getWalletSyncStatus();
+      const isSynced = syncStatus.isWalletSynced;
       const hasBalance = wallet.amount > 0.0111;
 
       const shouldShow = !wallet.isLocal() && isSynced && hasBalance;
       setShowBlockchainSyncToggle(shouldShow);
-
-      /*
-      console.log('Blockchain Sync Toggle Visibility Check:', {
-        isLocal: wallet.isLocal(),
-        isSynced,
-        hasBalance,
-        shouldShow,
-      });
-      */
     } catch (error) {
       console.error('Error checking blockchain sync visibility:', error);
       setShowBlockchainSyncToggle(false);

@@ -1,4 +1,4 @@
-package com.acktarius.conceal2faapp
+package com.acktarius.concealauthenticator
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

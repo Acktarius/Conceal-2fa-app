@@ -88,10 +88,10 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.acktarius.conceal2faapp'
+    namespace 'com.acktarius.concealauthenticator'
     defaultConfig {
         missingDimensionStrategy 'react-native-camera', 'general'
-        applicationId 'com.acktarius.conceal2faapp'
+        applicationId 'com.acktarius.concealauthenticator'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

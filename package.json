@@ -1,5 +1,5 @@
 {
-  "name": "conceal-2fa-app",
+  "name": "conceal-authenticator",
   "version": "1.0.2",
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
@@ -23,7 +23,6 @@
     "@react-navigation/native": "^6.1.18",
     "@react-navigation/native-stack": "^6.11.0",
     "expo": "^54.0.20",
-    "expo-build-properties": "~1.0.9",
     "expo-camera": "~17.0.8",
     "expo-clipboard": "~8.0.7",
     "expo-constants": "^18.0.9",
@@ -59,6 +58,7 @@
     "@types/react": "~19.1.10",
     "babel-plugin-module-resolver": "^5.0.2",
     "babel-preset-expo": "^54.0.4",
+    "expo-build-properties": "^1.0.9",
     "metro": "^0.83.1",
     "metro-babel-transformer": "^0.83.1",
     "metro-core": "^0.83.1",

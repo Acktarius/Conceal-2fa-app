@@ -1,4 +1,4 @@
-package com.acktarius.conceal2faapp
+package com.acktarius.concealauthenticator
 import com.margelo.nitro.concealcrypto.ConcealCryptoOnLoad
 
 import android.app.Application

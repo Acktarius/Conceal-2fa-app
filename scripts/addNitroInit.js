@@ -12,7 +12,7 @@ const MAIN_APP_PATH = path.join(
   'java',
   'com',
   'acktarius',
-  'conceal2faapp',
+  'concealauthenticator',
   'MainApplication.kt'
 );
 

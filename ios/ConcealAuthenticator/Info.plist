@@ -7,7 +7,7 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>$(DEVELOPMENT_LANGUAGE)</string>
     <key>CFBundleDisplayName</key>
-    <string>Conceal 2FA (Dev)</string>
+    <string>Conceal Authenticator</string>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key>
@@ -27,13 +27,13 @@
       <dict>
         <key>CFBundleURLSchemes</key>
         <array>
-          <string>com.acktarius.conceal2faapp</string>
+          <string>com.acktarius.concealauthenticator</string>
         </array>
       </dict>
       <dict>
         <key>CFBundleURLSchemes</key>
         <array>
-          <string>exp+conceal-2fa-app</string>
+          <string>exp+conceal-authenticator</string>
         </array>
       </dict>
     </array>

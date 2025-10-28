@@ -2,9 +2,9 @@ import type { ConfigContext, ExpoConfig } from 'expo/config';
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  name: process.env.NODE_ENV === 'production' ? 'Conceal 2FA' : 'Conceal 2FA (Dev)',
+  name: 'Conceal Authenticator',
   version: process.env.APP_VERSION || '1.0.0',
-  slug: 'conceal-2fa-app',
+  slug: 'conceal-authenticator',
   orientation: 'portrait',
   icon: './assets/icon.png',
   userInterfaceStyle: 'automatic',
@@ -16,13 +16,16 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     infoPlist: {
       NSCameraUsageDescription: 'This app needs access to camera to scan QR codes for adding 2FA services.',
     },
-    bundleIdentifier: 'com.acktarius.conceal2faapp',
+    bundleIdentifier: 'com.acktarius.concealauthenticator',
   },
 
   android: {
-    icon: './assets/icon.png',
+    "adaptiveIcon": {
+      "foregroundImage": "./assets/adaptive-icon.png",
+      "backgroundColor": "#000000"
+    },
     permissions: ['CAMERA', 'android.permission.CAMERA', 'android.permission.RECORD_AUDIO'],
-    package: 'com.acktarius.conceal2faapp',
+    package: 'com.acktarius.concealauthenticator',
   },
 
   plugins: [
@@ -66,9 +69,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
 
   extra: {
-    eas: {
-      projectId: '6ec1baed-9051-4552-8949-cb824a416c11',
-    },
+    "eas": {
+        "projectId": "b06dd25d-97c8-49c4-965e-d4f414bfbef3"
+      },
     conceal: {
       defaultNodeUrl: process.env.CONCEAL_NODE_URL || 'https://explorer.conceal.network/daemon/',
       fallbackNodeUrl: 'https://ccxapi.conceal.network/daemon/',
