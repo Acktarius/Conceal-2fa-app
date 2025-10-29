@@ -1358,7 +1358,7 @@ export default function SettingsScreen() {
           </View>
 
           {/* Trust Anchor (Payment ID Whitelist) */}
-          {showBlockchainSyncToggle && (
+          {wallet && !wallet.isLocal() && (
             <View className="mb-6">
               <Text className="text-base font-semibold mb-2 ml-1" style={{ color: theme.colors.text }}>
                 Trust Anchor

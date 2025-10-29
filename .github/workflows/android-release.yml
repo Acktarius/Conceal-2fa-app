@@ -40,11 +40,24 @@ jobs:
                       "ndk;27.1.12297006" \
                       "extras;android;m2repository" "extras;google;m2repository"
 
-      - name: Build Android Folder
+      - name: Build and Tweak Android Folder
         run: ./build-android.sh
 
-      - name: Sign APK
+      - name: Decode Keystore
+        run: echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > $GITHUB_WORKSPACE/local-release-key.keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        
+
+      - name: Signing Build.gradle
         run: node hooks/android/3_signing.js
+        env:
+          ANDROID_KEYSTORE_PATH: $GITHUB_WORKSPACE/local-release-key.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          GITHUB_ACTIONS: 'true'
+      
       
       - name: Read App Version
         id: get_version
