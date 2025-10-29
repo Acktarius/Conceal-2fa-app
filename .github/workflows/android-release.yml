@@ -1,0 +1,61 @@
+name: Android Release Build
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install NPM dependencies
+        run: npm install
+
+      - name: Set up Java (for Android build)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: 17
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept licenses
+        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+
+      - name: Install Required SDK Packages
+        run: |
+          sdkmanager "build-tools;35.0.0" "platforms;android-35" "platform-tools" \
+                      "ndk;27.1.12297006" \
+                      "extras;android;m2repository" "extras;google;m2repository"
+
+      - name: Build Android Folder
+        run: ./build-android.sh
+
+      - name: Sign APK
+        run: node hooks/android/3_signing.js
+      
+      - name: Read App Version
+        id: get_version
+        run: |
+          echo "VERSION=$(grep APP_VERSION .env | cut -d '=' -f 2)" >> $GITHUB_ENV
+      
+      - name: Build Release APK
+        working-directory: android
+        run: ./gradlew assembleRelease
+      
+      - name: Upload APK as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: conceal-authenticator-${{ steps.get_version.outputs.VERSION }}
+          path: android/app/build/outputs/apk/release/ConcealAuthenticator*.apk

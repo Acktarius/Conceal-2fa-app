@@ -58,6 +58,7 @@
     "@types/react": "~19.1.10",
     "babel-plugin-module-resolver": "^5.0.2",
     "babel-preset-expo": "^54.0.4",
+    "dotenv": "^17.2.3",
     "expo-build-properties": "^1.0.9",
     "metro": "^0.83.1",
     "metro-babel-transformer": "^0.83.1",

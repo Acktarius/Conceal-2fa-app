@@ -8,7 +8,7 @@ rm -rf android
 
 # Step 2: Eject to recreate android and ios folders
 echo "🚀 Running expo prebuild to recreate native folders..."
-npx expo prebuild --platform android --clean
+CI=1 npx expo prebuild --platform android --clean
 
 # Step 3: Wait for prebuild to complete
 echo "⏳ Waiting for prebuild to complete..."
@@ -26,10 +26,22 @@ echo "✅ Android folder recreated successfully!"
 echo "🧹 Cleaning Android build..."
 cd android && ./gradlew clean && cd ..
 
+
 # Step 5: Add Nitro init to MainApplication.kt
 echo "🔄 Adding Nitro init to MainApplication.kt..."
 sleep 2
 node scripts/addNitroInit.js
+
+# Step 6: Add build-extra.gradle
+# echo "🔄 Adding build-extra.gradle to top of build.gradle..."
+# sleep 2
+# node hooks/android/1_extra.js
+
+# Step 7: Add build-extra.gradle
+echo "🔄 Adding output filename to build-extra.gradle..."
+sleep 2
+node hooks/android/2_pre-build.js
+
 
 echo "Bundling!"
 # npx react-native bundle --platform android --dev false --entry-file node_modules/expo/AppEntry.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res/
