@@ -48,6 +48,7 @@
     "formatter": {
       "quoteStyle": "single",
       "jsxQuoteStyle": "double",
+      "lineWidth": 140,
       "trailingCommas": "es5",
       "semicolons": "always",
       "arrowParentheses": "always",

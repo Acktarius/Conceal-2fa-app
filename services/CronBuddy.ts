@@ -58,10 +58,7 @@ export class CronBuddy {
       CronBuddy.startJob(jobName, interval);
     }
 
-    getGlobalWorkletLogging().loggingWithNumber(
-      'CronBuddy: Started successfully with {} jobs',
-      Object.keys(jobIntervals).length
-    );
+    getGlobalWorkletLogging().loggingWithNumber('CronBuddy: Started successfully with {} jobs', Object.keys(jobIntervals).length);
   }
 
   /**
@@ -134,9 +131,7 @@ export class CronBuddy {
       return;
     }
 
-    getGlobalWorkletLogging().logging1string(
-      'CronBuddy: Stopping background job scheduler (wallet downgraded to local-only)'
-    );
+    getGlobalWorkletLogging().logging1string('CronBuddy: Stopping background job scheduler (wallet downgraded to local-only)');
     CronBuddy.isRunning = false;
 
     // Clear all intervals
@@ -282,9 +277,7 @@ export class CronBuddy {
       // Check if wallet operations are available
       const walletOperations = dependencyContainer.getWalletOperations();
       if (!walletOperations) {
-        getGlobalWorkletLogging().logging1string(
-          'CronBuddy: No wallet operations available, skipping revokeQueue check'
-        );
+        getGlobalWorkletLogging().logging1string('CronBuddy: No wallet operations available, skipping revokeQueue check');
         return;
       }
 
@@ -308,19 +301,14 @@ export class CronBuddy {
         return;
       }
 
-      getGlobalWorkletLogging().logging1string(
-        'CronBuddy: All safety checks passed, proceeding with revokeQueue check'
-      );
+      getGlobalWorkletLogging().logging1string('CronBuddy: All safety checks passed, proceeding with revokeQueue check');
 
       const storageService = dependencyContainer.getStorageService();
       const sharedKeys = await storageService.getSharedKeys();
 
       getGlobalWorkletLogging().loggingWithNumber(`CronBuddy: Retrieved shared keys: {}`, sharedKeys.length);
       const revokeKeys = sharedKeys.filter((key) => key.revokeInQueue === true);
-      getGlobalWorkletLogging().loggingWithNumber(
-        `CronBuddy: Found keys with revokeInQueue=true: {}`,
-        revokeKeys.length
-      );
+      getGlobalWorkletLogging().loggingWithNumber(`CronBuddy: Found keys with revokeInQueue=true: {}`, revokeKeys.length);
 
       // Find the FIRST key that needs to be revoked
       const keyToRevoke = sharedKeys.find((key) => key.revokeInQueue === true);
@@ -336,10 +324,7 @@ export class CronBuddy {
 
       try {
         if (!keyToRevoke.hash) {
-          getGlobalWorkletLogging().loggingWithString(
-            `CronBuddy: Cannot revoke shared key without hash: {}`,
-            keyToRevoke.name
-          );
+          getGlobalWorkletLogging().loggingWithString(`CronBuddy: Cannot revoke shared key without hash: {}`, keyToRevoke.name);
           // Remove from revoke queue since it can't be processed
           keyToRevoke.revokeInQueue = false;
           await storageService.saveSharedKeys(sharedKeys);
@@ -359,10 +344,7 @@ export class CronBuddy {
 
         if (result.success) {
           // Transaction was sent successfully
-          getGlobalWorkletLogging().loggingWithString(
-            `CronBuddy: Successfully sent revoke transaction for: {}`,
-            keyToRevoke.name
-          );
+          getGlobalWorkletLogging().loggingWithString(`CronBuddy: Successfully sent revoke transaction for: {}`, keyToRevoke.name);
           getGlobalWorkletLogging().loggingWithString(`CronBuddy: Delete transaction hash: {}`, result.txHash);
         } else {
           console.error(`CronBuddy: Failed to revoke shared key: ${keyToRevoke.name}`);

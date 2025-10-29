@@ -13,11 +13,7 @@ export interface IWalletOperations {
   janitor(): void;
   triggerBalanceRefresh(): void;
   triggerSharedKeysRefresh(): void;
-  sendSmartMessage(
-    action: 'create' | 'delete',
-    sharedKey: any,
-    paymentId?: string
-  ): Promise<{ success: boolean; txHash?: string }>;
+  sendSmartMessage(action: 'create' | 'delete', sharedKey: any, paymentId?: string): Promise<{ success: boolean; txHash?: string }>;
   getWalletBalance(): number;
   isWalletLocal(): Promise<boolean>;
 }

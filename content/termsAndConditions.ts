@@ -9,7 +9,7 @@ Last Updated: October 20, 2025
 
 1. ACCEPTANCE OF TERMS
 
-By installing, accessing, or using Conceal 2FA App ("the App"), you agree to be bound by these Terms and Conditions. If you do not agree to these terms, do not use the App.
+By installing, accessing, or using Conceal Authenticator ("the App"), you agree to be bound by these Terms and Conditions. If you do not agree to these terms, do not use the App.
 
 2. LICENSE
 

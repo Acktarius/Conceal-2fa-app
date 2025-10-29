@@ -1,9 +1,9 @@
 {
   "expo": {
     "sdkVersion": "54.0.0",
-    "name": "Conceal 2FA",
-    "slug": "conceal-2fa-app",
-    "version": "1.0.0",
+    "name": "Conceal Authenticator",
+    "slug": "conceal-authenticator",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -16,16 +16,19 @@
       "infoPlist": {
         "NSCameraUsageDescription": "This app needs access to camera to scan QR codes for adding 2FA services."
       },
-      "bundleIdentifier": "com.acktarius.blockchain2faapp"
+      "bundleIdentifier": "com.acktarius.concealauthenticator"
     },
     "android": {
-      "icon": "./assets/icon.png",
+      "adaptiveIcon": {
+      "foregroundImage": "./assets/adaptive-icon.png",
+      "backgroundColor": "#000000"
+      },
       "permissions": [
         "CAMERA",
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.acktarius.blockchain2faapp"
+      "package": "com.acktarius.concealauthenticator"
     },
     "plugins": [
       [

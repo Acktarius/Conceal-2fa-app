@@ -1,0 +1,7 @@
+{
+  "name": "react-native-conceal-crypto",
+  "platforms": ["ios"],
+  "ios": {
+    "modules": ["ReactNativeConcealCryptoModule"]
+  }
+}

@@ -7,13 +7,7 @@ interface PasswordInputAlertProps extends Omit<CustomAlertProps, 'children' | 'o
   onConfirm: (password: string) => void;
 }
 
-export const PasswordInputAlert: React.FC<PasswordInputAlertProps> = ({
-  visible,
-  title,
-  message,
-  onCancel,
-  onConfirm,
-}) => {
+export const PasswordInputAlert: React.FC<PasswordInputAlertProps> = ({ visible, title, message, onCancel, onConfirm }) => {
   const [password, setPassword] = useState('');
 
   const handleConfirm = () => {
@@ -31,14 +25,7 @@ export const PasswordInputAlert: React.FC<PasswordInputAlertProps> = ({
   };
 
   return (
-    <CustomAlert
-      visible={visible}
-      title={title}
-      message={message}
-      onCancel={handleCancel}
-      onConfirm={handleConfirm}
-      confirmText="Unlock"
-    >
+    <CustomAlert visible={visible} title={title} message={message} onCancel={handleCancel} onConfirm={handleConfirm} confirmText="Unlock">
       <PasswordInput placeholder="Enter wallet password" value={password} onChangeText={setPassword} />
     </CustomAlert>
   );

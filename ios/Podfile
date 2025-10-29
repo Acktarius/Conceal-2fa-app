@@ -20,7 +20,7 @@ platform :ios, podfile_properties['ios.deploymentTarget'] || '15.1'
 
 prepare_react_native_project!
 
-target 'Conceal2FADev' do
+target 'ConcealAuthenticator' do
   use_expo_modules!
 
   if ENV['EXPO_USE_COMMUNITY_AUTOLINKING'] == '1'
@@ -50,6 +50,15 @@ target 'Conceal2FADev' do
   )
 
   post_install do |installer|
+    # Inject custom fix for Yoga headers
+    installer.pods_project.targets.each do |target|
+      if target.name == "React-Fabric"
+        target.build_configurations.each do |config|
+          config.build_settings['HEADER_SEARCH_PATHS'] ||= ['$(inherited)']
+          config.build_settings['HEADER_SEARCH_PATHS'] << '"$(SRCROOT)/Pods/Headers/Private/Yoga"'
+        end
+      end
+    end
     react_native_post_install(
       installer,
       config[:reactNativePath],

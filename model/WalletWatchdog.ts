@@ -411,10 +411,7 @@ class SyncWorker {
     this.explorer = explorer;
   }
 
-  fetchBlocks = (
-    startBlock: number,
-    endBlock: number
-  ): Promise<{ transactions: RawDaemon_Transaction[]; lastBlock: number }> => {
+  fetchBlocks = (startBlock: number, endBlock: number): Promise<{ transactions: RawDaemon_Transaction[]; lastBlock: number }> => {
     this.isWorking = true;
 
     return new Promise<any>((resolve, reject) => {

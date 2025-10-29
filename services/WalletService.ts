@@ -175,11 +175,7 @@ export class WalletService implements IWalletOperations {
   }
 
   // Instance method for IWalletOperations interface
-  async sendSmartMessage(
-    action: 'create' | 'delete',
-    sharedKey: any,
-    paymentId?: string
-  ): Promise<{ success: boolean; txHash?: string }> {
+  async sendSmartMessage(action: 'create' | 'delete', sharedKey: any, paymentId?: string): Promise<{ success: boolean; txHash?: string }> {
     return WalletService.sendSmartMessage(action, sharedKey, paymentId);
   }
 
@@ -241,10 +237,7 @@ export class WalletService implements IWalletOperations {
 
   private static async encryptData(data: any): Promise<string> {
     const jsonData = JSON.stringify(data);
-    const digest = await Crypto.digestStringAsync(
-      Crypto.CryptoDigestAlgorithm.SHA256,
-      jsonData + WalletService.ENCRYPTION_KEY
-    );
+    const digest = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, jsonData + WalletService.ENCRYPTION_KEY);
     return digest;
   }
 
@@ -263,9 +256,7 @@ export class WalletService implements IWalletOperations {
       if (WalletService.blockchainExplorer) {
         // Reset nodes to pick up custom node changes (like WebWallet does)
         await WalletService.blockchainExplorer.resetNodes();
-        getGlobalWorkletLogging().logging1string(
-          'WALLET SERVICE: Blockchain explorer nodes reset for custom node changes'
-        );
+        getGlobalWorkletLogging().logging1string('WALLET SERVICE: Blockchain explorer nodes reset for custom node changes');
       }
     } catch (error) {
       console.error('WALLET SERVICE: Error resetting blockchain explorer nodes:', error);
@@ -302,9 +293,7 @@ export class WalletService implements IWalletOperations {
       // BUT: If this is due to authentication failure, we should NOT create a new wallet
       // as this would overwrite the existing blockchain wallet
       if (!wallet) {
-        getGlobalWorkletLogging().logging1string(
-          'WALLET SERVICE: No wallet loaded - checking if this is a new user or auth failure...'
-        );
+        getGlobalWorkletLogging().logging1string('WALLET SERVICE: No wallet loaded - checking if this is a new user or auth failure...');
         //console.log('WALLET SERVICE: No wallet loaded - checking if this is a new user or auth failure...');
 
         // Check if this is a new user (no data) vs auth failure (data exists but can't decrypt)
@@ -319,15 +308,11 @@ export class WalletService implements IWalletOperations {
             BackHandler.exitApp();
           } else {
             // iOS doesn't allow programmatic exit
-            Alert.alert('Authentication Failed', 'Unable to access wallet. Please restart the app.', [
-              { text: 'OK', onPress: () => {} },
-            ]);
+            Alert.alert('Authentication Failed', 'Unable to access wallet. Please restart the app.', [{ text: 'OK', onPress: () => {} }]);
           }
           throw new Error('Authentication failed - app exiting');
         }
-        getGlobalWorkletLogging().logging1string(
-          'WALLET SERVICE: No wallet data exists - creating new local wallet for new user'
-        );
+        getGlobalWorkletLogging().logging1string('WALLET SERVICE: No wallet data exists - creating new local wallet for new user');
         //console.log('WALLET SERVICE: No wallet data exists - creating new local wallet for new user');
         wallet = await WalletService.createLocalWallet();
       }
@@ -429,9 +414,7 @@ export class WalletService implements IWalletOperations {
         await WalletStorageManager.saveEncryptedWallet(wallet, biometricKey);
       } else {
         // Password mode: Use PasswordCreationAlert for proper password creation
-        const password = await WalletService.promptForPasswordCreation(
-          'Create a password to secure your local wallet:'
-        );
+        const password = await WalletService.promptForPasswordCreation('Create a password to secure your local wallet:');
         if (!password) {
           throw new Error('Password required to create local wallet');
         }
@@ -508,21 +491,22 @@ export class WalletService implements IWalletOperations {
         if (!WalletService.blockchainExplorer) {
           WalletService.blockchainExplorer = new BlockchainExplorerRpcDaemon();
 
+          // Initialize with a 5-second timeout
           await Promise.race([
             WalletService.blockchainExplorer.initialize(),
-            new Promise((_, reject) => setTimeout(() => reject('TIMEOUT'), 5000)),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 5000)),
           ]);
 
-          const currentHeight = await Promise.race([
-            WalletService.blockchainExplorer.getHeight(),
-            new Promise<number>((_, reject) => setTimeout(() => reject('TIMEOUT'), 5000)),
-          ]);
+          // Get current height (already cached for 20s, no need for additional race)
+          const currentHeight = await WalletService.blockchainExplorer.getHeight();
 
-          creationHeight = Math.max(0, currentHeight - 10);
+          // Current height is 1930143+ as of 2025 September, so currentHeight - 10 is safe minimum
+          creationHeight = Math.max(1920000, currentHeight - 10);
         }
       } catch (error) {
-        console.log('UPGRADE: Failed to get blockchain height, using creationHeight = 0:', error);
-        // We'll continue with creationHeight = 0
+        // If we can't get height, use a conservative starting point, 2FA creation September 2025
+        creationHeight = 1920000;
+        getGlobalWorkletLogging().logging1string('UPGRADE: Failed to get blockchain height, using conservative creationHeight 1920000');
       }
 
       // Upgrade the existing wallet with blockchain data
@@ -829,10 +813,7 @@ export class WalletService implements IWalletOperations {
         lastMaximumHeight: blockchainHeight,
         transactionsInQueue: blockList ? blockList.getTxQueue().getSize() : 0,
         //isWalletSynced: lastBlockLoading >= blockchainHeight - 1 // Allow 1 block tolerance
-        isWalletSynced:
-          blockchainHeight > 0 &&
-          lastBlockLoading >= blockchainHeight &&
-          WalletService.wallet.lastHeight >= blockchainHeight,
+        isWalletSynced: blockchainHeight > 0 && lastBlockLoading >= blockchainHeight && WalletService.wallet.lastHeight >= blockchainHeight,
       };
     }
     return {
@@ -1125,12 +1106,7 @@ export class WalletService implements IWalletOperations {
 
       if (action === 'create') {
         // Use SmartMessageParser.encode2FA() for encoding create command
-        smartMessageResult = await SmartMessageParser.encode2FA(
-          'c',
-          sharedKey.name,
-          sharedKey.issuer,
-          sharedKey.secret
-        );
+        smartMessageResult = await SmartMessageParser.encode2FA('c', sharedKey.name, sharedKey.issuer, sharedKey.secret);
       } else if (action === 'delete') {
         // Use SmartMessageParser.encode2FA() for encoding delete command
         if (!sharedKey.hash) {
@@ -1177,9 +1153,7 @@ export class WalletService implements IWalletOperations {
             finalPaymentId = settings.paymentIdWhiteList[0];
           }
         } catch (error) {
-          getGlobalWorkletLogging().logging1string(
-            'WalletService: Could not get payment ID whitelist, using empty payment ID'
-          );
+          getGlobalWorkletLogging().logging1string('WalletService: Could not get payment ID whitelist, using empty payment ID');
           //console.log('WalletService: Could not get payment ID whitelist, using empty payment ID');
         }
       }
@@ -1260,12 +1234,7 @@ export class WalletService implements IWalletOperations {
    * @param message - Optional message
    * @returns Promise resolving to transaction hash
    */
-  static async sendTransaction(
-    recipientAddress: string,
-    amount: number,
-    paymentId: string = '',
-    message: string = ''
-  ): Promise<string> {
+  static async sendTransaction(recipientAddress: string, amount: number, paymentId: string = '', message: string = ''): Promise<string> {
     try {
       // Validate inputs
       if (!recipientAddress || !recipientAddress.trim()) {

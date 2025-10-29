@@ -1,10 +1,11 @@
 import type { ConfigContext, ExpoConfig } from 'expo/config';
+import 'dotenv/config';
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  name: process.env.NODE_ENV === 'production' ? 'Conceal 2FA' : 'Conceal 2FA (Dev)',
+  name: 'Conceal Authenticator',
   version: process.env.APP_VERSION || '1.0.0',
-  slug: 'conceal-2fa-app',
+  slug: 'conceal-authenticator',
   orientation: 'portrait',
   icon: './assets/icon.png',
   userInterfaceStyle: 'automatic',
@@ -13,30 +14,37 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     supportsTablet: true,
     icon: './assets/icon.png',
+    buildNumber: process.env.IOS_BUILD_NUMBER || '2',
     infoPlist: {
       NSCameraUsageDescription: 'This app needs access to camera to scan QR codes for adding 2FA services.',
     },
-    bundleIdentifier: 'com.acktarius.conceal2faapp',
+    bundleIdentifier: 'com.acktarius.concealauthenticator',
   },
 
   android: {
-    icon: './assets/icon.png',
+    adaptiveIcon: {
+      foregroundImage: './assets/adaptive-icon.png',
+      backgroundColor: '#000000',
+    },
+    versionCode: parseInt(process.env.ANDROID_VERSION_CODE || '2'),
     permissions: ['CAMERA', 'android.permission.CAMERA', 'android.permission.RECORD_AUDIO'],
-    package: 'com.acktarius.conceal2faapp',
+    package: 'com.acktarius.concealauthenticator',
   },
 
   plugins: [
     [
       'expo-build-properties',
       {
+        ios: {
+          useFrameworks: 'static',
+          deploymentTarget: '15.1',
+          useModularHeaders: true,
+        },
         android: {
           compileSdkVersion: 35,
           targetSdkVersion: 35,
           buildToolsVersion: '35.0.0',
           kotlinVersion: '2.2.0',
-          'org.gradle.java.home': '/usr/lib/jvm/java-17-openjdk-amd64',
-          androidSdkPath: '/home/katana/Android/Sdk',
-          'android.abiFilters': 'armeabi-v7a,arm64-v8a',
         },
         newArchEnabled: true,
         hermesEnabled: true,
@@ -51,6 +59,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ],
     './scripts/withNitroModulesPlugin',
     './withConcealConfigPlugin',
+    './withCustomPodfile.plugin.js',
     'expo-secure-store',
     'expo-font',
   ],
@@ -61,7 +70,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
 
   extra: {
     eas: {
-      projectId: '6ec1baed-9051-4552-8949-cb824a416c11',
+      projectId: 'b06dd25d-97c8-49c4-965e-d4f414bfbef3',
     },
     conceal: {
       defaultNodeUrl: process.env.CONCEAL_NODE_URL || 'https://explorer.conceal.network/daemon/',

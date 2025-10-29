@@ -1,6 +1,6 @@
 node_modules/
 
-.env
+.env_private
 .cursorrules
 .expo/
 .idea
@@ -17,3 +17,5 @@ android/app/build/
 android/.kotlin/
 
 add.sh
+
+local-release-key.keystore

@@ -34,10 +34,7 @@ export class SmartMessageParser {
     }
 
     const trimmed = message.trim();
-    return (
-      trimmed.startsWith(SmartMessageParser.SMART_MESSAGE_PREFIX) &&
-      trimmed.endsWith(SmartMessageParser.SMART_MESSAGE_SUFFIX)
-    );
+    return trimmed.startsWith(SmartMessageParser.SMART_MESSAGE_PREFIX) && trimmed.endsWith(SmartMessageParser.SMART_MESSAGE_SUFFIX);
   }
 
   /**

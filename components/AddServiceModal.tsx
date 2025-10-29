@@ -143,10 +143,7 @@ export default function AddServiceModal({ visible, onClose, onAdd }: AddServiceM
               activeOpacity={0.8}
             >
               <Ionicons name="qr-code-outline" size={24} color={theme.colors.primary} />
-              <Text
-                className="text-base font-semibold ml-2 font-poppins-medium"
-                style={{ color: theme.colors.primary }}
-              >
+              <Text className="text-base font-semibold ml-2 font-poppins-medium" style={{ color: theme.colors.primary }}>
                 Scan QR Code
               </Text>
             </TouchableOpacity>
@@ -227,10 +224,7 @@ export default function AddServiceModal({ visible, onClose, onAdd }: AddServiceM
               disabled={!name.trim() || !secret.trim()}
               activeOpacity={0.8}
             >
-              <Text
-                className="text-base font-semibold font-poppins-medium"
-                style={{ color: theme.isDark ? '#000000' : '#FFFFFF' }}
-              >
+              <Text className="text-base font-semibold font-poppins-medium" style={{ color: theme.isDark ? '#000000' : '#FFFFFF' }}>
                 Add Service
               </Text>
             </TouchableOpacity>

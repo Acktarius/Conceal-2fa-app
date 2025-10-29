@@ -1,56 +1,57 @@
 {
   "cli": {
-    "version": ">= 12.0.0"
+    "version": ">= 12.0.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "NODE_ENV": "development",
-        "APP_VERSION": "1.0.0-dev",
-        "DEBUG_MODE": "true",
-        "CONCEAL_NODE_URL": "https://explorer.conceal.network/daemon/",
-        "CONCEAL_MESSAGE_TX_AMOUNT": "100",
-        "CONCEAL_DEFAULT_MIXIN": "5"
+        "NODE_ENV": "development"
       },
       "android": {
         "gradleCommand": ":app:assembleDebug",
         "buildType": "apk"
       },
       "ios": {
-        "buildConfiguration": "Debug"
+        "buildConfiguration": "Debug",
+        "credentialsSource": "remote",
+        "simulator": true
       }
     },
     "preview": {
+      "extends": "production",
       "distribution": "internal",
+      "developmentClient": true,
+      "ios": {
+        "buildConfiguration": "Debug"
+      },
       "env": {
         "NODE_ENV": "preview",
-        "APP_VERSION": "1.0.0-preview",
-        "DEBUG_MODE": "false",
-        "CONCEAL_NODE_URL": "https://explorer.conceal.network/daemon/",
-        "CONCEAL_MESSAGE_TX_AMOUNT": "100",
-        "CONCEAL_DEFAULT_MIXIN": "5"
-      },
-      "android": {
-        "buildType": "apk"
+        "APP_VERSION": "1.0.2-preview"
       }
     },
     "production": {
       "env": {
-        "NODE_ENV": "production",
-        "APP_VERSION": "1.0.0",
-        "DEBUG_MODE": "false",
-        "CONCEAL_NODE_URL": "https://explorer.conceal.network/daemon/",
-        "CONCEAL_MESSAGE_TX_AMOUNT": "100",
-        "CONCEAL_DEFAULT_MIXIN": "5"
+        "NODE_ENV": "production"
       },
       "android": {
         "buildType": "app-bundle"
+      },
+      "ios": {
+        "buildConfiguration": "Release",
+        "credentialsSource": "remote",
+        "autoIncrement": true,
+        "simulator": false
       }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "appleTeamId": "U4D6B43275"
+      }
+    }
   }
 }

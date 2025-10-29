@@ -563,9 +563,7 @@ export namespace CnUtils {
         throw 'Invalid input length!';
       }
       const Pb = CnNativeBride.hash_to_ec_2(P);
-      return bintohex(
-        nacl.ll.ge_double_scalarmult_postcomp_vartime(hextobin(r), hextobin(Pb), hextobin(c), hextobin(I))
-      );
+      return bintohex(nacl.ll.ge_double_scalarmult_postcomp_vartime(hextobin(r), hextobin(Pb), hextobin(c), hextobin(I)));
     }
   }
 
@@ -823,13 +821,7 @@ export namespace CnNativeBride {
     return CnUtils.bintohex(res);
   }
 
-  export function generate_ring_signature(
-    prefix_hash: string,
-    k_image: string,
-    keys: string[],
-    sec: string,
-    real_index: number
-  ) {
+  export function generate_ring_signature(prefix_hash: string, k_image: string, keys: string[], sec: string, real_index: number) {
     try {
       // ✅ Try native C++ implementation first (825x faster!)
       // C++ validates inputs internally, so no need for JS validation here
@@ -1038,9 +1030,7 @@ export namespace CnNativeBride {
           }
           try {
             Module.ccall('ge_p3_tobytes', 'void', ['number', 'number'], [calculatedPubBuf, tmp3]);
-            const calculatedPub = CnUtils.bintohex(
-              Module.HEAPU8.subarray(calculatedPubBuf, calculatedPubBuf + KEY_SIZE)
-            );
+            const calculatedPub = CnUtils.bintohex(Module.HEAPU8.subarray(calculatedPubBuf, calculatedPubBuf + KEY_SIZE));
 
             // Compare calculated public key with provided public key
             if (calculatedPub !== publicKey) {
@@ -1091,9 +1081,7 @@ export namespace CnNativeBride {
             Module.HEAPU8.set(publicKeyBin, buf + HASH_SIZE); // key
             Module.ccall('ge_p3_tobytes', 'void', ['number', 'number'], [buf + HASH_SIZE + KEY_SIZE, tmp3]); // comm
 
-            const c = Cn.hash_to_scalar(
-              CnUtils.bintohex(Module.HEAPU8.subarray(buf, buf + HASH_SIZE + KEY_SIZE + KEY_SIZE))
-            );
+            const c = Cn.hash_to_scalar(CnUtils.bintohex(Module.HEAPU8.subarray(buf, buf + HASH_SIZE + KEY_SIZE + KEY_SIZE)));
             //console.log('hash_to_scalar', CnUtils.bintohex(Module.HEAPU8.subarray(buf, buf + HASH_SIZE + KEY_SIZE + KEY_SIZE)) ,c); // debug for crypto-test.cpp
 
             // Calculate response scalar: r = k - (c*sec) mod l
@@ -1189,17 +1177,7 @@ export namespace CnNativeBride {
         const point5_m = Module._malloc(STRUCT_SIZES.GE_P2);
         const derived_key_m = Module._malloc(KEY_SIZE);
 
-        if (
-          !derivation_m ||
-          !pub_spend_m ||
-          !scalar_m ||
-          !point1_m ||
-          !point2_m ||
-          !point3_m ||
-          !point4_m ||
-          !point5_m ||
-          !derived_key_m
-        ) {
+        if (!derivation_m || !pub_spend_m || !scalar_m || !point1_m || !point2_m || !point3_m || !point4_m || !point5_m || !derived_key_m) {
           console.error('Cn.derive_public_key: Failed to allocate buffers');
           return null;
         }
@@ -1307,12 +1285,7 @@ export namespace CnNativeBride {
             // Copy public key to aligned buffer
             Module.HEAPU8.set(publicKeyBin, pubKeyBuf);
             // Convert public key to point on curve
-            const fromBytesResult = Module.ccall(
-              'ge_frombytes_vartime',
-              'number',
-              ['number', 'number'],
-              [tmp3, pubKeyBuf]
-            );
+            const fromBytesResult = Module.ccall('ge_frombytes_vartime', 'number', ['number', 'number'], [tmp3, pubKeyBuf]);
 
             if (fromBytesResult !== 0) {
               return false;
@@ -1325,12 +1298,7 @@ export namespace CnNativeBride {
 
             try {
               // Perform double scalar multiplication with aligned buffers
-              Module.ccall(
-                'ge_double_scalarmult_base_vartime',
-                'void',
-                ['number', 'number', 'number', 'number'],
-                [tmp2, cBuf, tmp3, rBuf]
-              );
+              Module.ccall('ge_double_scalarmult_base_vartime', 'void', ['number', 'number', 'number', 'number'], [tmp2, cBuf, tmp3, rBuf]);
 
               // Create buffer for hash input
               const buf = Module._malloc(HASH_SIZE + KEY_SIZE + KEY_SIZE);
@@ -1447,24 +1415,9 @@ export namespace CnNativeBride {
           Module.HEAPU8.set(ABin, ABuf);
           Module.HEAPU8.set(DBin, DBuf);
 
-          const fromBytesResult_R = Module.ccall(
-            'ge_frombytes_vartime',
-            'number',
-            ['number', 'number'],
-            [tmp3_R, RBuf]
-          );
-          const fromBytesResult_A = Module.ccall(
-            'ge_frombytes_vartime',
-            'number',
-            ['number', 'number'],
-            [tmp3_A, ABuf]
-          );
-          const fromBytesResult_D = Module.ccall(
-            'ge_frombytes_vartime',
-            'number',
-            ['number', 'number'],
-            [tmp3_D, DBuf]
-          );
+          const fromBytesResult_R = Module.ccall('ge_frombytes_vartime', 'number', ['number', 'number'], [tmp3_R, RBuf]);
+          const fromBytesResult_A = Module.ccall('ge_frombytes_vartime', 'number', ['number', 'number'], [tmp3_A, ABuf]);
+          const fromBytesResult_D = Module.ccall('ge_frombytes_vartime', 'number', ['number', 'number'], [tmp3_D, DBuf]);
 
           if (fromBytesResult_R !== 0 || fromBytesResult_A !== 0 || fromBytesResult_D !== 0) {
             console.error('Failed to convert public keys to points:', {
@@ -1546,10 +1499,7 @@ export namespace CnNativeBride {
                   Module.HEAPU8.set(prefixHashBin, buf);
                   Module.HEAPU8.set(DBin, buf + HASH_SIZE);
                   Module.HEAPU8.set(Module.HEAPU8.subarray(XBuf, XBuf + KEY_SIZE), buf + HASH_SIZE + KEY_SIZE);
-                  Module.HEAPU8.set(
-                    Module.HEAPU8.subarray(YBuf, YBuf + KEY_SIZE),
-                    buf + HASH_SIZE + KEY_SIZE + KEY_SIZE
-                  );
+                  Module.HEAPU8.set(Module.HEAPU8.subarray(YBuf, YBuf + KEY_SIZE), buf + HASH_SIZE + KEY_SIZE + KEY_SIZE);
 
                   // Hash to scalar
                   const buf_bin = Module.HEAPU8.subarray(buf, buf + HASH_SIZE + KEY_SIZE + KEY_SIZE + KEY_SIZE);
@@ -1779,10 +1729,7 @@ export namespace Cn {
 
     const key_derivation = CnNativeBride.generate_key_derivation(tx_public_key, acc_prv_view_key);
 
-    const pid_key = CnUtils.cn_fast_hash(key_derivation + ENCRYPTED_PAYMENT_ID_TAIL.toString(16)).slice(
-      0,
-      INTEGRATED_ID_SIZE * 2
-    );
+    const pid_key = CnUtils.cn_fast_hash(key_derivation + ENCRYPTED_PAYMENT_ID_TAIL.toString(16)).slice(0, INTEGRATED_ID_SIZE * 2);
 
     const decrypted_payment_id = CnUtils.hex_xor(payment_id8, pid_key);
 
@@ -1878,15 +1825,7 @@ export namespace CnTransactions {
     return CnUtils.h2d(amount);
   }
 
-  export function decode_ringct(
-    rv: any,
-    pub: any,
-    sec: any,
-    i: number,
-    mask: any,
-    amount: any,
-    derivation: string | null
-  ): number | false {
+  export function decode_ringct(rv: any, pub: any, sec: any, i: number, mask: any, amount: any, derivation: string | null): number | false {
     if (derivation === null) derivation = CnNativeBride.generate_key_derivation(pub, sec); //[10;11]ms
 
     const scalar1 = CnUtils.derivation_to_scalar(derivation, i); //[0.2ms;1ms]
@@ -1926,8 +1865,7 @@ export namespace CnTransactions {
     real_output_index: any,
     recv_derivation: string | null
   ) {
-    if (recv_derivation === null)
-      recv_derivation = CnNativeBride.generate_key_derivation(tx_public_key, ack.view_secret_key);
+    if (recv_derivation === null) recv_derivation = CnNativeBride.generate_key_derivation(tx_public_key, ack.view_secret_key);
     // recv_derivation = CnUtilNative.generate_key_derivation(tx_public_key, ack.view_secret_key);
     // logDebugMsg('recv_derivation', recv_derivation);
 
@@ -2787,10 +2725,7 @@ export namespace CnTransactions {
 
         rv.outPk[i] = cmObj.C;
         sumout = CnNativeBride.sc_add(sumout, cmObj.mask);
-        rv.ecdhInfo[i] = CnUtils.encode_rct_ecdh(
-          { mask: cmObj.mask, amount: CnUtils.d2s(outAmounts[i]) },
-          amountKeys[i]
-        );
+        rv.ecdhInfo[i] = CnUtils.encode_rct_ecdh({ mask: cmObj.mask, amount: CnUtils.d2s(outAmounts[i]) }, amountKeys[i]);
       }
       // logDebugMsg('====a');
 
@@ -2810,9 +2745,7 @@ export namespace CnTransactions {
         rv.pseudoOuts[i] = commit(CnUtils.d2s(inAmounts[i]), ai[i]);
         const full_message = CnTransactions.get_pre_mlsag_hash(rv);
         for (let i = 0; i < inAmounts.length; i++) {
-          p.MGs.push(
-            CnTransactions.proveRctMG(full_message, mixRing[i], inSk[i], kimg[i], ai[i], rv.pseudoOuts[i], indices[i])
-          );
+          p.MGs.push(CnTransactions.proveRctMG(full_message, mixRing[i], inSk[i], kimg[i], ai[i], rv.pseudoOuts[i], indices[i]));
         }
       } else {
         let sumC = CnVars.I;
@@ -3553,13 +3486,7 @@ export namespace CnTransactions {
         throw 'early fee calculation != later';
       }
     } else if (cmp > 0) {
-      throw (
-        'Need more money than found! (have: ' +
-        Cn.formatMoney(found_money) +
-        ' need: ' +
-        Cn.formatMoney(needed_money) +
-        ')'
-      );
+      throw 'Need more money than found! (have: ' + Cn.formatMoney(found_money) + ' need: ' + Cn.formatMoney(needed_money) + ')';
     }
     return CnTransactions.construct_tx(
       keys,

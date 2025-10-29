@@ -68,25 +68,44 @@ class NodeWorker {
     this._isWorking = true;
     ++this._requests;
 
-    return new Promise<any>((resolve, reject) => {
-      fetch(this._url + path, {
-        method: method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: typeof body === 'string' ? body : body ? JSON.stringify(body) : undefined,
-      })
-        .then((response) => response.json())
-        .then((data) => {
-          this._isWorking = false;
-          resolve(data);
-        })
-        .catch((error) => {
-          console.error(`Node ${this._url} makeRequest failed: ${error} (errors: ${this._errors + 1})`);
-          this._isWorking = false;
-          this.increaseErrors();
-          reject(error);
+    return new Promise<any>(async (resolve, reject) => {
+      try {
+        const url = this._url + path;
+        const requestBody = typeof body === 'string' ? body : JSON.stringify(body);
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+        const response = await fetch(url, {
+          method: method,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: method === 'POST' ? requestBody : undefined,
+          signal: controller.signal,
         });
+
+        clearTimeout(timeoutId);
+        this._isWorking = false;
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        resolve(data);
+      } catch (error: any) {
+        this._isWorking = false;
+        this.increaseErrors();
+
+        if (error.name === 'AbortError') {
+          console.error(`Node ${this._url} makeRequest timeout after ${this.timeout}ms (errors: ${this._errors + 1})`);
+          reject(new Error('Request timeout'));
+        } else {
+          console.error(`Node ${this._url} makeRequest failed: %s (errors: ${this._errors + 1})`, error.message);
+          reject(error);
+        }
+      }
     });
   };
 
@@ -94,39 +113,60 @@ class NodeWorker {
     this._isWorking = true;
     ++this._requests;
 
-    return new Promise<any>((resolve, reject) => {
-      fetch(this._url + 'json_rpc', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+    return new Promise<any>(async (resolve, reject) => {
+      try {
+        const url = this._url + 'json_rpc';
+        const requestBody = JSON.stringify({
           jsonrpc: '2.0',
           method: method,
           params: params,
           id: 0,
-        }),
-      })
-        .then((response) => response.json())
-        .then((raw) => {
-          this._isWorking = false;
-          if (
-            typeof raw.id === 'undefined' ||
-            typeof raw.jsonrpc === 'undefined' ||
-            raw.jsonrpc !== '2.0' ||
-            typeof raw.result !== 'object'
-          ) {
-            this.increaseErrors();
-            reject('Daemon response is not properly formatted');
-          } else {
-            resolve(raw.result);
-          }
-        })
-        .catch((error) => {
-          this._isWorking = false;
-          this.increaseErrors();
-          reject(error);
         });
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: requestBody,
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+        this._isWorking = false;
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const raw = await response.json();
+
+        if (
+          typeof raw.id === 'undefined' ||
+          typeof raw.jsonrpc === 'undefined' ||
+          raw.jsonrpc !== '2.0' ||
+          typeof raw.result !== 'object'
+        ) {
+          this.increaseErrors();
+          reject('Daemon response is not properly formatted');
+        } else {
+          resolve(raw.result);
+        }
+      } catch (error: any) {
+        this._isWorking = false;
+        this.increaseErrors();
+
+        if (error.name === 'AbortError') {
+          console.error(`Node ${this._url} makeRpcRequest timeout after ${this.timeout}ms (errors: ${this._errors + 1})`);
+          reject(new Error('Request timeout'));
+        } else {
+          console.error(`Node ${this._url} makeRpcRequest failed: %s (errors: ${this._errors + 1})`, error.message);
+          reject(error);
+        }
+      }
     });
   };
 
@@ -458,10 +498,7 @@ export class BlockchainExplorerRpcDaemon implements BlockchainExplorer {
 
     // Check if using custom node
     const customNode = await WalletStorageManager.getCustomNode();
-    console.log(
-      'BlockchainExplorerRpcDaemon: resetNodes() - custom node check:',
-      customNode ? 'CUSTOM NODE FOUND' : 'NO CUSTOM NODE'
-    );
+    console.log('BlockchainExplorerRpcDaemon: resetNodes() - custom node check:', customNode ? 'CUSTOM NODE FOUND' : 'NO CUSTOM NODE');
 
     if (customNode) {
       // Use custom node only
@@ -505,9 +542,7 @@ export class BlockchainExplorerRpcDaemon implements BlockchainExplorer {
 
     if (customNode) {
       // Use custom node directly - skip random node loading
-      getGlobalWorkletLogging().logging1string(
-        'BlockchainExplorerRpcDaemon: Using custom node, skipping random node loading'
-      );
+      getGlobalWorkletLogging().logging1string('BlockchainExplorerRpcDaemon: Using custom node, skipping random node loading');
       this.initialized = true;
       await this.resetNodes();
       return true;
@@ -564,11 +599,7 @@ export class BlockchainExplorerRpcDaemon implements BlockchainExplorer {
     return numbers;
   }
 
-  getTransactionsForBlocks(
-    startBlock: number,
-    endBlock: number,
-    includeMinerTxs: boolean
-  ): Promise<RawDaemon_Transaction[]> {
+  getTransactionsForBlocks(startBlock: number, endBlock: number, includeMinerTxs: boolean): Promise<RawDaemon_Transaction[]> {
     let tempStartBlock: number;
     if (startBlock === 0) {
       tempStartBlock = 1;

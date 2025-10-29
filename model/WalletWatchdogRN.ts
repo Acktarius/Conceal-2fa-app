@@ -55,15 +55,11 @@ try {
       threadSupportAvailable = true;
       console.log('WalletWatchdogRN: react-native-multithreading fully functional - multi-threading enabled');
     } catch (threadError) {
-      console.log(
-        'WalletWatchdogRN: react-native-multithreading detected but thread creation fails - using single-threaded fallback'
-      );
+      console.log('WalletWatchdogRN: react-native-multithreading detected but thread creation fails - using single-threaded fallback');
       console.log('WalletWatchdogRN: Thread creation error:', threadError.message);
     }
   } else {
-    console.log(
-      'WalletWatchdogRN: react-native-multithreading detected but not functional - using single-threaded fallback'
-    );
+    console.log('WalletWatchdogRN: react-native-multithreading detected but not functional - using single-threaded fallback');
   }
 } catch (error) {
   console.log('WalletWatchdogRN: react-native-multithreading not available - using single-threaded fallback');
@@ -242,10 +238,7 @@ class TxQueueRN {
 
   private processTransactionsSync = (transactions: RawDaemon_Transaction[], maxBlockNum: number): void => {
     try {
-      getGlobalWorkletLogging().loggingWithNumber(
-        `TxQueueRN: Processing {} transactions synchronously`,
-        transactions.length
-      );
+      getGlobalWorkletLogging().loggingWithNumber(`TxQueueRN: Processing {} transactions synchronously`, transactions.length);
       //console.log(`TxQueueRN: Processing ${transactions.length} transactions synchronously`);
 
       for (const rawTx of transactions) {
@@ -580,10 +573,7 @@ class SyncWorkerRN {
     this.explorer = explorer;
   }
 
-  fetchBlocks = (
-    startBlock: number,
-    endBlock: number
-  ): Promise<{ transactions: RawDaemon_Transaction[]; lastBlock: number }> => {
+  fetchBlocks = (startBlock: number, endBlock: number): Promise<{ transactions: RawDaemon_Transaction[]; lastBlock: number }> => {
     this.isWorking = true;
 
     return new Promise<any>((resolve, reject) => {
@@ -663,12 +653,7 @@ export class WalletWatchdogRN {
 
     // Create parse workers
     for (let i = 0; i < this.maxCpuCores; ++i) {
-      const parseWorker: ParseWorkerRN = new ParseWorkerRN(
-        this.wallet,
-        this,
-        this.blockList,
-        this.processParseTransaction
-      );
+      const parseWorker: ParseWorkerRN = new ParseWorkerRN(this.wallet, this, this.blockList, this.processParseTransaction);
       this.parseWorkers.push(parseWorker);
     }
 
@@ -1007,12 +992,7 @@ export class WalletWatchdogRN {
 
             scheduleOnRuntime(
               getGlobalWorkletLogging().runtime,
-              (
-                lastBlockLoading: number,
-                walletLastHeight: number,
-                walletCreationHeight: number,
-                walletAddress: string
-              ) => {
+              (lastBlockLoading: number, walletLastHeight: number, walletCreationHeight: number, walletAddress: string) => {
                 console.log('WalletWatchdogRN: Starting synchronization from height:', {
                   lastBlockLoading: lastBlockLoading,
                   walletLastHeight: walletLastHeight,

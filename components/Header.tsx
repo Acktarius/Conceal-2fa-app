@@ -6,8 +6,16 @@ interface HeaderProps {
   title: string;
 }
 
+const THEME_ICONS: Record<string, any> = {
+  light: require('../assets/icon-light-192.png'),
+  orange: require('../assets/icon-orange-192.png'),
+  velvet: require('../assets/icon-velvet-192.png'),
+  dark: require('../assets/icon-dark-192.png'),
+};
+
 export default function Header({ title }: HeaderProps) {
-  const { theme } = useTheme();
+  const { theme, currentThemeId } = useTheme();
+  const iconSource = THEME_ICONS[currentThemeId] || THEME_ICONS.light;
 
   return (
     <View
@@ -26,7 +34,7 @@ export default function Header({ title }: HeaderProps) {
             opacity: 0.15,
           }}
         />
-        <Image source={require('../assets/icon-192.png')} className="w-10 h-10" resizeMode="contain" />
+        <Image source={iconSource} className="w-10 h-10" resizeMode="contain" />
       </View>
 
       <Text className="text-2xl font-semibold font-poppins-medium tracking-wider" style={{ color: theme.colors.text }}>

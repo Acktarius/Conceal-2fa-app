@@ -22,15 +22,10 @@ interface SeedInputProviderProps {
 
 export const SeedInputProvider: React.FC<SeedInputProviderProps> = ({ children }) => {
   const [showModal, setShowModal] = useState(false);
-  const [onImportCallback, setOnImportCallback] = useState<
-    ((seedPhrase: string, creationHeight?: number) => void) | null
-  >(null);
+  const [onImportCallback, setOnImportCallback] = useState<((seedPhrase: string, creationHeight?: number) => void) | null>(null);
   const [onCancelCallback, setOnCancelCallback] = useState<(() => void) | null>(null);
 
-  const showSeedInputModal = (
-    onImport: (seedPhrase: string, creationHeight?: number) => void,
-    onCancel: () => void
-  ) => {
+  const showSeedInputModal = (onImport: (seedPhrase: string, creationHeight?: number) => void, onCancel: () => void) => {
     console.log('SEED INPUT CONTEXT: showSeedInputModal called');
     setOnImportCallback(() => onImport);
     setOnCancelCallback(() => onCancel);

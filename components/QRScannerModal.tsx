@@ -63,9 +63,7 @@ export default function QRScannerModal({ visible, onClose, onScan }: QRScannerMo
         <View style={[styles.container, styles.centered]}>
           <Ionicons name="camera-outline" size={64} color="#9CA3AF" />
           <Text style={styles.permissionTitle}>Camera Permission Required</Text>
-          <Text style={styles.permissionText}>
-            Please allow camera access to scan QR codes for adding 2FA services.
-          </Text>
+          <Text style={styles.permissionText}>Please allow camera access to scan QR codes for adding 2FA services.</Text>
           <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
             <Text style={styles.closeButtonText}>Close</Text>
           </TouchableOpacity>
@@ -86,13 +84,7 @@ export default function QRScannerModal({ visible, onClose, onScan }: QRScannerMo
         </View>
 
         <View style={styles.cameraContainer}>
-          {visible && (
-            <CameraView
-              style={styles.camera}
-              facing="back"
-              onBarcodeScanned={cameraActive ? handleBarCodeScanned : undefined}
-            />
-          )}
+          {visible && <CameraView style={styles.camera} facing="back" onBarcodeScanned={cameraActive ? handleBarCodeScanned : undefined} />}
 
           <View style={styles.overlay}>
             {/* Top overlay */}

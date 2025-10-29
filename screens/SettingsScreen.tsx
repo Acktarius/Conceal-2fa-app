@@ -9,17 +9,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as SecureStore from 'expo-secure-store';
 import type React from 'react';
 import { useEffect, useState } from 'react';
-import {
-  Alert,
-  Dimensions,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Alert, Dimensions, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { CustomNodeModal } from '../components/CustomNodeModal';
 import { ExpandableSection } from '../components/ExpandableSection';
@@ -84,6 +74,9 @@ export default function SettingsScreen() {
   const [biometricAction, setBiometricAction] = useState<'enable' | 'disable'>('enable');
   const [manualPaymentId, setManualPaymentId] = useState('');
   const [showTermsModal, setShowTermsModal] = useState(false);
+  const [isEditingHeight, setIsEditingHeight] = useState(false);
+  const [customHeightInput, setCustomHeightInput] = useState('');
+  const [customRescanHeight, setCustomRescanHeight] = useState<number | null>(null);
 
   // Theme options
   const themeOptions = [
@@ -281,20 +274,12 @@ export default function SettingsScreen() {
       // 1. Wallet is not local (!wallet.isLocal())
       // 2. Wallet is synchronized with blockchain
       // 3. Wallet has sufficient balance (> 0.0111 CCX)
-      const isSynced = await WalletService.getWalletSyncStatus().isWalletSynced;
+      const syncStatus = WalletService.getWalletSyncStatus();
+      const isSynced = syncStatus.isWalletSynced;
       const hasBalance = wallet.amount > 0.0111;
 
       const shouldShow = !wallet.isLocal() && isSynced && hasBalance;
       setShowBlockchainSyncToggle(shouldShow);
-
-      /*
-      console.log('Blockchain Sync Toggle Visibility Check:', {
-        isLocal: wallet.isLocal(),
-        isSynced,
-        hasBalance,
-        shouldShow,
-      });
-      */
     } catch (error) {
       console.error('Error checking blockchain sync visibility:', error);
       setShowBlockchainSyncToggle(false);
@@ -575,9 +560,12 @@ export default function SettingsScreen() {
       return;
     }
 
+    // Use custom height if set, otherwise fall back to creation height
+    const rescanHeight = customRescanHeight ?? wallet.creationHeight;
+    const isCustomHeight = customRescanHeight !== null && customRescanHeight !== wallet.creationHeight;
     Alert.alert(
-      'Rescan from Creation Height',
-      `This will clear all transactions and rescan from block ${wallet.creationHeight}. This may take some time.`,
+      isCustomHeight ? 'Rescan from Custom Height' : 'Rescan from Creation Height',
+      `This will clear all transactions and rescan from block ${rescanHeight.toLocaleString()}. This may take some time.`,
       [
         {
           text: 'Cancel',
@@ -588,16 +576,13 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              getGlobalWorkletLogging().logging1string1number(
-                'RESCAN: Starting rescan from creation height:',
-                wallet.creationHeight
-              );
+              getGlobalWorkletLogging().logging1string1number('RESCAN: Starting rescan from height:', rescanHeight);
 
               // Clear all transactions, deposits, and withdrawals
               wallet.clearTransactions();
 
-              // Set lastHeight to creationHeight
-              wallet.lastHeight = wallet.creationHeight;
+              // Set lastHeight to the specified rescan height
+              wallet.lastHeight = rescanHeight;
 
               // Save the wallet with cleared data
               await WalletService.saveWallet('rescan from creation height');
@@ -608,10 +593,12 @@ export default function SettingsScreen() {
               // Signal wallet update to trigger watchdog rescan
               await WalletService.signalWalletUpdate();
 
-              Alert.alert('Success', 'Rescan initiated from creation height. Synchronization will restart.');
+              Alert.alert('Success', `Rescan initiated from block ${rescanHeight.toLocaleString()}. Synchronization will restart.`);
               setShowRescanOptions(false);
+              setIsEditingHeight(false);
+              setCustomHeightInput('');
             } catch (error) {
-              console.error('Error during rescan from creation height:', error);
+              console.error('Error during rescan:', error);
               Alert.alert('Error', 'Failed to initiate rescan. Please try again.');
             }
           },
@@ -704,45 +691,41 @@ export default function SettingsScreen() {
   };
 
   const handleClearData = async () => {
-    Alert.alert(
-      'Clear All Data',
-      'You are about to erase ALL DATA. Only what was saved on Blockchain can be retrieved.',
-      [
-        {
-          text: 'Confirm',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              // console.log('=== BEFORE CLEAR ALL ===');
-              await StorageService.debugStorage();
+    Alert.alert('Clear All Data', 'You are about to erase ALL DATA. Only what was saved on Blockchain can be retrieved.', [
+      {
+        text: 'Confirm',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            // console.log('=== BEFORE CLEAR ALL ===');
+            await StorageService.debugStorage();
 
-              await WalletService.forceClearAll();
+            await WalletService.forceClearAll();
 
-              // Reset upgrade prompt flags so new local wallet can show prompts
-              await WalletService.resetUpgradeFlags();
+            // Reset upgrade prompt flags so new local wallet can show prompts
+            await WalletService.resetUpgradeFlags();
 
-              // console.log('=== AFTER CLEAR ALL ===');
-              await StorageService.debugStorage();
+            // console.log('=== AFTER CLEAR ALL ===');
+            await StorageService.debugStorage();
 
-              // Clear the wallet context state to force reinitialization
-              await refreshWallet();
+            // Clear the wallet context state to force reinitialization
+            await refreshWallet();
 
-              // Navigate to HomeScreen
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'Home' }],
-              });
+            // Navigate to HomeScreen
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Home' }],
+            });
 
-              Alert.alert('Success', 'All data cleared successfully. The app will restart.');
-            } catch (error) {
-              console.error('Error in handleClearData:', error);
-              Alert.alert('Error', 'Failed to clear data. Please try again.', [{ text: 'OK' }]);
-            }
-          },
+            Alert.alert('Success', 'All data cleared successfully. The app will restart.');
+          } catch (error) {
+            console.error('Error in handleClearData:', error);
+            Alert.alert('Error', 'Failed to clear data. Please try again.', [{ text: 'OK' }]);
+          }
         },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   };
 
   const handlePasswordChange = async (oldPassword: string, newPassword: string) => {
@@ -883,11 +866,7 @@ export default function SettingsScreen() {
     onPress?: () => void;
     rightElement?: React.ReactNode;
   }) => (
-    <TouchableOpacity
-      className="flex-row items-center justify-between p-4"
-      onPress={onPress}
-      activeOpacity={onPress ? 0.7 : 1}
-    >
+    <TouchableOpacity className="flex-row items-center justify-between p-4" onPress={onPress} activeOpacity={onPress ? 0.7 : 1}>
       <View className="flex-row items-center flex-1">
         <Ionicons name={icon as any} size={24} color={theme.colors.text} />
         <View className="ml-3 flex-1">
@@ -1058,11 +1037,7 @@ export default function SettingsScreen() {
                     subtitle={showRescanOptions ? 'Hide rescan options' : 'Rescan blockchain for transactions'}
                     onPress={handleToggleRescanOptions}
                     rightElement={
-                      <Ionicons
-                        name={showRescanOptions ? 'chevron-up' : 'chevron-down'}
-                        size={20}
-                        color={theme.colors.textSecondary}
-                      />
+                      <Ionicons name={showRescanOptions ? 'chevron-up' : 'chevron-down'} size={20} color={theme.colors.textSecondary} />
                     }
                   />
 
@@ -1082,9 +1057,68 @@ export default function SettingsScreen() {
                           <Text className="text-base font-medium" style={{ color: theme.colors.text }}>
                             Rescan from Creation Height
                           </Text>
-                          <Text className="text-sm mt-0.5" style={{ color: theme.colors.textSecondary }}>
-                            {wallet ? `Block ${wallet.creationHeight}` : 'Block 0'}
-                          </Text>
+                          {isEditingHeight ? (
+                            <View className="flex-row items-center mt-1">
+                              <TextInput
+                                className="text-sm border rounded px-2 py-1 flex-1 mr-2"
+                                style={{
+                                  borderColor: theme.colors.primary,
+                                  color: theme.colors.text,
+                                  backgroundColor: theme.colors.background,
+                                }}
+                                placeholder={wallet ? wallet.creationHeight.toLocaleString() : '0'}
+                                value={customHeightInput}
+                                onChangeText={setCustomHeightInput}
+                                keyboardType="numeric"
+                                autoFocus
+                                onSubmitEditing={() => {
+                                  // Parse and save the custom height
+                                  const height = parseInt(customHeightInput.trim(), 10);
+                                  if (!isNaN(height) && height >= 0) {
+                                    setCustomRescanHeight(height);
+                                  }
+                                  setIsEditingHeight(false);
+                                }}
+                                onBlur={() => {
+                                  // Parse and save the custom height when user leaves the field
+                                  const height = parseInt(customHeightInput.trim(), 10);
+                                  if (!isNaN(height) && height >= 0) {
+                                    setCustomRescanHeight(height);
+                                  }
+                                  setIsEditingHeight(false);
+                                }}
+                              />
+                              <TouchableOpacity
+                                onPress={() => {
+                                  setIsEditingHeight(false);
+                                  setCustomHeightInput('');
+                                }}
+                              >
+                                <Ionicons name="close-circle" size={20} color={theme.colors.textSecondary} />
+                              </TouchableOpacity>
+                            </View>
+                          ) : (
+                            <TouchableOpacity
+                              onPress={() => {
+                                // Pre-fill the input with current custom height or creation height
+                                if (customRescanHeight) {
+                                  setCustomHeightInput(customRescanHeight.toString());
+                                } else if (wallet) {
+                                  setCustomHeightInput(wallet.creationHeight.toString());
+                                }
+                                setIsEditingHeight(true);
+                              }}
+                            >
+                              <Text className="text-sm mt-0.5" style={{ color: theme.colors.primary }}>
+                                {customRescanHeight
+                                  ? `Block ${customRescanHeight.toLocaleString()}`
+                                  : wallet
+                                    ? `Block ${wallet.creationHeight.toLocaleString()}`
+                                    : 'Block 0'}{' '}
+                                (tap to edit)
+                              </Text>
+                            </TouchableOpacity>
+                          )}
                         </View>
                       </TouchableOpacity>
 
@@ -1114,11 +1148,7 @@ export default function SettingsScreen() {
                 subtitle={showRecoverySeed ? 'Hide recovery phrase' : 'View your 25-word recovery phrase'}
                 onPress={handleShowSeed}
                 rightElement={
-                  <Ionicons
-                    name={showRecoverySeed ? 'chevron-up' : 'chevron-down'}
-                    size={20}
-                    color={theme.colors.textSecondary}
-                  />
+                  <Ionicons name={showRecoverySeed ? 'chevron-up' : 'chevron-down'} size={20} color={theme.colors.textSecondary} />
                 }
               />
 
@@ -1152,13 +1182,7 @@ export default function SettingsScreen() {
                 title="Export Wallet"
                 subtitle={showExportQR ? 'Hide QR code' : 'Backup your wallet'}
                 onPress={handleExportWallet}
-                rightElement={
-                  <Ionicons
-                    name={showExportQR ? 'chevron-up' : 'chevron-down'}
-                    size={20}
-                    color={theme.colors.textSecondary}
-                  />
-                }
+                rightElement={<Ionicons name={showExportQR ? 'chevron-up' : 'chevron-down'} size={20} color={theme.colors.textSecondary} />}
               />
 
               {/* Export QR Expandable Section */}
@@ -1229,17 +1253,11 @@ export default function SettingsScreen() {
                     icon="radio-outline"
                     title="Broadcast Code"
                     subtitle={
-                      broadcastAddress
-                        ? `Send to: ${broadcastAddress.substring(0, 10)}...`
-                        : 'Send 2FA codes via auto-destruct message'
+                      broadcastAddress ? `Send to: ${broadcastAddress.substring(0, 10)}...` : 'Send 2FA codes via auto-destruct message'
                     }
                     onPress={() => setIsBroadcastExpanded(!isBroadcastExpanded)}
                     rightElement={
-                      <Ionicons
-                        name={isBroadcastExpanded ? 'chevron-up' : 'chevron-down'}
-                        size={20}
-                        color={theme.colors.textSecondary}
-                      />
+                      <Ionicons name={isBroadcastExpanded ? 'chevron-up' : 'chevron-down'} size={20} color={theme.colors.textSecondary} />
                     }
                   />
 
@@ -1249,19 +1267,13 @@ export default function SettingsScreen() {
                       className="p-4 mt-2 rounded-xl border"
                       style={{ backgroundColor: theme.colors.background, borderColor: theme.colors.border }}
                     >
-                      <Text
-                        className="text-sm font-medium mb-3 font-poppins-medium"
-                        style={{ color: theme.colors.textSecondary }}
-                      >
+                      <Text className="text-sm font-medium mb-3 font-poppins-medium" style={{ color: theme.colors.textSecondary }}>
                         Choose broadcast destination:
                       </Text>
 
                       {/* Current Address Display */}
                       <View className="mb-3 p-3 rounded-lg" style={{ backgroundColor: theme.colors.surface }}>
-                        <Text
-                          className="text-sm font-medium mb-1 font-poppins-medium"
-                          style={{ color: theme.colors.text }}
-                        >
+                        <Text className="text-sm font-medium mb-1 font-poppins-medium" style={{ color: theme.colors.text }}>
                           Current Destination:
                         </Text>
                         <Text className="text-xs font-mono" style={{ color: theme.colors.textSecondary }}>
@@ -1358,11 +1370,7 @@ export default function SettingsScreen() {
                   subtitle={`${paymentIdWhiteList.length} trusted payment IDs`}
                   onPress={() => setIsTrustAnchorExpanded(!isTrustAnchorExpanded)}
                   rightElement={
-                    <Ionicons
-                      name={isTrustAnchorExpanded ? 'chevron-up' : 'chevron-down'}
-                      size={20}
-                      color={theme.colors.textSecondary}
-                    />
+                    <Ionicons name={isTrustAnchorExpanded ? 'chevron-up' : 'chevron-down'} size={20} color={theme.colors.textSecondary} />
                   }
                 />
 
@@ -1372,10 +1380,7 @@ export default function SettingsScreen() {
                     className="p-4 mt-2 rounded-xl border"
                     style={{ backgroundColor: theme.colors.background, borderColor: theme.colors.border }}
                   >
-                    <Text
-                      className="text-sm font-medium mb-3 font-poppins-medium"
-                      style={{ color: theme.colors.textSecondary }}
-                    >
+                    <Text className="text-sm font-medium mb-3 font-poppins-medium" style={{ color: theme.colors.textSecondary }}>
                       Whitelist of trusted payment IDs for smart messages
                     </Text>
 
@@ -1394,10 +1399,7 @@ export default function SettingsScreen() {
 
                     {/* Manual Payment ID Input */}
                     <View className="mb-4">
-                      <Text
-                        className="text-sm font-medium mb-2 font-poppins-medium"
-                        style={{ color: theme.colors.textSecondary }}
-                      >
+                      <Text className="text-sm font-medium mb-2 font-poppins-medium" style={{ color: theme.colors.textSecondary }}>
                         Or enter a payment ID manually:
                       </Text>
                       <View className="flex-row items-center">
@@ -1446,20 +1448,12 @@ export default function SettingsScreen() {
                             className="flex-row items-center justify-between p-3 mb-2 rounded-lg"
                             style={{ backgroundColor: theme.colors.card }}
                           >
-                            <TouchableOpacity
-                              className="flex-1"
-                              onPress={() => handleCopyPaymentId(paymentId)}
-                              activeOpacity={0.7}
-                            >
+                            <TouchableOpacity className="flex-1" onPress={() => handleCopyPaymentId(paymentId)} activeOpacity={0.7}>
                               <Text className="text-xs font-mono" style={{ color: theme.colors.text }}>
                                 {paymentId.substring(0, 16)}...{paymentId.substring(48)}
                               </Text>
                             </TouchableOpacity>
-                            <TouchableOpacity
-                              className="p-2"
-                              onPress={() => handleDeletePaymentId(paymentId)}
-                              activeOpacity={0.7}
-                            >
+                            <TouchableOpacity className="p-2" onPress={() => handleDeletePaymentId(paymentId)} activeOpacity={0.7}>
                               <Ionicons name="trash-outline" size={16} color={theme.colors.warning} />
                             </TouchableOpacity>
                           </View>
@@ -1516,28 +1510,24 @@ export default function SettingsScreen() {
                         );
                       } else {
                         // User is enabling biometric auth - request password to update biometric salt
-                        Alert.alert(
-                          'Enable Biometric Authentication',
-                          'Enter your wallet password to enable biometric authentication.',
-                          [
-                            {
-                              text: 'Cancel',
-                              onPress: () => {
-                                // Don't change the toggle, keep it disabled
-                                setBiometricAuth(false);
-                              },
-                              style: 'cancel',
+                        Alert.alert('Enable Biometric Authentication', 'Enter your wallet password to enable biometric authentication.', [
+                          {
+                            text: 'Cancel',
+                            onPress: () => {
+                              // Don't change the toggle, keep it disabled
+                              setBiometricAuth(false);
                             },
-                            {
-                              text: 'Enable',
-                              onPress: async () => {
-                                // Show password input alert
-                                setBiometricAction('enable');
-                                setShowUnlockWalletAlert(true);
-                              },
+                            style: 'cancel',
+                          },
+                          {
+                            text: 'Enable',
+                            onPress: async () => {
+                              // Show password input alert
+                              setBiometricAction('enable');
+                              setShowUnlockWalletAlert(true);
                             },
-                          ]
-                        );
+                          },
+                        ]);
                       }
                     }}
                     trackColor={{
@@ -1612,10 +1602,7 @@ export default function SettingsScreen() {
                     </View>
                   ))}
                   <View className="flex-row justify-between p-3">
-                    <TouchableOpacity
-                      onPress={handleResuscitateAll}
-                      className="flex-1 bg-green-500 p-3 rounded-lg mr-2"
-                    >
+                    <TouchableOpacity onPress={handleResuscitateAll} className="flex-1 bg-green-500 p-3 rounded-lg mr-2">
                       <Text className="text-white text-center font-medium">Resuscitate All</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={handleDeleteAll} className="flex-1 bg-red-500 p-3 rounded-lg ml-2">
@@ -1655,11 +1642,7 @@ export default function SettingsScreen() {
             </Text>
             <View className="rounded-2xl shadow-lg" style={{ backgroundColor: theme.colors.card }}>
               <SettingItem icon="information-circle-outline" title="Version" subtitle={packageJson.version} />
-              <SettingItem
-                icon="document-text-outline"
-                title="Terms and Conditions"
-                onPress={() => setShowTermsModal(true)}
-              />
+              <SettingItem icon="document-text-outline" title="Terms and Conditions" onPress={() => setShowTermsModal(true)} />
             </View>
           </View>
         </ScrollView>
@@ -1698,11 +1681,7 @@ export default function SettingsScreen() {
       />
 
       {/* Broadcast QR Scanner Modal */}
-      <QRScannerModal
-        visible={showBroadcastQRScanner}
-        onClose={handleBroadcastQRClose}
-        onScan={handleBroadcastQRScan}
-      />
+      <QRScannerModal visible={showBroadcastQRScanner} onClose={handleBroadcastQRClose} onScan={handleBroadcastQRScan} />
 
       {/* Terms and Conditions Modal */}
       <TermsModal visible={showTermsModal} onClose={() => setShowTermsModal(false)} />

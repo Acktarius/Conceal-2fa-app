@@ -64,10 +64,7 @@ console.log('APP: After crypto imports - nacl available:', !!(global as any).nac
 console.log('APP: self.Module available:', typeof self !== 'undefined' && !!(self as any).Module);
 console.log('APP: Module.cwrap available:', typeof self !== 'undefined' && !!(self as any).Module?.ccall);
 console.log('APP: Module._malloc available:', typeof self !== 'undefined' && !!(self as any).Module?._malloc);
-console.log(
-  'APP: Module functions:',
-  typeof self !== 'undefined' ? Object.keys((self as any).Module || {}).length : 'N/A'
-);
+console.log('APP: Module functions:', typeof self !== 'undefined' ? Object.keys((self as any).Module || {}).length : 'N/A');
 console.log('APP: nacl.util.encodeBase64 available:', !!(global as any).nacl?.util?.encodeBase64);
 
 import { PasswordCreationAlert } from './components/PasswordCreationAlert';

@@ -1,0 +1,45 @@
+Conceal Authenticator - The First Decentralized 2FA App
+
+🔐 SECURE 2FA AUTHENTICATOR
+Generate TOTP codes for all your accounts with military-grade encryption and biometric security.
+
+🚀 WORLD'S FIRST DECENTRALIZED 2FA BACKUP
+• Permissionless - No registration or approval needed
+• Automatic - Your keys are backed up to the blockchain automatically
+• Decentralized - No single point of failure, no central server
+Nobody has done this before. This is what decentralization is meant for.
+
+✨ FLEXIBLE OPTIONS
+• Local-only mode - Use as a standard 2FA app
+• Manual backup - Export when needed
+• Automatic blockchain backup - Your keys saved securely on-chain
+
+📦 BUILT-IN WALLET
+Seamless blockchain integration. Recover your 2FA keys with your wallet seed - no third-party servers.
+
+🛡️ PRIVACY & SECURITY
+• Self-custody - You own your keys
+• Biometric security - Fingerprint and face recognition
+• No central authority - Direct blockchain interaction
+• Offline capable - Works without internet
+
+👥 SHARE WITH TRUSTED CONTACTS
+• Share your 2FA keys with significant other or family using whitelisted payment IDs.
+(Blockchain can broadcast 2FA code to trusted recipients via auto-destruct messaging)
+
+🎨 FEATURES
+• Multiple themes (Light, Orange, Velvet, Dark)
+• Future codes preview
+• Custom blockchain nodes
+• QR code scanning
+• Backup encrypted secret shared key on your blockchain 2FA dedicated wallet.
+
+💡 HOW IT WORKS
+1. Add 2FA accounts by scanning QR codes
+2. Generate secure codes anytime
+3. Your keys are backed up to the blockchain
+4. Recover with your wallet seed
+
+Powered by the Conceal Network blockchain.
+
+⚠️ IMPORTANT: Always backup your recovery seed. Self-custody means you're responsible for your keys.

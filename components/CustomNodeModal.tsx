@@ -1,16 +1,6 @@
 import type React from 'react';
 import { useState } from 'react';
-import {
-  Alert,
-  Dimensions,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Alert, Dimensions, KeyboardAvoidingView, Modal, Platform, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { config } from '../config';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -105,10 +95,7 @@ export const CustomNodeModal: React.FC<CustomNodeModalProps> = ({ visible, curre
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={handleCancel}>
-      <KeyboardAvoidingView
-        className="flex-1 justify-center items-center"
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+      <KeyboardAvoidingView className="flex-1 justify-center items-center" behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View className="flex-1 w-full justify-center items-center" style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
           <View
             className="rounded-2xl p-6 mx-5 shadow-lg"
@@ -202,9 +189,7 @@ export const CustomNodeModal: React.FC<CustomNodeModalProps> = ({ visible, curre
                 disabled={isTesting}
                 activeOpacity={0.8}
               >
-                <Text className="text-sm font-semibold text-center text-white font-poppins-medium">
-                  Reset to Default
-                </Text>
+                <Text className="text-sm font-semibold text-center text-white font-poppins-medium">Reset to Default</Text>
               </TouchableOpacity>
 
               <TouchableOpacity

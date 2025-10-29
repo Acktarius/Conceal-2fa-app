@@ -217,9 +217,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           try {
             if (!alreadyAsked) {
               // First time - show prompt after 5 seconds
-              getGlobalWorkletLogging().logging1string(
-                'Wallet is blockchain-enabled, scheduling synchronization prompt in 5 seconds...'
-              );
+              getGlobalWorkletLogging().logging1string('Wallet is blockchain-enabled, scheduling synchronization prompt in 5 seconds...');
               setAlreadyAsked(true);
               setTimeout(() => {
                 promptUserForSynchronization();

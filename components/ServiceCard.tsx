@@ -277,10 +277,7 @@ const ServiceCard = React.forwardRef<any, ServiceCardProps>(
         {/* Front of card */}
         <Animated.View
           className="absolute w-full h-full rounded-2xl"
-          style={[
-            { transform: [{ rotateY: frontInterpolate }] },
-            showDeleteConfirm && { opacity: 0, pointerEvents: 'none' },
-          ]}
+          style={[{ transform: [{ rotateY: frontInterpolate }] }, showDeleteConfirm && { opacity: 0, pointerEvents: 'none' }]}
         >
           <TouchableOpacity className="h-full p-3" onPress={onSelect} activeOpacity={0.9}>
             <View className="flex-row justify-between items-start mb-3">
@@ -297,14 +294,8 @@ const ServiceCard = React.forwardRef<any, ServiceCardProps>(
                     {sharedKey.issuer}
                   </Text>
                   {sharedKey.isLocal ? (
-                    <View
-                      className="rounded-md px-1.5 py-0.5 ml-2"
-                      style={{ backgroundColor: theme.colors.status + '20' }}
-                    >
-                      <Text
-                        className="text-xs font-semibold font-poppins-medium"
-                        style={{ color: theme.colors.status }}
-                      >
+                    <View className="rounded-md px-1.5 py-0.5 ml-2" style={{ backgroundColor: theme.colors.status + '20' }}>
+                      <Text className="text-xs font-semibold font-poppins-medium" style={{ color: theme.colors.status }}>
                         Local
                       </Text>
                     </View>
@@ -345,19 +336,13 @@ const ServiceCard = React.forwardRef<any, ServiceCardProps>(
 
               {/* 2FA Code - No box, tap to copy */}
               <TouchableOpacity className="flex-row items-center flex-1 mr-3" onPress={onCopy} activeOpacity={0.8}>
-                <Text
-                  className="text-4xl font-bold font-mono tracking-wider"
-                  style={{ color: '#3B82F6', opacity: codeOpacity }}
-                >
+                <Text className="text-4xl font-bold font-mono tracking-wider" style={{ color: '#3B82F6', opacity: codeOpacity }}>
                   {sharedKey.code.slice(0, 3)} {sharedKey.code.slice(3)}
                 </Text>
 
                 {/* Future Code Display */}
                 {showFutureCode && (
-                  <Text
-                    className="text-lg font-mono italic ml-4"
-                    style={{ color: theme.colors.textSecondary, opacity: 0.7 }}
-                  >
+                  <Text className="text-lg font-mono italic ml-4" style={{ color: theme.colors.textSecondary, opacity: 0.7 }}>
                     {futureCode.slice(0, 3)} {futureCode.slice(3)}
                   </Text>
                 )}
@@ -365,10 +350,7 @@ const ServiceCard = React.forwardRef<any, ServiceCardProps>(
 
               {/* Circular Countdown Timer */}
               <View className="w-12 h-12 items-center justify-center">
-                <View
-                  className="absolute w-12 h-12 rounded-full border-2"
-                  style={{ borderColor: theme.colors.border }}
-                />
+                <View className="absolute w-12 h-12 rounded-full border-2" style={{ borderColor: theme.colors.border }} />
                 <View
                   className="absolute w-12 h-12 rounded-full border-2"
                   style={{
@@ -469,25 +451,16 @@ const ServiceCard = React.forwardRef<any, ServiceCardProps>(
         {/* Back of card - Delete confirmation */}
         <Animated.View
           className="absolute w-full h-full rounded-2xl"
-          style={[
-            { transform: [{ rotateY: backInterpolate }] },
-            !showDeleteConfirm && { opacity: 0, pointerEvents: 'none' },
-          ]}
+          style={[{ transform: [{ rotateY: backInterpolate }] }, !showDeleteConfirm && { opacity: 0, pointerEvents: 'none' }]}
         >
           <View className="flex-1 items-center justify-center p-5">
             <View className="flex-row items-center mb-2">
               <Ionicons name="warning-outline" size={24} color={theme.colors.warning} />
-              <Text
-                className="text-lg font-semibold ml-2 text-center font-poppins-medium"
-                style={{ color: theme.colors.text }}
-              >
+              <Text className="text-lg font-semibold ml-2 text-center font-poppins-medium" style={{ color: theme.colors.text }}>
                 Are you sure you want to delete?
               </Text>
             </View>
-            <Text
-              className="text-sm text-center leading-5 mb-3 font-poppins"
-              style={{ color: theme.colors.textSecondary }}
-            >
+            <Text className="text-sm text-center leading-5 mb-3 font-poppins" style={{ color: theme.colors.textSecondary }}>
               {sharedKey.isLocal
                 ? 'This will permanently delete this service from your device.'
                 : 'This will delete the service locally and revoke it from the blockchain.'}
