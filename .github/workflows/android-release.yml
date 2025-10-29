@@ -58,7 +58,7 @@ jobs:
       - name: Signing Build.gradle
         run: node hooks/android/3_signing.js
         env:
-          ANDROID_KEYSTORE_PATH: app/local-release-key.keystore
+          ANDROID_KEYSTORE_PATH: local-release-key.keystore
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
