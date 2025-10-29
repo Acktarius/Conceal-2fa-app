@@ -27,14 +27,13 @@ let gradleText = fs.readFileSync(gradlePath, 'utf8');
 // Inject rename logic just before the final closing `}` of the first android block
 const androidBlockRegex = /android\s*{([\s\S]*?)(^\})/m;
 if (gradleText.includes('android {')) {
-    // Find where to inject: just before the final closing brace of the block
-    gradleText = gradleText.replace(
-        /(android\s*{)([\s\S]*?)(^\})/m,
-        (match, openBlock, innerContent, closeBrace) =>
-            `${openBlock}\n${innerContent}\n${gradleRenameLogic}\n${closeBrace}`
-    );
-    fs.writeFileSync(gradlePath, gradleText);
-    console.log('APK renaming logic injected inside android { ... } block.');
+  // Find where to inject: just before the final closing brace of the block
+  gradleText = gradleText.replace(
+    /(android\s*{)([\s\S]*?)(^\})/m,
+    (match, openBlock, innerContent, closeBrace) => `${openBlock}\n${innerContent}\n${gradleRenameLogic}\n${closeBrace}`
+  );
+  fs.writeFileSync(gradlePath, gradleText);
+  console.log('APK renaming logic injected inside android { ... } block.');
 } else {
-    console.log('No android { ... } block found in build.gradle! You may need to check your file structure.');
+  console.log('No android { ... } block found in build.gradle! You may need to check your file structure.');
 }
