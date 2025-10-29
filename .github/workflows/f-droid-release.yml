@@ -1,0 +1,118 @@
+name: F-Droid Release Build
+
+on:
+  push:
+    tags:
+      - '*-f-droid'  # Matches tags ending with -f-droid (e.g., v1.0.2-f-droid, 1.0.2-f-droid)
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install NPM dependencies
+        run: npm install
+
+      - name: Set up Java (for Android build)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: 17
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept licenses
+        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+
+      - name: Install Required SDK Packages
+        run: |
+          sdkmanager "build-tools;35.0.0" "platforms;android-35" "platform-tools" \
+                      "ndk;27.1.12297006" \
+                      "extras;android;m2repository" "extras;google;m2repository"
+
+      - name: Build and Tweak Android Folder
+        run: ./build-android.sh
+
+      - name: Decode Keystore
+        run: echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > $GITHUB_WORKSPACE/android/app/local-release-key.keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      
+      - name: Check if Keystore Exists
+        run: |
+          if [ ! -f android/app/local-release-key.keystore ]; then
+            echo "ERROR: Keystore file not found!"
+            exit 1
+          fi    
+
+      - name: Signing Build.gradle
+        run: node hooks/android/3_signing.js
+        env:
+          ANDROID_KEYSTORE_PATH: local-release-key.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          GITHUB_ACTIONS: 'true'
+      
+      
+      - name: Read App Version
+        id: get_version
+        run: |
+          VERSION=$(grep APP_VERSION .env | cut -d '=' -f 2)
+          VERSION_CODE=$(grep ANDROID_VERSION_CODE .env | cut -d '=' -f 2)
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_OUTPUT
+      
+      - name: Build Release APK
+        working-directory: android
+        run: ./gradlew assembleRelease
+      
+      - name: Get APK filename and SHA256
+        id: apk_info
+        run: |
+          APK_FILE=$(find android/app/build/outputs/apk/release -name "ConcealAuthenticator*.apk" | head -1)
+          APK_NAME=$(basename "$APK_FILE")
+          APK_SHA256=$(sha256sum "$APK_FILE" | cut -d ' ' -f 1)
+          echo "apk_file=$APK_FILE" >> $GITHUB_OUTPUT
+          echo "apk_name=$APK_NAME" >> $GITHUB_OUTPUT
+          echo "apk_sha256=$APK_SHA256" >> $GITHUB_OUTPUT
+          echo "APK_NAME=$APK_NAME" >> $GITHUB_ENV
+          echo "APK_SHA256=$APK_SHA256" >> $GITHUB_ENV
+      
+      - name: Upload APK as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: conceal-authenticator-${{ steps.get_version.outputs.VERSION }}
+          path: ${{ steps.apk_info.outputs.apk_file }}
+      
+      - name: Create F-DROID Release
+        uses: softprops/action-gh-release@v2.0.4
+        with:
+          files: ${{ steps.apk_info.outputs.apk_file }}
+          name: Conceal Authenticator v${{ steps.get_version.outputs.VERSION }}
+          body: |
+            **F-DROID RELEASE**
+            *signed APK, in repo without signing for F-Droid to append*
+            [Download APK](../../releases/download/v${{ steps.get_version.outputs.VERSION }}/${{ steps.apk_info.outputs.apk_name }}) **${{ steps.apk_info.outputs.apk_name }}**
+            `SHA256: ${{ steps.apk_info.outputs.apk_sha256 }}`
+            
+            **NOTE**: Version Code `${{ steps.get_version.outputs.VERSION_CODE }}`
+          tag_name: v${{ steps.get_version.outputs.VERSION }}
+          draft: true
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
