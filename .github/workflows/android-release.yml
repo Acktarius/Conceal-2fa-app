@@ -44,15 +44,21 @@ jobs:
         run: ./build-android.sh
 
       - name: Decode Keystore
-        run: echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > $GITHUB_WORKSPACE/local-release-key.keystore
+        run: echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > $GITHUB_WORKSPACE/android/app/local-release-key.keystore
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-        
+      
+      - name: Check if Keystore Exists
+        run: |
+          if [ ! -f android/app/local-release-key.keystore ]; then
+            echo "ERROR: Keystore file not found!"
+            exit 1
+          fi    
 
       - name: Signing Build.gradle
         run: node hooks/android/3_signing.js
         env:
-          ANDROID_KEYSTORE_PATH: $GITHUB_WORKSPACE/local-release-key.keystore
+          ANDROID_KEYSTORE_PATH: app/local-release-key.keystore
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
