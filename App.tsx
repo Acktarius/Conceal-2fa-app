@@ -3,9 +3,10 @@
 import './global.css';
 import { NavigationContainer } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -79,6 +80,9 @@ import { StorageService } from './services/StorageService';
 import { WalletService } from './services/WalletService'; // MAINTENANCE MODE: One-time wallet clearing for development/testing
 import { initializeGlobalWorkletLogging } from './services/WorkletLoggingService';
 
+// Keep the splash screen visible while we fetch resources
+SplashScreen.preventAutoHideAsync();
+
 export default function App() {
   // Initialize global worklet logging service
   initializeGlobalWorkletLogging();
@@ -93,8 +97,15 @@ export default function App() {
     'Poppins-Italic': require('./assets/fonts/Poppins-Italic.ttf'),
   });
 
+  React.useEffect(() => {
+    if (fontsLoaded) {
+      // Hide splash screen once fonts are loaded
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
+
   if (!fontsLoaded) {
-    return <Text>Loading fonts...</Text>;
+    return null; // Splash screen handles the loading UI
   }
 
   return (

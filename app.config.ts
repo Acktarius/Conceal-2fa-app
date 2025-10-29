@@ -8,6 +8,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   slug: 'conceal-authenticator',
   orientation: 'portrait',
   icon: './assets/icon.png',
+  splash: {
+    image: './assets/icon.png',
+    resizeMode: 'contain',
+    backgroundColor: '#000000',
+  },
   userInterfaceStyle: 'automatic',
   assetBundlePatterns: ['**/*'],
 
