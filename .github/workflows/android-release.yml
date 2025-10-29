@@ -68,14 +68,47 @@ jobs:
       - name: Read App Version
         id: get_version
         run: |
-          echo "VERSION=$(grep APP_VERSION .env | cut -d '=' -f 2)" >> $GITHUB_ENV
+          VERSION=$(grep APP_VERSION .env | cut -d '=' -f 2)
+          VERSION_CODE=$(grep ANDROID_VERSION_CODE .env | cut -d '=' -f 2)
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_OUTPUT
       
       - name: Build Release APK
         working-directory: android
         run: ./gradlew assembleRelease
       
+      - name: Get APK filename and SHA256
+        id: apk_info
+        run: |
+          APK_FILE=$(find android/app/build/outputs/apk/release -name "ConcealAuthenticator*.apk" | head -1)
+          APK_NAME=$(basename "$APK_FILE")
+          APK_SHA256=$(sha256sum "$APK_FILE" | cut -d ' ' -f 1)
+          echo "apk_file=$APK_FILE" >> $GITHUB_OUTPUT
+          echo "apk_name=$APK_NAME" >> $GITHUB_OUTPUT
+          echo "apk_sha256=$APK_SHA256" >> $GITHUB_OUTPUT
+          echo "APK_NAME=$APK_NAME" >> $GITHUB_ENV
+          echo "APK_SHA256=$APK_SHA256" >> $GITHUB_ENV
+      
       - name: Upload APK as workflow artifact
         uses: actions/upload-artifact@v4
         with:
           name: conceal-authenticator-${{ steps.get_version.outputs.VERSION }}
-          path: android/app/build/outputs/apk/release/ConcealAuthenticator*.apk
+          path: ${{ steps.apk_info.outputs.apk_file }}
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v2.0.4
+        with:
+          files: ${{ steps.apk_info.outputs.apk_file }}
+          name: Conceal Authenticator v${{ steps.get_version.outputs.VERSION }}
+          body: |
+            [Download APK](../../releases/download/v${{ steps.get_version.outputs.VERSION }}/${{ steps.apk_info.outputs.apk_name }}) **${{ steps.apk_info.outputs.apk_name }}**
+            `SHA256: ${{ steps.apk_info.outputs.apk_sha256 }}`
+            
+            **NOTE**: Version Code `${{ steps.get_version.outputs.VERSION_CODE }}`
+          tag_name: v${{ steps.get_version.outputs.VERSION }}
+          draft: true
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
