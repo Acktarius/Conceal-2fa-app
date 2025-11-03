@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}  # Checkout the exact tag that triggered the workflow
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -67,6 +69,13 @@ jobs:
           GITHUB_ACTIONS: 'true'
       
       
+      - name: Get Tag Name
+        id: get_tag
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_OUTPUT
+
       - name: Read App Version
         id: get_version
         run: |
@@ -103,16 +112,16 @@ jobs:
         uses: softprops/action-gh-release@v2.0.4
         with:
           files: ${{ steps.apk_info.outputs.apk_file }}
-          name: Conceal Authenticator v${{ steps.get_version.outputs.VERSION }}
+          name: Conceal Authenticator v${{ steps.get_version.outputs.VERSION }} F-Droid
           body: |
             **F-DROID RELEASE**
             *signed APK, in repo without signing for F-Droid to append*
-            [Download APK](../../releases/download/v${{ steps.get_version.outputs.VERSION }}/${{ steps.apk_info.outputs.apk_name }}) **${{ steps.apk_info.outputs.apk_name }}**
+            [Download APK](../../releases/download/${{ steps.get_tag.outputs.TAG_NAME }}/${{ steps.apk_info.outputs.apk_name }}) **${{ steps.apk_info.outputs.apk_name }}**
             `SHA256: ${{ steps.apk_info.outputs.apk_sha256 }}`
             
             **NOTE**: Version Code `${{ steps.get_version.outputs.VERSION_CODE }}`
-          tag_name: v${{ steps.get_version.outputs.VERSION }}
-          draft: true
+          tag_name: ${{ steps.get_tag.outputs.TAG_NAME }}
+          draft: false
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
