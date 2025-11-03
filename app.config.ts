@@ -19,6 +19,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     supportsTablet: true,
     icon: './assets/icon.png',
+    splash: {
+      image: './assets/splash-ios.png',
+      resizeMode: 'contain',
+      backgroundColor: '#000000',
+    },
     buildNumber: process.env.IOS_BUILD_NUMBER || '2',
     infoPlist: {
       NSCameraUsageDescription: 'This app needs access to camera to scan QR codes for adding 2FA services.',

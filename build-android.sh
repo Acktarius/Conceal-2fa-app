@@ -37,7 +37,7 @@ node scripts/addNitroInit.js
 # sleep 2
 # node hooks/android/1_extra.js
 
-# Step 7: Add build-extra.gradle
+# Step 7: Add build-extra.gradle - needed for renaming apk for productionRelease builds
 echo "🔄 Adding output filename to build-extra.gradle..."
 sleep 2
 node hooks/android/2_pre-build.js

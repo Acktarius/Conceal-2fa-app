@@ -20,12 +20,15 @@ import { StorageService } from '../services/StorageService';
 import { TOTPService } from '../services/TOTPService';
 import { WalletService } from '../services/WalletService';
 
+type SortMode = 'creationDate' | 'issuerName';
+
 export default function HomeScreen() {
   const [sharedKeys, setSharedKeys] = useState<SharedKey[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [currentTime, setCurrentTime] = useState(Date.now());
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const [blockchainSyncEnabled, setBlockchainSyncEnabled] = useState(false);
+  const [sortMode, setSortMode] = useState<SortMode>('creationDate');
   const { balance, maxKeys, isAuthenticated, authenticate, wallet } = useWallet();
   const { theme } = useTheme();
   const serviceCardRefs = React.useRef<{ [key: string]: any }>({});
@@ -339,6 +342,36 @@ export default function HomeScreen() {
     return true;
   };
 
+  const sortSharedKeys = (keys: SharedKey[]): SharedKey[] => {
+    const sorted = [...keys];
+    
+    if (sortMode === 'issuerName') {
+      sorted.sort((a, b) => {
+        // Sort by issuer name (case-insensitive)
+        const issuerA = (a.issuer || '').toLowerCase();
+        const issuerB = (b.issuer || '').toLowerCase();
+        
+        if (issuerA !== issuerB) {
+          return issuerA.localeCompare(issuerB);
+        }
+        
+        // If issuer names are equal, sort by creation date
+        return (a.timeStampSharedKeyCreate || 0) - (b.timeStampSharedKeyCreate || 0);
+      });
+    } else {
+      // Sort by creation date (default)
+      sorted.sort((a, b) => {
+        return (a.timeStampSharedKeyCreate || 0) - (b.timeStampSharedKeyCreate || 0);
+      });
+    }
+    
+    return sorted;
+  };
+
+  const handleHeaderDoubleTap = () => {
+    setSortMode((prev) => (prev === 'creationDate' ? 'issuerName' : 'creationDate'));
+  };
+
   // Styles are now handled by Tailwind CSS classes
 
   const renderContent = () => {
@@ -374,7 +407,7 @@ export default function HomeScreen() {
               </View>
             ) : (
               <View className="flex-row flex-wrap justify-between">
-                {sharedKeys.filter(shouldDisplaySharedKey).map((sharedKey) => {
+                {sortSharedKeys(sharedKeys.filter(shouldDisplaySharedKey)).map((sharedKey) => {
                   const sharedKeyId = sharedKey.hash || sharedKey.name + '_' + sharedKey.timeStampSharedKeyCreate;
                   return (
                     <ServiceCard
@@ -424,7 +457,7 @@ export default function HomeScreen() {
   return (
     <GestureNavigator>
       <View className="flex-1" style={{ backgroundColor: theme.colors.background }}>
-        <Header title="Authenticator" />
+        <Header title="Authenticator" onTitleDoubleTap={handleHeaderDoubleTap} />
         {renderContent()}
       </View>
     </GestureNavigator>
