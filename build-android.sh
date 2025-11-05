@@ -22,10 +22,15 @@ fi
 
 echo "✅ Android folder recreated successfully!"
 
-
 echo "🧹 Cleaning Android build..."
-cd android && ./gradlew clean && cd ..
-
+cd android
+./gradlew clean
+gradle_exit_code=$?
+cd ..
+if [ $gradle_exit_code -ne 0 ]; then
+  echo "❌ Gradle clean failed!"
+  exit 1
+fi
 
 # Step 5: Add Nitro init to MainApplication.kt
 echo "🔄 Adding Nitro init to MainApplication.kt..."
@@ -42,7 +47,12 @@ echo "🔄 Adding output filename to build-extra.gradle..."
 sleep 2
 node hooks/android/2_pre-build.js
 
-# Step 8: Signing/Unsigning prompts
+# Step 8: Clean unwanted activity aliases (MUST be after 2_pre-build.js)
+echo "🧹 Cleaning unwanted activity aliases from AndroidManifest.xml..."
+sleep 2
+node hooks/android/22_clean_aliases.js
+
+# Step 9: Signing/Unsigning prompts
 # Accept command-line arguments or prompt interactively
 # Usage: ./build-android.sh [sign_answer] [unsign_answer]
 # Examples:

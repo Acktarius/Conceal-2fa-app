@@ -87,6 +87,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     './scripts/withNitroModulesPlugin',
     './withConcealConfigPlugin',
     './withCustomPodfile.plugin.js',
+    './withFixMetadataVersion.plugin.js',
     'expo-secure-store',
     'expo-font',
   ],
