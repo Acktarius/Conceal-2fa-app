@@ -1,0 +1,2 @@
+- addind 2sec delay for splashScreen
+- adaptive icon (iOs only)

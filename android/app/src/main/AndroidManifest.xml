@@ -32,5 +32,53 @@
         <data android:scheme="exp+conceal-authenticator"/>
       </intent-filter>
     </activity>
+    <activity-alias android:name="com.acktarius.concealauthenticator.MainActivityvelvet" android:enabled="false" android:exported="true" android:icon="@mipmap/velvet" android:targetActivity=".MainActivity" android:roundIcon="@mipmap/velvet_round">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN"/>
+        <category android:name="android.intent.category.LAUNCHER"/>
+      </intent-filter>
+      <intent-filter>
+        <action android:name="android.intent.action.VIEW"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+        <category android:name="android.intent.category.BROWSABLE"/>
+        <data android:scheme="exp+conceal-authenticator"/>
+      </intent-filter>
+    </activity-alias>
+    <activity-alias android:name="com.acktarius.concealauthenticator.MainActivityorange" android:enabled="false" android:exported="true" android:icon="@mipmap/orange" android:targetActivity=".MainActivity" android:roundIcon="@mipmap/orange_round">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN"/>
+        <category android:name="android.intent.category.LAUNCHER"/>
+      </intent-filter>
+      <intent-filter>
+        <action android:name="android.intent.action.VIEW"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+        <category android:name="android.intent.category.BROWSABLE"/>
+        <data android:scheme="exp+conceal-authenticator"/>
+      </intent-filter>
+    </activity-alias>
+    <activity-alias android:name="com.acktarius.concealauthenticator.MainActivitylight" android:enabled="false" android:exported="true" android:icon="@mipmap/light" android:targetActivity=".MainActivity" android:roundIcon="@mipmap/light_round">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN"/>
+        <category android:name="android.intent.category.LAUNCHER"/>
+      </intent-filter>
+      <intent-filter>
+        <action android:name="android.intent.action.VIEW"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+        <category android:name="android.intent.category.BROWSABLE"/>
+        <data android:scheme="exp+conceal-authenticator"/>
+      </intent-filter>
+    </activity-alias>
+    <activity-alias android:name="com.acktarius.concealauthenticator.MainActivitydark" android:enabled="false" android:exported="true" android:icon="@mipmap/dark" android:targetActivity=".MainActivity" android:roundIcon="@mipmap/dark_round">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN"/>
+        <category android:name="android.intent.category.LAUNCHER"/>
+      </intent-filter>
+      <intent-filter>
+        <action android:name="android.intent.action.VIEW"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+        <category android:name="android.intent.category.BROWSABLE"/>
+        <data android:scheme="exp+conceal-authenticator"/>
+      </intent-filter>
+    </activity-alias>
   </application>
 </manifest>

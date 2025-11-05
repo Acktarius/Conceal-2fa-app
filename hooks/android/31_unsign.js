@@ -49,30 +49,31 @@ rl.question('Confirm | Exit (type "C" to proceed): ', (answer) => {
   if (buildTypesBlock) {
     let buildTypes = gradleContent.slice(...buildTypesBlock);
     const releaseBlock = findBlock(buildTypes, 'release {');
-    
+
     if (releaseBlock) {
       let release = buildTypes.slice(...releaseBlock);
-      
+
       // Remove signingConfig line(s) from release block
       const originalRelease = release;
       release = release.replace(/signingConfig\s+\S+.*/g, '');
-      
+
       // Check if we actually removed something
       if (release !== originalRelease) {
         console.log('✅ Removed signingConfig from release block');
       } else {
         console.log('ℹ️  No signingConfig found in release block (already unsigned)');
       }
-      
+
       // Add comment if release block is not empty
-      if (release.trim().length > 10) { // More than just "release {\n}"
+      if (release.trim().length > 10) {
+        // More than just "release {\n}"
         // Check if comment already exists
         if (!release.includes('// No signingConfig here for F-Droid!')) {
           // Insert comment after the opening brace
           release = release.replace(/(release\s*\{)/, '$1\n        // No signingConfig here for F-Droid!');
         }
       }
-      
+
       // Put revised release block back in buildTypes
       buildTypes = buildTypes.slice(0, releaseBlock[0]) + release + buildTypes.slice(releaseBlock[1]);
       // Put revised buildTypes back in gradleContent
@@ -86,7 +87,7 @@ rl.question('Confirm | Exit (type "C" to proceed): ', (answer) => {
 
   // Write the modified content back
   fs.writeFileSync(gradlePath, gradleContent);
-  
+
   console.log('\n✅ Success! Modification completed.');
   console.log('📝 Now you have to commit and push with a vx.y.z-f-droid tag \n\tto trigger a f-droid ready release\n');
 });
