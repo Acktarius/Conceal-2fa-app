@@ -1,6 +1,6 @@
 import type React from 'react';
 import { createContext, useContext, useEffect, useState } from 'react';
-import { useColorScheme } from 'react-native';
+import { Platform, useColorScheme } from 'react-native';
 import { setDynamicAppIcon } from 'react-native-dynamic-app-icon';
 import { StorageService } from '../services/StorageService';
 
@@ -174,6 +174,24 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+/**
+ * Safely change app icon on iOS only
+ * Note: Only works on physical iOS devices, not simulator or TestFlight
+ */
+const changeAppIcon = async (iconName: string) => {
+  if (Platform.OS !== 'ios') {
+    return; // Android not supported
+  }
+
+  try {
+    await setDynamicAppIcon(iconName);
+    console.log(`App icon changed to: ${iconName}`);
+  } catch (error) {
+    // Expected to fail in Simulator, TestFlight, or on first launch
+    console.log('Icon change not available:', error);
+  }
+};
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemColorScheme = useColorScheme();
   const [currentThemeId, setCurrentThemeId] = useState('dark'); // Default to dark mode
@@ -188,17 +206,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       if (settings.themeId) {
         setCurrentThemeId(settings.themeId);
         // Restore app icon on app start
-        setDynamicAppIcon(settings.themeId);
+        changeAppIcon(settings.themeId);
       } else if (settings.darkMode !== undefined) {
         // Migrate from old darkMode setting
         const themeId = settings.darkMode ? 'dark' : 'light';
         setCurrentThemeId(themeId);
-        setDynamicAppIcon(themeId);
+        changeAppIcon(themeId);
       } else {
         // No saved preference - use system color scheme as fallback
         const themeId = systemColorScheme === 'light' ? 'light' : 'dark';
         setCurrentThemeId(themeId);
-        setDynamicAppIcon(themeId);
+        changeAppIcon(themeId);
       }
     } catch (error) {
       console.error('Error loading theme preference:', error);
@@ -214,7 +232,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       await StorageService.saveSettings({ ...settings, themeId: newThemeId });
 
       // Change app icon to match theme
-      setDynamicAppIcon(newThemeId);
+      changeAppIcon(newThemeId);
     } catch (error) {
       console.error('Error saving theme preference:', error);
     }
@@ -228,7 +246,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       await StorageService.saveSettings({ ...settings, themeId });
 
       // Change app icon to match theme
-      setDynamicAppIcon(themeId);
+      changeAppIcon(themeId);
     } catch (error) {
       console.error('Error saving theme preference:', error);
     }
