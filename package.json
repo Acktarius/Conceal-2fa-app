@@ -1,6 +1,6 @@
 {
   "name": "conceal-authenticator",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
     "android": "expo run:android",
@@ -16,9 +16,9 @@
     "check:fix": "biome check --write ."
   },
   "dependencies": {
+    "@config-plugins/react-native-dynamic-app-icon": "^12.0.0",
     "@expo/metro-runtime": "~6.1.2",
     "@expo/vector-icons": "^15.0.2",
-    "@howincodes/expo-dynamic-app-icon": "^2.0.3",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-navigation/bottom-tabs": "^6.6.1",
     "@react-navigation/native": "^6.1.18",
@@ -39,6 +39,7 @@
     "react-native": "0.81.5",
     "react-native-camera": "^4.2.1",
     "react-native-conceal-crypto": "https://github.com/concealnetwork/react-native-conceal-crypto/releases/download/v0.2.5/react-native-conceal-crypto-0.2.5.tgz",
+    "react-native-dynamic-app-icon": "^1.1.0",
     "react-native-gesture-handler": "~2.28.0",
     "react-native-nitro-modules": "^0.30.2",
     "react-native-qrcode-svg": "^6.3.15",
@@ -69,11 +70,6 @@
     "nativewind": "^4.2.1",
     "react-native-worklets": "^0.6.0",
     "typescript": "~5.9.2"
-  },
-  "overrides": {
-    "@howincodes/expo-dynamic-app-icon": {
-      "expo": "$expo"
-    }
   },
   "expo": {
     "doctor": {

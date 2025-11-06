@@ -80,6 +80,7 @@ export class CoinUri {
       CoinUri.decodeTx(str);
       return true;
     } catch (e) {
+      console.error('Invalid transaction URI:', e);
       return false;
     }
   }

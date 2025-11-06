@@ -6,10 +6,8 @@ node_modules/
 .idea
 
 # Custom quick-crypto build artifacts
-custom-quick-crypto/react-native-quick-crypto/lib/
-custom-quick-crypto/react-native-quick-crypto/android/build/
-custom-quick-crypto/react-native-quick-crypto/*.js
-custom-quick-crypto/react-native-quick-crypto/*.js.map
+ios/
+android/
 
 *.apk
 

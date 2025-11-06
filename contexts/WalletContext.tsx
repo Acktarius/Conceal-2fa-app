@@ -5,7 +5,6 @@ import { config } from '../config';
 import type { Wallet } from '../model/Wallet';
 import { CronBuddy } from '../services/CronBuddy';
 import { getGlobalWorkletLogging } from '../services/interfaces/IWorkletLogging';
-import { StorageService } from '../services/StorageService';
 import { WalletService } from '../services/WalletService';
 import { WalletStorageManager } from '../services/WalletStorageManager';
 

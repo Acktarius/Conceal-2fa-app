@@ -1,3 +1,5 @@
+declare const requirejs: any;
+
 importScripts('../lib/polyfills/core.min.js');
 importScripts('../lib/polyfills/textEncoding/encoding-indexes.js');
 importScripts('../lib/polyfills/textEncoding/encoding.js');
@@ -18,6 +20,7 @@ try {
     requirejs(['./ParseTransactions.js'], (App) => {});
   };
 } catch (e) {
+  console.error('Failed to load cn_utils_native.js, falling back to JS implementation:', e);
   setTimeout(() => {
     //wait 5s due to crypto //TODO find a better fix
     requirejs(['./ParseTransactions.js'], (App) => {});

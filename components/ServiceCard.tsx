@@ -1,6 +1,6 @@
 import { FontAwesome, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import React from 'react';
-import { Alert, Animated, Platform, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, Text, TouchableOpacity, View } from 'react-native';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { useTheme } from '../contexts/ThemeContext';
@@ -243,8 +243,6 @@ const ServiceCard = React.forwardRef<any, ServiceCardProps>(
         onDelete();
       });
     };
-
-    const progressPercentage = (sharedKey.timeRemaining / 30) * 100;
 
     // Calculate opacity based on time remaining (100% to 70%)
     const codeOpacity = 0.6 + (sharedKey.timeRemaining / 30) * 0.4;

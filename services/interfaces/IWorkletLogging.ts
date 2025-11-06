@@ -2,8 +2,6 @@
  * KISS Global Worklet Logging - Just 6 simple functions
  */
 
-import { WorkletRuntime } from 'react-native-worklets';
-
 export interface IWorkletLogging {
   /**
    * The worklet runtime for direct access

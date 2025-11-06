@@ -6,7 +6,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Clipboard from 'expo-clipboard';
-import * as SecureStore from 'expo-secure-store';
 import type React from 'react';
 import { useEffect, useState } from 'react';
 import { Alert, Dimensions, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -29,7 +28,6 @@ import { CoinUri } from '../model/CoinUri';
 import { Mnemonic } from '../model/Mnemonic';
 import { WalletRepository } from '../model/WalletRepository';
 import packageJson from '../package.json';
-import { BiometricService } from '../services/BiometricService';
 import { ExportService } from '../services/ExportService';
 import { StorageService } from '../services/StorageService';
 import { WalletService } from '../services/WalletService';
@@ -370,6 +368,7 @@ export default function SettingsScreen() {
           setRecoverySeed(mnemonic);
           setShowRecoverySeed(true);
         } catch (error) {
+          console.error('SettingsScreen: Error generating recovery seed:', error);
           Alert.alert('Error', 'Failed to generate recovery seed from wallet keys.');
         }
       } else {
@@ -400,6 +399,7 @@ export default function SettingsScreen() {
         setExportQRData(qrData);
         setShowExportQR(true);
       } catch (error) {
+        console.error('SettingsScreen: Error exporting wallet as QR:', error);
         Alert.alert('Error', 'Failed to export wallet QR code. Please try again.');
       }
     }
@@ -410,6 +410,7 @@ export default function SettingsScreen() {
       await Clipboard.setStringAsync(recoverySeed);
       Alert.alert('Copied', 'Recovery seed copied to clipboard!');
     } catch (error) {
+      console.error('SettingsScreen: Error copying seed to clipboard:', error);
       Alert.alert('Error', 'Failed to copy seed.');
     }
   };
@@ -419,6 +420,7 @@ export default function SettingsScreen() {
       await Clipboard.setStringAsync(exportQRData);
       Alert.alert('Copied', 'QR code data copied to clipboard!');
     } catch (error) {
+      console.error('SettingsScreen: Error copying QR data to clipboard:', error);
       Alert.alert('Error', 'Failed to copy QR data.');
     }
   };
@@ -437,7 +439,7 @@ export default function SettingsScreen() {
       const revoked = sharedKeys.filter((key) => key.timeStampSharedKeyRevoke > 0);
       setRevokedKeys(revoked);
     } catch (error) {
-      console.error('Error loading revoked keys:', error);
+      console.error('SettingsScreen: Error loading revoked keys:', error);
     }
   };
 
@@ -462,7 +464,7 @@ export default function SettingsScreen() {
         Alert.alert('Success', 'Shared key resuscitated successfully');
       }
     } catch (error) {
-      console.error('Error resuscitating key:', error);
+      console.error('SettingsScreen: Error resuscitating key:', error);
       Alert.alert('Error', 'Failed to resuscitate shared key');
     }
   };
@@ -483,7 +485,7 @@ export default function SettingsScreen() {
 
             Alert.alert('Success', 'Shared key deleted successfully');
           } catch (error) {
-            console.error('Error deleting key:', error);
+            console.error('SettingsScreen: Error deleting key:', error);
             Alert.alert('Error', 'Failed to delete shared key');
           }
         },
@@ -518,7 +520,7 @@ export default function SettingsScreen() {
 
             Alert.alert('Success', 'All revoked keys resuscitated successfully');
           } catch (error) {
-            console.error('Error resuscitating all keys:', error);
+            console.error('SettingsScreen: Error resuscitating all keys:', error);
             Alert.alert('Error', 'Failed to resuscitate all keys');
           }
         },
@@ -542,7 +544,7 @@ export default function SettingsScreen() {
 
             Alert.alert('Success', 'All revoked keys deleted successfully');
           } catch (error) {
-            console.error('Error deleting all keys:', error);
+            console.error('SettingsScreen: Error deleting all keys:', error);
             Alert.alert('Error', 'Failed to delete all keys');
           }
         },
@@ -598,7 +600,7 @@ export default function SettingsScreen() {
               setIsEditingHeight(false);
               setCustomHeightInput('');
             } catch (error) {
-              console.error('Error during rescan:', error);
+              console.error('SettingsScreen: Error during rescan:', error);
               Alert.alert('Error', 'Failed to initiate rescan. Please try again.');
             }
           },
@@ -646,7 +648,7 @@ export default function SettingsScreen() {
               Alert.alert('Success', 'Rescan initiated from block 0. Synchronization will restart from the beginning.');
               setShowRescanOptions(false);
             } catch (error) {
-              console.error('Error during rescan from zero:', error);
+              console.error('SettingsScreen: Error during rescan from zero:', error);
               Alert.alert('Error', 'Failed to initiate rescan. Please try again.');
             }
           },
@@ -680,7 +682,7 @@ export default function SettingsScreen() {
                 routes: [{ name: 'Home' }],
               });
             } catch (error) {
-              console.error('Error in handleClearWalletData:', error);
+              console.error('SettingsScreen: Error in handleClearWalletData:', error);
               Alert.alert('Error', 'Failed to clear wallet data. Please try again.', [{ text: 'OK' }]);
             }
           },
@@ -719,7 +721,7 @@ export default function SettingsScreen() {
 
             Alert.alert('Success', 'All data cleared successfully. The app will restart.');
           } catch (error) {
-            console.error('Error in handleClearData:', error);
+            console.error('SettingsScreen: Error in handleClearData:', error);
             Alert.alert('Error', 'Failed to clear data. Please try again.', [{ text: 'OK' }]);
           }
         },
@@ -811,7 +813,7 @@ export default function SettingsScreen() {
         Alert.alert('Success', 'Biometric authentication enabled successfully');
       }, 200);
     } catch (error) {
-      console.error('Error enabling biometric:', error);
+      console.error('SettingsScreen: Error enabling biometric:', error);
       Alert.alert('Error', 'Failed to enable biometric authentication. Please try again.');
     }
   };
@@ -848,7 +850,7 @@ export default function SettingsScreen() {
         Alert.alert('Success', 'Biometric authentication disabled. You will now use password authentication.');
       }, 200);
     } catch (error) {
-      console.error('Error disabling biometric:', error);
+      console.error('SettingsScreen: Error disabling biometric:', error);
       Alert.alert('Error', 'Failed to disable biometric authentication. Please try again.');
     }
   };
@@ -912,6 +914,7 @@ export default function SettingsScreen() {
       await Clipboard.setStringAsync(paymentId);
       Alert.alert('Copied', 'Payment ID copied to clipboard!');
     } catch (error) {
+      console.error('SettingsScreen: Error copying payment ID to clipboard:', error);
       Alert.alert('Error', 'Failed to copy payment ID');
     }
   };
@@ -930,7 +933,7 @@ export default function SettingsScreen() {
 
       Alert.alert('Deleted', 'Payment ID removed from whitelist');
     } catch (error) {
-      console.error('Error deleting payment ID:', error);
+      console.error('SettingsScreen: Error deleting payment ID:', error);
       Alert.alert('Error', 'Failed to delete payment ID');
     }
   };
@@ -971,7 +974,7 @@ export default function SettingsScreen() {
       setManualPaymentId(''); // Clear input
       Alert.alert('Success', 'Payment ID added to whitelist');
     } catch (error) {
-      console.error('Error adding manual payment ID:', error);
+      console.error('SettingsScreen: Error adding manual payment ID:', error);
       Alert.alert('Error', 'Failed to add payment ID');
     }
   };

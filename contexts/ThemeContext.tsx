@@ -1,7 +1,7 @@
 import type React from 'react';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useColorScheme } from 'react-native';
-import { setAppIcon } from '@howincodes/expo-dynamic-app-icon';
+import { setDynamicAppIcon } from 'react-native-dynamic-app-icon';
 import { StorageService } from '../services/StorageService';
 
 export interface Theme {
@@ -188,12 +188,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       if (settings.themeId) {
         setCurrentThemeId(settings.themeId);
         // Restore app icon on app start
-        setAppIcon(settings.themeId);
+        setDynamicAppIcon(settings.themeId);
       } else if (settings.darkMode !== undefined) {
         // Migrate from old darkMode setting
         const themeId = settings.darkMode ? 'dark' : 'light';
         setCurrentThemeId(themeId);
-        setAppIcon(themeId);
+        setDynamicAppIcon(themeId);
+      } else {
+        // No saved preference - use system color scheme as fallback
+        const themeId = systemColorScheme === 'light' ? 'light' : 'dark';
+        setCurrentThemeId(themeId);
+        setDynamicAppIcon(themeId);
       }
     } catch (error) {
       console.error('Error loading theme preference:', error);
@@ -209,7 +214,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       await StorageService.saveSettings({ ...settings, themeId: newThemeId });
 
       // Change app icon to match theme
-      setAppIcon(newThemeId);
+      setDynamicAppIcon(newThemeId);
     } catch (error) {
       console.error('Error saving theme preference:', error);
     }
@@ -223,7 +228,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       await StorageService.saveSettings({ ...settings, themeId });
 
       // Change app icon to match theme
-      setAppIcon(themeId);
+      setDynamicAppIcon(themeId);
     } catch (error) {
       console.error('Error saving theme preference:', error);
     }

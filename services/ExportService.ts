@@ -58,6 +58,7 @@ export class ExportService {
     try {
       return CoinUri.isWalletValid(qrData);
     } catch (error) {
+      console.error('Failed to validate QR data:', error);
       return false;
     }
   }

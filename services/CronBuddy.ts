@@ -17,10 +17,7 @@
 
 import { config } from '../config';
 import { JSBigInt } from '../lib/biginteger';
-import { SmartMessageParser } from '../model/SmartMessage';
-import { SharedKey } from '../model/Transaction';
 import { dependencyContainer } from './DependencyContainer';
-import { IWalletOperations } from './interfaces/IWalletOperations';
 import { getGlobalWorkletLogging } from './interfaces/IWorkletLogging';
 
 export class CronBuddy {

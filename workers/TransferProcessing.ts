@@ -1,9 +1,7 @@
 import type { RawDaemon_Transaction } from '../model/blockchain/BlockchainExplorer';
-import { Constants } from '../model/Constants';
 import { Mnemonic } from '../model/Mnemonic';
-import { Transaction } from '../model/Transaction';
 import { TransactionsExplorer } from '../model/TransactionsExplorer';
-import { Wallet, WalletOptions } from '../model/Wallet';
+import { Wallet } from '../model/Wallet';
 
 //bridge for cnUtil with the new mnemonic class
 (<any>self).mn_random = Mnemonic.mn_random;
@@ -49,7 +47,7 @@ onmessage = (data: MessageEvent) => {
                 transactions.push(rawTransaction);
               }
             } catch (err) {
-              console.error('Failed to process ownsTx for tx:', rawTransaction);
+              console.error('Failed to process ownsTx for tx:', rawTransaction, err);
             }
           }
         }

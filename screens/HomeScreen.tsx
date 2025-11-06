@@ -5,7 +5,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import React, { useEffect, useState } from 'react';
-import { Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import AddServiceModal from '../components/AddServiceModal';
 import FundingBanner from '../components/FundingBanner';
 import GestureNavigator from '../components/GestureNavigator';
@@ -25,11 +25,10 @@ type SortMode = 'creationDate' | 'issuerName';
 export default function HomeScreen() {
   const [sharedKeys, setSharedKeys] = useState<SharedKey[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [currentTime, setCurrentTime] = useState(Date.now());
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const [blockchainSyncEnabled, setBlockchainSyncEnabled] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>('creationDate');
-  const { balance, maxKeys, isAuthenticated, authenticate, wallet } = useWallet();
+  const { balance, maxKeys, isAuthenticated, wallet } = useWallet();
   const { theme } = useTheme();
   const serviceCardRefs = React.useRef<{ [key: string]: any }>({});
 
@@ -41,7 +40,6 @@ export default function HomeScreen() {
     WalletService.registerSharedKeysRefreshCallback(loadSharedKeys);
 
     const interval = setInterval(() => {
-      setCurrentTime(Date.now());
       updateCodes();
     }, 1000);
 
@@ -202,6 +200,7 @@ export default function HomeScreen() {
         }
       }
     } catch (error) {
+      console.error('HomeScreen: Error broadcasting code:', error);
       Alert.alert('Error', 'Failed to broadcast code.');
     }
   };
@@ -279,6 +278,7 @@ export default function HomeScreen() {
       await Clipboard.setStringAsync(code);
       Alert.alert('Copied', `${sharedKeyName} code copied to clipboard!`);
     } catch (error) {
+      console.error('HomeScreen: Error copying code to clipboard:', error);
       Alert.alert('Error', 'Failed to copy code to clipboard.');
     }
   };

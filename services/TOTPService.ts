@@ -6,7 +6,6 @@
  * Distributed under the BSD 3-Clause License, see the accompanying
  * file LICENSE or https://opensource.org/licenses/BSD-3-Clause.
  */
-import * as Crypto from 'expo-crypto';
 import concealCrypto from 'react-native-conceal-crypto';
 import { CryptoService } from './CryptoService';
 
@@ -124,6 +123,7 @@ export class TOTPService {
       CryptoService.base32Decode(cleanSecret);
       return cleanSecret.length >= 16;
     } catch (error) {
+      console.error('Failed to validate TOTP secret:', error);
       return false;
     }
   }
