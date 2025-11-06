@@ -68,7 +68,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     [
-      '@howincodes/expo-dynamic-app-icon',
+      '@config-plugins/react-native-dynamic-app-icon',
       {
         velvet: {
           ios: './assets/icon-velvet-1024.png',

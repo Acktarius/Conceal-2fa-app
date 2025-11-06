@@ -9,7 +9,6 @@
 
 import { SharedKey } from '../model/Transaction';
 import { dependencyContainer } from './DependencyContainer';
-import { IStorageService } from './interfaces/IStorageService';
 
 export class SmartMessageService {
   // Get wallet operations once for the entire class

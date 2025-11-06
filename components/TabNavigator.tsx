@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import React from 'react';
 import { Platform, View } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 import HomeScreen from '../screens/HomeScreen';
@@ -35,14 +34,16 @@ function TabIcon({
         }}
         onMouseEnter={(e) => {
           if (theme.isDark) {
-            e.currentTarget.style.filter = 'drop-shadow(0 0 2px #FFA500)';
-            e.currentTarget.style.transform = 'scale(1.1)';
+            const target = e.currentTarget as HTMLDivElement;
+            target.style.filter = 'drop-shadow(0 0 2px #FFA500)';
+            target.style.transform = 'scale(1.1)';
           }
         }}
         onMouseLeave={(e) => {
           if (theme.isDark) {
-            e.currentTarget.style.filter = focused ? 'drop-shadow(0 0 2px #FFA500)' : 'none';
-            e.currentTarget.style.transform = 'scale(1)';
+            const target = e.currentTarget as HTMLDivElement;
+            target.style.filter = focused ? 'drop-shadow(0 0 2px #FFA500)' : 'none';
+            target.style.transform = 'scale(1)';
           }
         }}
       >

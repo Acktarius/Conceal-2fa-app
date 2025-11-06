@@ -42,8 +42,6 @@ export class InterestCalculator {
    * @returns The calculated interest amount in atomic units
    */
   public static calculateInterest(amount: number, term: number, lockHeight: number): number {
-    const m_coin = 10 ** config.coinUnitPlaces; // Amount divider to get human-readable amounts
-
     // Special case handling for block with missing interest
     if (lockHeight === InterestCalculator.BLOCK_WITH_MISSING_INTEREST) {
       lockHeight = lockHeight + term;

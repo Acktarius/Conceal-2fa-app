@@ -10,10 +10,7 @@ import {
   ActivityIndicator,
   Alert,
   Keyboard,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
@@ -29,8 +26,8 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useWallet } from '../contexts/WalletContext';
 import { JSBigInt } from '../lib/biginteger';
 import { CoinUri } from '../model/CoinUri';
-import { Wallet } from '../model/Wallet';
 import { WalletService } from '../services/WalletService';
+import { getGlobalWorkletLogging } from '../services/interfaces/IWorkletLogging';
 
 export default function WalletScreen() {
   const { wallet, balance, maxKeys, isLoading, refreshBalance, refreshWallet, refreshCounter } = useWallet();
@@ -123,7 +120,7 @@ export default function WalletScreen() {
             console.log('Wallet remains local - no refresh needed');
           }
         } catch (error) {
-          console.error('Error checking wallet:', error);
+          console.error('WalletScreen: Error checking wallet:', error);
         }
       }
     };
@@ -173,6 +170,7 @@ export default function WalletScreen() {
         await Clipboard.setStringAsync(wallet.getPublicAddress());
         Alert.alert('Copied', 'Wallet address copied to clipboard!');
       } catch (error) {
+        console.error('WalletScreen: Error copying address to clipboard:', error);
         Alert.alert('Error', 'Failed to copy address.');
       }
     }
@@ -191,6 +189,7 @@ export default function WalletScreen() {
       }
     } catch (e) {
       // If CoinUri parsing fails, try basic validation
+      getGlobalWorkletLogging().logging2string('WalletScreen: Error decoding QR data:', String(e));
       if (data.startsWith('ccx') && data.length > 97) {
         setSendAddress(data);
         parsed = true;

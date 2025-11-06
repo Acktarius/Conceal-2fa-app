@@ -8,7 +8,7 @@ const { withGradleProperties } = require('expo/config-plugins');
 const withFixMetadataVersion = (config) => {
   return withGradleProperties(config, (config) => {
     const { modResults } = config;
-    
+
     // Add kotlin compiler arg to skip metadata version check
     // This affects all Kotlin compilations including buildscript plugins
     modResults.push({
@@ -22,4 +22,3 @@ const withFixMetadataVersion = (config) => {
 };
 
 module.exports = withFixMetadataVersion;
-

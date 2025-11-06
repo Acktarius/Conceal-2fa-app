@@ -19,9 +19,6 @@ import { config } from '../../config';
 import { dependencyContainer } from '../../services/DependencyContainer';
 import { getGlobalWorkletLogging } from '../../services/interfaces/IWorkletLogging';
 import { WalletStorageManager } from '../../services/WalletStorageManager';
-import { CnTransactions, CnUtils } from '../Cn';
-import { MathUtil } from '../MathUtil';
-import { Transaction } from '../Transaction';
 import type { Wallet } from '../Wallet';
 import { WalletWatchdog } from '../WalletWatchdog';
 import {

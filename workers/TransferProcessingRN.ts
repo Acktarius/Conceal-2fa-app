@@ -1,9 +1,7 @@
 import type { RawDaemon_Transaction } from '../model/blockchain/BlockchainExplorer';
-import { Constants } from '../model/Constants';
 import { Mnemonic } from '../model/Mnemonic';
-import { Transaction } from '../model/Transaction';
 import { TransactionsExplorer } from '../model/TransactionsExplorer';
-import { Wallet, WalletOptions } from '../model/Wallet';
+import { Wallet } from '../model/Wallet';
 
 // React Native thread worker for transfer processing
 // Adapted from TransferProcessing.ts for react-native-threads
@@ -15,12 +13,9 @@ if (typeof self !== 'undefined') {
   (self as any).mn_encode = Mnemonic.mn_encode;
 }
 
-let isReady = false;
-
 // Initialize the worker
 function initializeWorker() {
   console.log('TransferProcessingRN: Worker initializing...');
-  isReady = true;
 
   // Send ready signal
   if (typeof self !== 'undefined' && self.postMessage) {
@@ -85,7 +80,7 @@ function processTransfers(data: any) {
               transactions.push(rawTransaction);
             }
           } catch (err) {
-            console.error('TransferProcessingRN: Failed to process ownsTx for tx:', rawTransaction);
+            console.error('TransferProcessingRN: Failed to process ownsTx for tx:', rawTransaction, err);
           }
         }
       }

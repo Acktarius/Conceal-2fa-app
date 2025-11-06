@@ -1,18 +1,13 @@
 import type { RawDaemon_Transaction } from '../model/blockchain/BlockchainExplorer';
-import { Constants } from '../model/Constants';
-import { Transaction, TransactionData } from '../model/Transaction';
 import { TransactionsExplorer } from '../model/TransactionsExplorer';
-import { Wallet, WalletOptions } from '../model/Wallet';
+import { Wallet } from '../model/Wallet';
 
 // React Native thread worker for parsing transactions
 // Adapted from ParseTransactions.ts for react-native-threads
 
-let isReady = false;
-
 // Initialize the worker
 function initializeWorker() {
   console.log('ParseTransactionsRN: Worker initializing...');
-  isReady = true;
 
   // Send ready signal
   if (typeof self !== 'undefined' && self.postMessage) {
@@ -82,7 +77,7 @@ function processTransactions(data: any) {
                 transactions.push(txData.export());
               }
             } catch (err) {
-              console.error('ParseTransactionsRN: Failed to parse tx:', rawTransaction);
+              console.error('ParseTransactionsRN: Failed to parse tx:', rawTransaction, err);
             }
           }
         }

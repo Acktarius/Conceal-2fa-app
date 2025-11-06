@@ -1,8 +1,6 @@
 import type { RawDaemon_Transaction } from '../model/blockchain/BlockchainExplorer';
-import { Constants } from '../model/Constants';
-import { Transaction, TransactionData } from '../model/Transaction';
 import { TransactionsExplorer } from '../model/TransactionsExplorer';
-import { Wallet, WalletOptions } from '../model/Wallet';
+import { Wallet } from '../model/Wallet';
 
 onmessage = (data: MessageEvent) => {
   // if(data.isTrusted){
@@ -46,7 +44,7 @@ onmessage = (data: MessageEvent) => {
                   transactions.push(txData.export());
                 }
               } catch (err) {
-                console.error('Failed to parse tx:', rawTransaction);
+                console.error('Failed to parse tx:', rawTransaction, err);
               }
             }
           }
