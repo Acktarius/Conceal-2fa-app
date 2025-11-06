@@ -67,9 +67,27 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         cameraPermission: 'Allow SecureAuth to access your camera to scan QR codes.',
       },
     ],
+    [
+      '@howincodes/expo-dynamic-app-icon',
+      {
+        velvet: {
+          ios: './assets/icon-velvet-1024.png',
+        },
+        orange: {
+          ios: './assets/icon-orange-1024.png',
+        },
+        light: {
+          ios: './assets/icon-blue-1024.png',
+        },
+        dark: {
+          ios: './assets/icon-orange-1024.png',
+        },
+      },
+    ],
     './scripts/withNitroModulesPlugin',
     './withConcealConfigPlugin',
     './withCustomPodfile.plugin.js',
+    './withFixMetadataVersion.plugin.js',
     'expo-secure-store',
     'expo-font',
   ],

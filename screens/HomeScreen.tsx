@@ -344,17 +344,17 @@ export default function HomeScreen() {
 
   const sortSharedKeys = (keys: SharedKey[]): SharedKey[] => {
     const sorted = [...keys];
-    
+
     if (sortMode === 'issuerName') {
       sorted.sort((a, b) => {
         // Sort by issuer name (case-insensitive)
         const issuerA = (a.issuer || '').toLowerCase();
         const issuerB = (b.issuer || '').toLowerCase();
-        
+
         if (issuerA !== issuerB) {
           return issuerA.localeCompare(issuerB);
         }
-        
+
         // If issuer names are equal, sort by creation date
         return (a.timeStampSharedKeyCreate || 0) - (b.timeStampSharedKeyCreate || 0);
       });
@@ -364,7 +364,7 @@ export default function HomeScreen() {
         return (a.timeStampSharedKeyCreate || 0) - (b.timeStampSharedKeyCreate || 0);
       });
     }
-    
+
     return sorted;
   };
 

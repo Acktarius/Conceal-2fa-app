@@ -32,5 +32,5 @@
         <data android:scheme="exp+conceal-authenticator"/>
       </intent-filter>
     </activity>
-  </application>
+    </application>
 </manifest>

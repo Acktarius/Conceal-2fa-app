@@ -24,7 +24,7 @@ jobs:
           node-version: 20
 
       - name: Install NPM dependencies
-        run: npm install
+        run: npm ci
 
       - name: Set up Java (for Android build)
         uses: actions/setup-java@v4
@@ -45,7 +45,7 @@ jobs:
                       "extras;android;m2repository" "extras;google;m2repository"
 
       - name: Build and Tweak Android Folder
-        run: ./build-android.sh
+        run: ./build-android.sh n n
 
       - name: Decode Keystore
         run: echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > $GITHUB_WORKSPACE/android/app/local-release-key.keystore
