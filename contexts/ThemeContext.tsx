@@ -1,7 +1,7 @@
 import type React from 'react';
 import { createContext, useContext, useEffect, useState } from 'react';
-import { Platform, useColorScheme } from 'react-native';
-import { setDynamicAppIcon } from 'react-native-dynamic-app-icon';
+import { useColorScheme } from 'react-native';
+import { setAppIcon } from '@g9k/expo-dynamic-app-icon';
 import { StorageService } from '../services/StorageService';
 
 export interface Theme {
@@ -178,13 +178,15 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
  * Safely change app icon on iOS only
  * Note: Only works on physical iOS devices, not simulator or TestFlight
  */
-const changeAppIcon = async (iconName: string) => {
+const changeAppIcon = async (iconName: 'light' | 'orange' | 'velvet' | 'dark') => {
+  /*
   if (Platform.OS !== 'ios') {
     return; // Android not supported
   }
+  */
 
   try {
-    await setDynamicAppIcon(iconName);
+    setAppIcon(iconName);
     console.log(`App icon changed to: ${iconName}`);
   } catch (error) {
     // Expected to fail in Simulator, TestFlight, or on first launch
@@ -246,7 +248,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       await StorageService.saveSettings({ ...settings, themeId });
 
       // Change app icon to match theme
-      changeAppIcon(themeId);
+      changeAppIcon(themeId as 'light' | 'orange' | 'velvet' | 'dark');
     } catch (error) {
       console.error('Error saving theme preference:', error);
     }

@@ -43,6 +43,7 @@ export class WalletRepository {
       nonceBytes = Uint8Array.from(atob(rawWallet.nonce), (c) => c.charCodeAt(0));
     } catch (e) {
       // Fallback to the old method if base64 decode fails
+      console.warn('Base64 decode failed, using utf8 encode fallback:', e);
       nonceBytes = new (<any>TextEncoder)('utf8').encode(rawWallet.nonce);
     }
     const nonce = nonceBytes;
@@ -99,6 +100,7 @@ export class WalletRepository {
       try {
         decodedRawWallet = JSON.parse(new TextDecoder('utf8').decode(decrypted));
       } catch (e) {
+        console.warn('JSON parse failed, using null fallback:', e);
         decodedRawWallet = null;
       }
     } else {

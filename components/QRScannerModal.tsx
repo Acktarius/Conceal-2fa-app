@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Camera, CameraView } from 'expo-camera';
-import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface QRScannerModalProps {
   visible: boolean;

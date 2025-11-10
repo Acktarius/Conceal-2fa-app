@@ -68,23 +68,35 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     [
-      '@config-plugins/react-native-dynamic-app-icon',
+      '@g9k/expo-dynamic-app-icon',
       {
         velvet: {
-          image: './assets/icon-velvet-1024.png',
-          prerendered: false,
+          ios: './assets/icon-velvet-1024.png',
+          android: {
+            foregroundImage: './assets/icon-android-velvet-1024.png',
+            backgroundColor: '#000000',
+          },
         },
         orange: {
-          image: './assets/icon-orange-1024.png',
-          prerendered: false,
+          ios: './assets/icon-orange-1024.png',
+          android: {
+            foregroundImage: './assets/icon-android-orange-1024.png',
+            backgroundColor: '#000000',
+          },
         },
         light: {
-          image: './assets/icon-blue-1024.png',
-          prerendered: false,
+          ios: './assets/icon-blue-1024.png',
+          android: {
+            foregroundImage: './assets/icon-android-blue-1024.png',
+            backgroundColor: '#000000',
+          },
         },
         dark: {
-          image: './assets/icon-orange-1024.png',
-          prerendered: false,
+          ios: './assets/icon-orange-1024.png',
+          android: {
+            foregroundImage: './assets/icon-android-orange-1024.png',
+            backgroundColor: '#000000',
+          },
         },
       },
     ],

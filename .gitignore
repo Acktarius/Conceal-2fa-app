@@ -6,12 +6,12 @@ node_modules/
 .idea
 
 # Custom quick-crypto build artifacts
-android/app/build.gradle
+
 
 *.apk
 
 android/app/build/
-android/.kotlin/
+
 
 add.sh
 

@@ -33,7 +33,7 @@ import { StorageService } from '../services/StorageService';
 import { WalletService } from '../services/WalletService';
 import { WalletStorageManager } from '../services/WalletStorageManager';
 import { getGlobalWorkletLogging } from '../services/interfaces/IWorkletLogging';
-
+import concealCrypto from 'react-native-conceal-crypto';
 // verifyOldPassword function moved here to avoid circular dependencies
 
 type RootStackParamList = {
@@ -69,7 +69,7 @@ export default function SettingsScreen() {
   const [isBroadcastExpanded, setIsBroadcastExpanded] = useState(false);
   const [broadcastAddress, setBroadcastAddress] = useState('');
   const [showBroadcastQRScanner, setShowBroadcastQRScanner] = useState(false);
-  const [biometricAction, setBiometricAction] = useState<'enable' | 'disable'>('enable');
+  const [_biometricAction, setBiometricAction] = useState<'enable' | 'disable'>('enable');
   const [manualPaymentId, setManualPaymentId] = useState('');
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [isEditingHeight, setIsEditingHeight] = useState(false);
@@ -189,7 +189,7 @@ export default function SettingsScreen() {
   const maxQRWidth = (screenWidth - cardPadding - expandablePadding) * 0.95;
   const qrSize = Math.min(maxQRWidth, 250); // Cap at 250px for readability
 
-  const { theme, toggleTheme, setTheme, currentThemeId } = useTheme();
+  const { theme, setTheme, currentThemeId } = useTheme();
   const { wallet, refreshWallet } = useWallet();
   const navigation = useNavigation<NavigationProp>();
 
@@ -363,8 +363,8 @@ export default function SettingsScreen() {
       // Expand and generate seed
       if (wallet?.keys?.priv?.spend) {
         try {
-          // Derive seed from private key using Mnemonic.mn_encode()
-          const mnemonic = Mnemonic.mn_encode(wallet.keys.priv.spend, 'english');
+          // Derive seed from private key using concealCrypto instead of Mnemonic.mn_encode()
+          const mnemonic = concealCrypto.mnemonics.mn_encode(wallet.keys.priv.spend);
           setRecoverySeed(mnemonic);
           setShowRecoverySeed(true);
         } catch (error) {

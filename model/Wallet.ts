@@ -16,7 +16,6 @@
  */
 
 import { config } from '../config';
-import { DependencyInjectorInstance } from '../lib/numbersLab/DependencyInjector';
 import { Observable } from '../lib/numbersLab/Observable';
 import type { BlockchainExplorer, RawDaemon_Out } from './blockchain/BlockchainExplorer';
 import { Cn, CnNativeBride, CnTransactions } from './Cn';
@@ -1018,6 +1017,7 @@ export class Wallet extends Observable {
             neededFee,
             '',
             '',
+            'chacha8',
             0,
             'regular',
             0

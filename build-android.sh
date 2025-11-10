@@ -48,9 +48,9 @@ sleep 2
 node hooks/android/2_pre-build.js
 
 # Step 8: Clean unwanted activity aliases (MUST be after 2_pre-build.js)
-echo "🧹 Cleaning unwanted activity aliases from AndroidManifest.xml..."
-sleep 2
-node hooks/android/22_clean_aliases.js
+# echo "🧹 Cleaning unwanted activity aliases from AndroidManifest.xml..."
+# sleep 2
+# node hooks/android/22_clean_aliases.js
 
 # Step 9: Signing/Unsigning prompts
 # Accept command-line arguments or prompt interactively
