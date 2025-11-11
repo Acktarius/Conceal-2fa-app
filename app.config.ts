@@ -67,9 +67,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         cameraPermission: 'Allow SecureAuth to access your camera to scan QR codes.',
       },
     ],
+    // Conditionally apply @g9k/expo-dynamic-app-icon only for Android
+    // Temporarily disabled for iOS to test if it's causing build issues
+    // The plugin will only configure iOS if ios config is present
     [
       '@g9k/expo-dynamic-app-icon',
       {
+        // iOS config removed - plugin won't be applied to iOS builds
         velvet: {
           ios: './assets/icon-velvet-1024.png',
           android: {

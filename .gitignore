@@ -16,3 +16,5 @@ ios/build/
 add.sh
 
 local-release-key.keystore
+
+*.backup

@@ -112,9 +112,9 @@ jobs:
         uses: softprops/action-gh-release@v2.0.4
         with:
           files: ${{ steps.apk_info.outputs.apk_file }}
-          name: Conceal Authenticator v${{ steps.get_version.outputs.VERSION }} F-Droid
+          name: Conceal Authenticator v${{ steps.get_version.outputs.VERSION }}
           body: |
-            **F-DROID RELEASE**
+            **RELEASE for F-Droid**
             *signed APK, in repo without signing for F-Droid to append*
             [Download APK](../../releases/download/${{ steps.get_tag.outputs.TAG_NAME }}/${{ steps.apk_info.outputs.apk_name }}) **${{ steps.apk_info.outputs.apk_name }}**
             `SHA256: ${{ steps.apk_info.outputs.apk_sha256 }}`

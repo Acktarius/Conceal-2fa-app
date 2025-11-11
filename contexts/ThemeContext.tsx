@@ -179,12 +179,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
  * Note: Only works on physical iOS devices, not simulator or TestFlight
  */
 const changeAppIcon = async (iconName: 'light' | 'orange' | 'velvet' | 'dark') => {
-  /*
-  if (Platform.OS !== 'ios') {
-    return; // Android not supported
-  }
-  */
-
+  
   try {
     setAppIcon(iconName);
     console.log(`App icon changed to: ${iconName}`);

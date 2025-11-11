@@ -11,9 +11,16 @@ const withFixMetadataVersion = (config) => {
 
     // Add kotlin compiler arg to skip metadata version check
     // This affects all Kotlin compilations including buildscript plugins
+    // Try both property formats to ensure it works
     modResults.push({
       type: 'property',
       key: 'kotlin.compiler.freeCompilerArgs',
+      value: '-Xskip-metadata-version-check',
+    });
+    // Also try the org.jetbrains.kotlin prefix format
+    modResults.push({
+      type: 'property',
+      key: 'org.jetbrains.kotlin.compiler.freeCompilerArgs',
       value: '-Xskip-metadata-version-check',
     });
 
