@@ -1,0 +1,2 @@
+- app dynamic app icon for android
+- mnemonic encode improvment

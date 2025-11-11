@@ -11,7 +11,7 @@ node_modules/
 *.apk
 
 android/app/build/
-
+ios/build/
 
 add.sh
 
