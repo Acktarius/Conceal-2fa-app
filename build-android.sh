@@ -88,6 +88,9 @@ else
     echo "🔄 Unsigning build for F-Droid..."
     sleep 2
     node hooks/android/31_unsign.js
+    echo "🔄 Fixing Expo module dependencies for F-Droid..."
+    sleep 2
+    node hooks/android/32_fix_expo_dependencies.js
     echo "✅ Unsign complete. Don't forget to tag vxxx-f-droid before pushing!"
   else
     echo "ℹ️  Neither sign or unsign. You will be ready for app-debug.apk"
