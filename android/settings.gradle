@@ -33,7 +33,7 @@ expoAutolinking.useExpoModules()
 
 rootProject.name = 'Conceal Authenticator'
 
-// expoAutolinking.useExpoVersionCatalog() // Disabled for F-Droid to use project() references instead of Maven
+expoAutolinking.useExpoVersionCatalog()
 
 include ':app'
 includeBuild(expoAutolinking.reactNativeGradlePlugin)

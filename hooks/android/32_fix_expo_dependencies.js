@@ -50,9 +50,13 @@ function findBuildGradleFiles(dir) {
     for (const entry of entries) {
       const fullPath = path.join(currentDir, entry.name);
       if (entry.isDirectory()) {
-        // Skip node_modules and build directories
-        if (!entry.name.includes('node_modules') && entry.name !== 'build') {
-          walk(fullPath);
+        // Skip build directories, but include node_modules/expo/android (we need to patch it)
+        if (entry.name !== 'build') {
+          // Only skip node_modules if it's not the expo/android directory we need
+          if (!entry.name.includes('node_modules') || 
+              (entry.name === 'node_modules' && currentDir === dir)) {
+            walk(fullPath);
+          }
         }
       } else if (entry.name === 'build.gradle' || entry.name === 'build.gradle.kts') {
         files.push(fullPath);
@@ -60,6 +64,13 @@ function findBuildGradleFiles(dir) {
     }
   }
   walk(dir);
+  
+  // Also explicitly add node_modules/expo/android/build.gradle if it exists
+  const expoBuildGradle = path.join(dir, '..', 'node_modules', 'expo', 'android', 'build.gradle');
+  if (fs.existsSync(expoBuildGradle) && !files.includes(expoBuildGradle)) {
+    files.push(expoBuildGradle);
+  }
+  
   return files;
 }
 
@@ -140,8 +151,19 @@ if (fs.existsSync(settingsGradlePath)) {
   }
 }
 
-// Step 2: Find and fix Maven dependencies in build.gradle files
+// Step 2: Find and fix Maven dependencies in build.gradle files (including node_modules/expo/android)
 const buildGradleFiles = findBuildGradleFiles(androidDir);
+
+// Also check node_modules/expo/android/build.gradle explicitly (this is critical!)
+const expoBuildGradlePath = path.join(androidDir, '..', 'node_modules', 'expo', 'android', 'build.gradle');
+if (fs.existsSync(expoBuildGradlePath)) {
+  const normalizedExpoPath = path.normalize(expoBuildGradlePath);
+  const normalizedFiles = buildGradleFiles.map(f => path.normalize(f));
+  if (!normalizedFiles.includes(normalizedExpoPath)) {
+    buildGradleFiles.push(expoBuildGradlePath);
+    console.log(`\n📝 Added node_modules/expo/android/build.gradle to patch list`);
+  }
+}
 
 if (buildGradleFiles.length === 0) {
   console.log('⚠️  No build.gradle files found in android directory');
@@ -151,7 +173,8 @@ if (buildGradleFiles.length === 0) {
   let totalReplacements = 0;
   
   for (const filePath of buildGradleFiles) {
-    console.log(`\n📝 Processing: ${path.relative(androidDir, filePath)}`);
+    const relativePath = path.relative(androidDir, filePath) || path.relative(path.dirname(androidDir), filePath);
+    console.log(`\n📝 Processing: ${relativePath}`);
     
     let content = fs.readFileSync(filePath, 'utf8');
     const result = replaceMavenDependencies(content);
