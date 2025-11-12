@@ -10,11 +10,15 @@ node_modules/
 
 *.apk
 
-android/app/build/
-ios/build/
+android
+ios
 
 add.sh
 
 local-release-key.keystore
 
 *.backup
+
+collect-expo-deps.sh
+restore-expo-deps.sh
+fdroid-deps/
