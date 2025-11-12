@@ -170,19 +170,68 @@ if (buildGradleFiles.length === 0) {
   }
 }
 
-// Step 3: Check app/build.gradle for expoLibs usage and replace with project references
+// Step 3: Check app/build.gradle for expoLibs usage and replace with direct dependencies
 const appBuildGradlePath = path.join(androidDir, 'app', 'build.gradle');
 if (fs.existsSync(appBuildGradlePath)) {
   console.log(`\n📝 Checking app/build.gradle for expoLibs usage...`);
   let appContent = fs.readFileSync(appBuildGradlePath, 'utf8');
   const originalApp = appContent;
   
-  // Replace expoLibs.versions.* usage with direct project references if needed
-  // This is a fallback - the main fix is disabling useExpoVersionCatalog()
+  // Try to find the actual version from version catalog or use fallback
+  let expoLibVersions = {
+    'fresco': '3.1.3', // Fallback version
+  };
+  
+  // Try to read version from gradle/libs.versions.toml if it exists
+  const libsVersionsPath = path.join(androidDir, 'gradle', 'libs.versions.toml');
+  if (fs.existsSync(libsVersionsPath)) {
+    const tomlContent = fs.readFileSync(libsVersionsPath, 'utf8');
+    const frescoMatch = tomlContent.match(/fresco\s*=\s*["']([^"']+)["']/i);
+    if (frescoMatch) {
+      expoLibVersions.fresco = frescoMatch[1];
+      console.log(`  ℹ️  Found fresco version ${frescoMatch[1]} from libs.versions.toml`);
+    }
+  }
+  
+  // Also check expo-modules-core for version
+  const expoModulesCorePath = path.join(androidDir, '..', 'node_modules', 'expo-modules-core', 'android', 'build.gradle');
+  if (fs.existsSync(expoModulesCorePath)) {
+    const coreContent = fs.readFileSync(expoModulesCorePath, 'utf8');
+    const frescoVersionMatch = coreContent.match(/fresco[^:]*:\s*["']([^"']+)["']/i);
+    if (frescoVersionMatch && !expoLibVersions.fresco) {
+      expoLibVersions.fresco = frescoVersionMatch[1];
+      console.log(`  ℹ️  Found fresco version ${frescoVersionMatch[1]} from expo-modules-core`);
+    }
+  }
+  
+  let replacements = 0;
+  
+  // Pattern 1: ${expoLibs.versions.fresco.get()} - inside string interpolation
+  appContent = appContent.replace(/\$\{expoLibs\.versions\.(\w+)\.get\(\)\}/g, (match, libName) => {
+    if (expoLibVersions[libName]) {
+      replacements++;
+      console.log(`  ✅ Replacing ${match} with "${expoLibVersions[libName]}"`);
+      return expoLibVersions[libName]; // No quotes in string interpolation
+    }
+    console.log(`  ⚠️  Unknown expoLibs version: ${libName}, keeping original`);
+    return match;
+  });
+  
+  // Pattern 2: expoLibs.versions.fresco.get() - standalone
+  const expoLibsPattern = /expoLibs\.versions\.(\w+)\.get\(\)/g;
+  appContent = appContent.replace(expoLibsPattern, (match, libName) => {
+    if (expoLibVersions[libName]) {
+      replacements++;
+      console.log(`  ✅ Replacing expoLibs.versions.${libName}.get() with "${expoLibVersions[libName]}"`);
+      return `"${expoLibVersions[libName]}"`; // With quotes for direct replacement
+    }
+    console.log(`  ⚠️  Unknown expoLibs version: ${libName}, keeping original`);
+    return match;
+  });
   
   if (appContent !== originalApp) {
     fs.writeFileSync(appBuildGradlePath, appContent, 'utf8');
-    console.log(`  ✅ Updated app/build.gradle`);
+    console.log(`  ✅ Updated app/build.gradle with ${replacements} replacement(s)`);
   } else {
     console.log(`  ℹ️  No expoLibs usage found (good - using autolinking)`);
   }
