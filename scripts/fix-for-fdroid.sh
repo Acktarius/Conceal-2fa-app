@@ -81,7 +81,7 @@ fi
 if [ -d "node_modules/expo-camera/android" ]; then
     # Remove gms and mlkit dependencies from build.gradle
     sed -i -e '/gms/d' -e '/mlkit/d' node_modules/expo-camera/android/build.gradle
-    # Remove MLKit barcode scanner files and modify source code (following Joplin's exact approach)
+    # Remove MLKit barcode scanner files and modify source code
     if [ -d "node_modules/expo-camera/android/src/main/java/expo/modules/camera" ]; then
         pushd node_modules/expo-camera/android/src/main/java/expo/modules/camera > /dev/null
         # Remove MLKit analyzer files
@@ -90,11 +90,21 @@ if [ -d "node_modules/expo-camera/android" ]; then
         [ -f analyzers/BarcodeAnalyzer.kt ] && sed -i -e '/@OptIn/,/^}/d' -e '/mlkit/d' analyzers/BarcodeAnalyzer.kt 2>/dev/null || true
         # Remove barcode mapping from CameraRecords.kt
         [ -f records/CameraRecords.kt ] && sed -i -e '/barcode\./Id' -e '/mapToBarcode/,/^  }/d' records/CameraRecords.kt 2>/dev/null || true
-        # Remove analyzer code from CameraViewModule.kt (more conservative - only remove specific lines)
-        [ -f CameraViewModule.kt ] && sed -i -e '/mlkit/d' -e '/analyzers/d' -e '/import.*Barcode/d' CameraViewModule.kt 2>/dev/null || true
-        # For ExpoCameraView.kt, use minimal sed - only remove imports to avoid syntax errors
-        # The build will fail on MLKit references, but structure will be intact
-        [ -f ExpoCameraView.kt ] && sed -i -e '/^import.*mlkit/d' -e '/^import.*BarcodeAnalyzer/d' ExpoCameraView.kt 2>/dev/null || true
+        # Remove analyzer code from CameraViewModule.kt (Joplin's exact pattern)
+        [ -f CameraViewModule.kt ] && sed -i -e '/mlkit/d' -e '/analyzers/d' -e '/onSuccess/,/^\s\{10\}}/s/^\s\{12\}.*//' -e '/launchScanner/,/^    }/s/^      .*//' CameraViewModule.kt 2>/dev/null || true
+        # For ExpoCameraView.kt, remove MLKit imports and analyzer code carefully
+        # Tested on tmp files to ensure structure is preserved
+        if [ -f ExpoCameraView.kt ]; then
+            # Remove MLKit imports
+            sed -i -e '/^import.*mlkit/d' -e '/^import.*BarcodeAnalyzer/d' ExpoCameraView.kt 2>/dev/null || true
+            # Remove BarcodeAnalyzer variable declarations
+            sed -i -e '/^\s*private var.*BarcodeAnalyzer/d' -e '/^\s*var.*BarcodeAnalyzer/d' -e '/^\s*val.*BarcodeAnalyzer/d' ExpoCameraView.kt 2>/dev/null || true
+            # Remove barcodeAnalyzer assignments
+            sed -i -e '/^\s*barcodeAnalyzer = BarcodeAnalyzer/d' ExpoCameraView.kt 2>/dev/null || true
+            # Remove analyzer.setAnalyzer block (tested on tmp files - preserves structure)
+            # Pattern matches from analyzer.setAnalyzer( to closing paren with 8 spaces indent
+            sed -i -e '/analyzer\.setAnalyzer(/,/^\s\{8\})$/d' ExpoCameraView.kt 2>/dev/null || true
+        fi
         popd > /dev/null
     fi
 fi
