@@ -32,7 +32,9 @@ sed -i 's/host\.exp\.exponent:expo\.modules\.securestore:[0-9.]\+/project(":expo
 sed -i 's/host\.exp\.exponent:expo\.modules\.splashscreen:[0-9.]\+/project(":expo-splash-screen")/g' node_modules/expo/android/build.gradle
 
 # Add dependency substitution for expo modules
-sed -i '/allprojects {/,/}/ { /repositories {/a\    configurations.all { resolutionStrategy.dependencySubstitution { substitute module("expo.modules.asset:expo.modules.asset") using project(":expo-asset"); substitute module("host.exp.exponent:expo.modules.clipboard") using project(":expo-clipboard"); substitute module("host.exp.exponent:expo.modules.crypto") using project(":expo-crypto"); substitute module("host.exp.exponent:expo.modules.filesystem") using project(":expo-file-system"); substitute module("host.exp.exponent:expo.modules.font") using project(":expo-font"); substitute module("host.exp.exponent:expo.modules.keepawake") using project(":expo-keep-awake"); substitute module("host.exp.exponent:expo.modules.localauthentication") using project(":expo-local-authentication"); substitute module("host.exp.exponent:expo.modules.securestore") using project(":expo-secure-store"); substitute module("host.exp.exponent:expo.modules.splashscreen") using project(":expo-splash-screen"); } }' android/build.gradle || echo 'allprojects { configurations.all { resolutionStrategy.dependencySubstitution { substitute module("expo.modules.asset:expo.modules.asset") using project(":expo-asset"); substitute module("host.exp.exponent:expo.modules.clipboard") using project(":expo-clipboard"); substitute module("host.exp.exponent:expo.modules.crypto") using project(":expo-crypto"); substitute module("host.exp.exponent:expo.modules.filesystem") using project(":expo-file-system"); substitute module("host.exp.exponent:expo.modules.font") using project(":expo-font"); substitute module("host.exp.exponent:expo.modules.keepawake") using project(":expo-keep-awake"); substitute module("host.exp.exponent:expo.modules.localauthentication") using project(":expo-local-authentication"); substitute module("host.exp.exponent:expo.modules.securestore") using project(":expo-secure-store"); substitute module("host.exp.exponent:expo.modules.splashscreen") using project(":expo-splash-screen"); } } }' >> android/build.gradle
+if ! grep -q 'configurations.all { resolutionStrategy.dependencySubstitution' android/build.gradle; then
+    echo 'allprojects { configurations.all { resolutionStrategy.dependencySubstitution { substitute module("expo.modules.asset:expo.modules.asset") using project(":expo-asset"); substitute module("host.exp.exponent:expo.modules.clipboard") using project(":expo-clipboard"); substitute module("host.exp.exponent:expo.modules.crypto") using project(":expo-crypto"); substitute module("host.exp.exponent:expo.modules.filesystem") using project(":expo-file-system"); substitute module("host.exp.exponent:expo.modules.font") using project(":expo-font"); substitute module("host.exp.exponent:expo.modules.keepawake") using project(":expo-keep-awake"); substitute module("host.exp.exponent:expo.modules.localauthentication") using project(":expo-local-authentication"); substitute module("host.exp.exponent:expo.modules.securestore") using project(":expo-secure-store"); substitute module("host.exp.exponent:expo.modules.splashscreen") using project(":expo-splash-screen"); } } }' >> android/build.gradle
+fi
 
 # Fix fresco version
 sed -i 's/\${expoLibs\.versions\.fresco\.get()}/3.1.3/g' android/app/build.gradle
@@ -64,6 +66,40 @@ sed -i 's|def REACT_NATIVE_VERSION = reactProperties.getProperty("VERSION_NAME")
 sed -i 's|REACT_NATIVE_VERSION\.startsWith("0\.0\.0-")|(REACT_NATIVE_VERSION != null \&\& REACT_NATIVE_VERSION.startsWith("0.0.0-"))|g' node_modules/react-native-screens/android/build.gradle
 sed -i 's|REACT_NATIVE_VERSION\.split("\\\\\\\\\\.\")[1]\.toInteger()|(REACT_NATIVE_VERSION ? REACT_NATIVE_VERSION.split("\\\\.")[1].toInteger() : 0)|g' node_modules/react-native-screens/android/build.gradle
 sed -i '/compileSdkVersion safeExtGet/a\    compileSdk safeExtGet('\''compileSdkVersion'\'', rnsDefaultCompileSdkVersion)' node_modules/react-native-screens/android/build.gradle
+
+# Remove Google Play Services from react-native-camera (if still present)
+if [ -d "node_modules/react-native-camera/android" ]; then
+    # Remove gms and mlkit dependencies from build.gradle
+    sed -i -e '/com\.google\.android\.gms/d' -e '/com\.google\.mlkit/d' node_modules/react-native-camera/android/build.gradle
+    # Remove MLKit barcode scanner files if they exist
+    find node_modules/react-native-camera/android/src -name "*MLKit*" -delete 2>/dev/null || true
+fi
+
+# Remove ML Kit from expo-camera (for F-Droid compatibility)
+if [ -d "node_modules/expo-camera/android" ]; then
+    # Remove gms and mlkit dependencies from build.gradle
+    sed -i -e '/gms/d' -e '/mlkit/d' node_modules/expo-camera/android/build.gradle
+    # Remove MLKit barcode scanner files and modify source code
+    if [ -d "node_modules/expo-camera/android/src/main/java/expo/modules/camera" ]; then
+        cd node_modules/expo-camera/android/src/main/java/expo/modules/camera
+        rm -f analyzers/{BarcodeScannerResultSerializer,MLKitBarcodeAnalyzer}.kt 2>/dev/null || true
+        sed -i -e '/@OptIn/,/^}/d' -e '/mlkit/d' analyzers/BarcodeAnalyzer.kt 2>/dev/null || true
+        sed -i -e '/barcode\./Id' -e '/mapToBarcode/,/^  }/d' records/CameraRecords.kt 2>/dev/null || true
+        sed -i -e '/mlkit/d' -e '/analyzers/d' -e '/onSuccess/,/^\s\{10\}}/s/^\s\{12\}.*//' -e '/launchScanner/,/^    }/s/^      .*//' CameraViewModule.kt 2>/dev/null || true
+        sed -i -e '/analyzer.setAnalyzer/,/^\s\{10\})/d' -e '/BarcodeAnalyzer/d' ExpoCameraView.kt 2>/dev/null || true
+        cd - > /dev/null
+    fi
+fi
+
+# Global exclusions for Google Play Services in app/build.gradle
+if ! grep -q 'configurations.all { exclude group: "com.google.android.gms"' android/app/build.gradle; then
+    # Add packaging options to exclude GMS classes
+    if ! grep -q 'packagingOptions' android/app/build.gradle; then
+        sed -i '/android {/a\    packagingOptions {\n        exclude '\''**/com/google/android/gms/**'\''\n    }' android/app/build.gradle
+    fi
+    # Add dependency exclusions
+    sed -i '/dependencies {/a\    configurations.all {\n        exclude group: "com.google.android.gms"\n        exclude group: "com.google.firebase"\n        exclude group: "com.google.mlkit"\n    }' android/app/build.gradle
+fi
 
 # Clean up
 rm -rf node_modules/*/local-maven-repo

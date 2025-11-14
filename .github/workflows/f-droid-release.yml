@@ -47,6 +47,9 @@ jobs:
       - name: Build and Tweak Android Folder
         run: ./build-android.sh n n
 
+      - name: Apply F-Droid Fixes
+        run: ./scripts/fix-for-fdroid.sh
+
       - name: Decode Keystore
         run: echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > $GITHUB_WORKSPACE/android/app/local-release-key.keystore
         env:
