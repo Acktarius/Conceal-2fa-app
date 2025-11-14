@@ -92,18 +92,23 @@ if [ -d "node_modules/expo-camera/android" ]; then
         [ -f records/CameraRecords.kt ] && sed -i -e '/barcode\./Id' -e '/mapToBarcode/,/^  }/d' records/CameraRecords.kt 2>/dev/null || true
         # Remove analyzer code from CameraViewModule.kt (Joplin's exact pattern)
         [ -f CameraViewModule.kt ] && sed -i -e '/mlkit/d' -e '/analyzers/d' -e '/onSuccess/,/^\s\{10\}}/s/^\s\{12\}.*//' -e '/launchScanner/,/^    }/s/^      .*//' CameraViewModule.kt 2>/dev/null || true
-        # For ExpoCameraView.kt, remove MLKit imports and analyzer code carefully
-        # Tested on tmp files to ensure structure is preserved
+        # For ExpoCameraView.kt, use AWK to remove MLKit code (tested on tmp files - preserves structure)
+        # AWK handles multiline blocks more reliably than sed
         if [ -f ExpoCameraView.kt ]; then
-            # Remove MLKit imports
-            sed -i -e '/^import.*mlkit/d' -e '/^import.*BarcodeAnalyzer/d' ExpoCameraView.kt 2>/dev/null || true
-            # Remove BarcodeAnalyzer variable declarations
-            sed -i -e '/^\s*private var.*BarcodeAnalyzer/d' -e '/^\s*var.*BarcodeAnalyzer/d' -e '/^\s*val.*BarcodeAnalyzer/d' ExpoCameraView.kt 2>/dev/null || true
-            # Remove barcodeAnalyzer assignments
-            sed -i -e '/^\s*barcodeAnalyzer = BarcodeAnalyzer/d' ExpoCameraView.kt 2>/dev/null || true
-            # Remove analyzer.setAnalyzer block (tested on tmp files - preserves structure)
-            # Pattern matches from analyzer.setAnalyzer( to closing paren with 8 spaces indent
-            sed -i -e '/analyzer\.setAnalyzer(/,/^\s\{8\})$/d' ExpoCameraView.kt 2>/dev/null || true
+            awk '
+            /analyzer\.setAnalyzer\(/ { skip=1; next }
+            skip && /^\s{8}\)$/ { skip=0; next }
+            skip && /^\s{10}\)$/ { skip=0; next }
+            skip && /^\s{12}\)$/ { skip=0; next }
+            skip { next }
+            /^import.*BarcodeAnalyzer/ { next }
+            /^import.*mlkit/ { next }
+            /^\s*private var.*BarcodeAnalyzer/ { next }
+            /^\s*var.*BarcodeAnalyzer/ { next }
+            /^\s*val.*BarcodeAnalyzer/ { next }
+            /^\s*barcodeAnalyzer = BarcodeAnalyzer/ { next }
+            { print }
+            ' ExpoCameraView.kt > ExpoCameraView.kt.tmp && mv ExpoCameraView.kt.tmp ExpoCameraView.kt 2>/dev/null || true
         fi
         popd > /dev/null
     fi
