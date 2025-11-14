@@ -11,6 +11,7 @@ sed -i 's/expoAutolinking\.useExpoVersionCatalog()/\/\/ expoAutolinking.useExpoV
 
 # Add expo modules to settings.gradle
 grep -q ':expo-asset' android/settings.gradle || echo -e 'include(":expo-asset")\nproject(":expo-asset").projectDir = new File(rootProject.projectDir, "../node_modules/expo-asset/android")' >> android/settings.gradle
+grep -q ':expo-camera' android/settings.gradle || echo -e 'include(":expo-camera")\nproject(":expo-camera").projectDir = new File(rootProject.projectDir, "../node_modules/expo-camera/android")' >> android/settings.gradle
 grep -q ':expo-clipboard' android/settings.gradle || echo -e 'include(":expo-clipboard")\nproject(":expo-clipboard").projectDir = new File(rootProject.projectDir, "../node_modules/expo-clipboard/android")' >> android/settings.gradle
 grep -q ':expo-crypto' android/settings.gradle || echo -e 'include(":expo-crypto")\nproject(":expo-crypto").projectDir = new File(rootProject.projectDir, "../node_modules/expo-crypto/android")' >> android/settings.gradle
 grep -q ':expo-file-system' android/settings.gradle || echo -e 'include(":expo-file-system")\nproject(":expo-file-system").projectDir = new File(rootProject.projectDir, "../node_modules/expo-file-system/android")' >> android/settings.gradle
@@ -22,6 +23,7 @@ grep -q ':expo-splash-screen' android/settings.gradle || echo -e 'include(":expo
 
 # Replace expo module dependencies with project references
 sed -i 's/expo\.modules\.asset:expo\.modules\.asset:[0-9.]\+/project(":expo-asset")/g' node_modules/expo/android/build.gradle
+sed -i 's/host\.exp\.exponent:expo\.modules\.camera:[0-9.]\+/project(":expo-camera")/g' node_modules/expo/android/build.gradle
 sed -i 's/host\.exp\.exponent:expo\.modules\.clipboard:[0-9.]\+/project(":expo-clipboard")/g' node_modules/expo/android/build.gradle
 sed -i 's/host\.exp\.exponent:expo\.modules\.crypto:[0-9.]\+/project(":expo-crypto")/g' node_modules/expo/android/build.gradle
 sed -i 's/host\.exp\.exponent:expo\.modules\.filesystem:[0-9.]\+/project(":expo-file-system")/g' node_modules/expo/android/build.gradle
@@ -33,7 +35,7 @@ sed -i 's/host\.exp\.exponent:expo\.modules\.splashscreen:[0-9.]\+/project(":exp
 
 # Add dependency substitution for expo modules
 if ! grep -q 'configurations.all { resolutionStrategy.dependencySubstitution' android/build.gradle; then
-    echo 'allprojects { configurations.all { resolutionStrategy.dependencySubstitution { substitute module("expo.modules.asset:expo.modules.asset") using project(":expo-asset"); substitute module("host.exp.exponent:expo.modules.clipboard") using project(":expo-clipboard"); substitute module("host.exp.exponent:expo.modules.crypto") using project(":expo-crypto"); substitute module("host.exp.exponent:expo.modules.filesystem") using project(":expo-file-system"); substitute module("host.exp.exponent:expo.modules.font") using project(":expo-font"); substitute module("host.exp.exponent:expo.modules.keepawake") using project(":expo-keep-awake"); substitute module("host.exp.exponent:expo.modules.localauthentication") using project(":expo-local-authentication"); substitute module("host.exp.exponent:expo.modules.securestore") using project(":expo-secure-store"); substitute module("host.exp.exponent:expo.modules.splashscreen") using project(":expo-splash-screen"); } } }' >> android/build.gradle
+    echo 'allprojects { configurations.all { resolutionStrategy.dependencySubstitution { substitute module("expo.modules.asset:expo.modules.asset") using project(":expo-asset"); substitute module("host.exp.exponent:expo.modules.camera") using project(":expo-camera"); substitute module("host.exp.exponent:expo.modules.clipboard") using project(":expo-clipboard"); substitute module("host.exp.exponent:expo.modules.crypto") using project(":expo-crypto"); substitute module("host.exp.exponent:expo.modules.filesystem") using project(":expo-file-system"); substitute module("host.exp.exponent:expo.modules.font") using project(":expo-font"); substitute module("host.exp.exponent:expo.modules.keepawake") using project(":expo-keep-awake"); substitute module("host.exp.exponent:expo.modules.localauthentication") using project(":expo-local-authentication"); substitute module("host.exp.exponent:expo.modules.securestore") using project(":expo-secure-store"); substitute module("host.exp.exponent:expo.modules.splashscreen") using project(":expo-splash-screen"); } } }' >> android/build.gradle
 fi
 
 # Fix fresco version
