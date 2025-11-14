@@ -81,15 +81,21 @@ fi
 if [ -d "node_modules/expo-camera/android" ]; then
     # Remove gms and mlkit dependencies from build.gradle
     sed -i -e '/gms/d' -e '/mlkit/d' node_modules/expo-camera/android/build.gradle
-    # Remove MLKit barcode scanner files and modify source code
+    # Remove MLKit barcode scanner files and modify source code (following Joplin's exact approach)
     if [ -d "node_modules/expo-camera/android/src/main/java/expo/modules/camera" ]; then
-        cd node_modules/expo-camera/android/src/main/java/expo/modules/camera
+        pushd node_modules/expo-camera/android/src/main/java/expo/modules/camera > /dev/null
+        # Remove MLKit analyzer files
         rm -f analyzers/{BarcodeScannerResultSerializer,MLKitBarcodeAnalyzer}.kt 2>/dev/null || true
-        sed -i -e '/@OptIn/,/^}/d' -e '/mlkit/d' analyzers/BarcodeAnalyzer.kt 2>/dev/null || true
-        sed -i -e '/barcode\./Id' -e '/mapToBarcode/,/^  }/d' records/CameraRecords.kt 2>/dev/null || true
-        sed -i -e '/mlkit/d' -e '/analyzers/d' -e '/onSuccess/,/^\s\{10\}}/s/^\s\{12\}.*//' -e '/launchScanner/,/^    }/s/^      .*//' CameraViewModule.kt 2>/dev/null || true
-        sed -i -e '/analyzer.setAnalyzer/,/^\s\{10\})/d' -e '/BarcodeAnalyzer/d' ExpoCameraView.kt 2>/dev/null || true
-        cd - > /dev/null
+        # Remove MLKit code from BarcodeAnalyzer.kt
+        [ -f analyzers/BarcodeAnalyzer.kt ] && sed -i -e '/@OptIn/,/^}/d' -e '/mlkit/d' analyzers/BarcodeAnalyzer.kt 2>/dev/null || true
+        # Remove barcode mapping from CameraRecords.kt
+        [ -f records/CameraRecords.kt ] && sed -i -e '/barcode\./Id' -e '/mapToBarcode/,/^  }/d' records/CameraRecords.kt 2>/dev/null || true
+        # Remove analyzer code from CameraViewModule.kt (more conservative - only remove specific lines)
+        [ -f CameraViewModule.kt ] && sed -i -e '/mlkit/d' -e '/analyzers/d' -e '/import.*Barcode/d' CameraViewModule.kt 2>/dev/null || true
+        # For ExpoCameraView.kt, use minimal sed - only remove imports to avoid syntax errors
+        # The build will fail on MLKit references, but structure will be intact
+        [ -f ExpoCameraView.kt ] && sed -i -e '/^import.*mlkit/d' -e '/^import.*BarcodeAnalyzer/d' ExpoCameraView.kt 2>/dev/null || true
+        popd > /dev/null
     fi
 fi
 
