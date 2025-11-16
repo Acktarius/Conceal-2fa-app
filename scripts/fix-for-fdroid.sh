@@ -91,24 +91,120 @@ if [ -d "node_modules/expo-camera/android" ]; then
         # Remove barcode mapping from CameraRecords.kt
         [ -f records/CameraRecords.kt ] && sed -i -e '/barcode\./Id' -e '/mapToBarcode/,/^  }/d' records/CameraRecords.kt 2>/dev/null || true
         # Remove analyzer code from CameraViewModule.kt (Joplin's exact pattern)
-        [ -f CameraViewModule.kt ] && sed -i -e '/mlkit/d' -e '/analyzers/d' -e '/onSuccess/,/^\s\{10\}}/s/^\s\{12\}.*//' -e '/launchScanner/,/^    }/s/^      .*//' CameraViewModule.kt 2>/dev/null || true
-        # For ExpoCameraView.kt, use AWK to remove MLKit code (tested on tmp files - preserves structure)
-        # AWK handles multiline blocks more reliably than sed
+        if [ -f CameraViewModule.kt ]; then
+            # Remove entire function blocks that call removed MLKit methods
+            # Use Python for more reliable multiline block removal
+            python3 << 'PYTHON_SCRIPT' || true
+import re
+import sys
+
+file_path = 'CameraViewModule.kt'
+try:
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+    
+    # Remove setBarcodeScannerSettings calls and surrounding blocks
+    content = re.sub(r'view\.setBarcodeScannerSettings\([^)]*\)', '', content)
+    
+    # Remove setShouldScanBarcodes calls
+    content = re.sub(r'view\.setShouldScanBarcodes\([^)]*\)', '', content)
+    
+    # Remove cleanupCamera calls
+    content = re.sub(r'view\.cleanupCamera\(\)', '', content)
+    
+    # Remove onPictureSaved callback issues - comment out problematic blocks
+    content = re.sub(r'onPictureSaved\([^)]*\)\s*\{[^}]*\}', '// onPictureSaved removed for F-Droid', content, flags=re.DOTALL)
+    
+    # Remove other MLKit/analyzer references
+    content = re.sub(r'mlkit[^\n]*', '', content, flags=re.IGNORECASE)
+    content = re.sub(r'analyzers[^\n]*', '', content, flags=re.IGNORECASE)
+    
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write(content)
+except Exception as e:
+    sys.stderr.write(f"Error processing CameraViewModule.kt: {e}\n")
+    sys.exit(1)
+PYTHON_SCRIPT
+        fi
+        # For ExpoCameraView.kt, use Python to remove MLKit code and fix broken references
         if [ -f ExpoCameraView.kt ]; then
-            awk '
-            /analyzer\.setAnalyzer\(/ { skip=1; next }
-            skip && /^\s{8}\)$/ { skip=0; next }
-            skip && /^\s{10}\)$/ { skip=0; next }
-            skip && /^\s{12}\)$/ { skip=0; next }
-            skip { next }
-            /^import.*BarcodeAnalyzer/ { next }
-            /^import.*mlkit/ { next }
-            /^\s*private var.*BarcodeAnalyzer/ { next }
-            /^\s*var.*BarcodeAnalyzer/ { next }
-            /^\s*val.*BarcodeAnalyzer/ { next }
-            /^\s*barcodeAnalyzer = BarcodeAnalyzer/ { next }
-            { print }
-            ' ExpoCameraView.kt > ExpoCameraView.kt.tmp && mv ExpoCameraView.kt.tmp ExpoCameraView.kt 2>/dev/null || true
+            python3 << 'PYTHON_SCRIPT' || true
+import re
+import sys
+
+file_path = 'ExpoCameraView.kt'
+try:
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+    
+    # Remove analyzer-related code blocks
+    content = re.sub(r'analyzer\.setAnalyzer\([^)]*\)[^}]*\}', '', content, flags=re.DOTALL)
+    
+    # Remove imports
+    content = re.sub(r'^import.*BarcodeAnalyzer.*\n', '', content, flags=re.MULTILINE)
+    content = re.sub(r'^import.*mlkit.*\n', '', content, flags=re.MULTILINE | re.IGNORECASE)
+    
+    # Remove variable declarations
+    content = re.sub(r'^\s*(private\s+)?(var|val)\s+.*BarcodeAnalyzer.*\n', '', content, flags=re.MULTILINE)
+    
+    # Remove method calls that reference removed functionality
+    method_calls = [
+        r'\.setCameraZoom\([^)]*\)',
+        r'\.startFocusMetering\([^)]*\)',
+        r'\.buildResolutionSelector\([^)]*\)',
+        r'\.createVideoCapture\([^)]*\)',
+        r'\.observeCameraState\([^)]*\)',
+        r'\.resumePreview\([^)]*\)',
+        r'\.pausePreview\([^)]*\)',
+        r'\.getAvailablePictureSizes\([^)]*\)',
+    ]
+    
+    for pattern in method_calls:
+        content = re.sub(pattern, '// Removed for F-Droid', content)
+    
+    # Add stub implementations for abstract methods required by interfaces
+    if 'override fun setPreviewTexture' not in content and 'class ExpoCameraView' in content:
+        # Find the last closing brace of the class and add stubs before it
+        # Count braces to find the class end
+        lines = content.split('\n')
+        brace_count = 0
+        class_start = -1
+        for i, line in enumerate(lines):
+            if 'class ExpoCameraView' in line:
+                class_start = i
+            if class_start >= 0:
+                brace_count += line.count('{') - line.count('}')
+                if brace_count == 0 and class_start < i:
+                    # Found end of class, insert stubs before this line
+                    stubs = '''    // Stub implementations for F-Droid (MLKit removed)
+    override fun setPreviewTexture(surface: android.view.SurfaceTexture) {
+        // Stub - not used without MLKit
+    }
+    
+    override fun getPreviewSizeAsArray(): IntArray {
+        return intArrayOf(0, 0) // Stub - not used without MLKit
+    }
+'''
+                    lines.insert(i, stubs)
+                    content = '\n'.join(lines)
+                    break
+    
+    # Fix syntax errors from incomplete removals - remove empty blocks and fix broken expressions
+    content = re.sub(r'\{\s*// Removed for F-Droid\s*\}', '{}', content)
+    
+    # Fix onPictureSaved callback type issues
+    content = re.sub(r'onPictureSaved\s*:\s*ViewEventCallback<PictureSavedEvent>', 
+                     'onPictureSaved: (Any) -> Unit', content)
+    
+    # Fix Bundle vs PictureSavedEvent type mismatches
+    content = re.sub(r'PictureSavedEvent\)', 'Bundle)', content)
+    
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write(content)
+except Exception as e:
+    sys.stderr.write(f"Error processing ExpoCameraView.kt: {e}\n")
+    sys.exit(1)
+PYTHON_SCRIPT
         fi
         popd > /dev/null
     fi

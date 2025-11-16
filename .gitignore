@@ -3,7 +3,8 @@ node_modules/
 .env_private
 .cursorrules
 .expo/
-.idea
+.idea/
+scripts/__pycache__/
 
 # Custom quick-crypto build artifacts
 

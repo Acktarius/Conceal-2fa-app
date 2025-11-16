@@ -47,9 +47,6 @@ jobs:
       - name: Build and Tweak Android Folder
         run: ./build-android.sh n n
 
-      - name: Apply F-Droid Fixes
-        run: ./scripts/fix-for-fdroid.sh
-
       - name: Decode Keystore
         run: echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > $GITHUB_WORKSPACE/android/app/local-release-key.keystore
         env:
@@ -71,6 +68,13 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           GITHUB_ACTIONS: 'true'
       
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      
+      - name: Apply F-Droid Fixes
+        run: python3 ./scripts/fix-for-fdroid.py
       
       - name: Get Tag Name
         id: get_tag
@@ -115,7 +119,7 @@ jobs:
         uses: softprops/action-gh-release@v2.0.4
         with:
           files: ${{ steps.apk_info.outputs.apk_file }}
-          name: Conceal Authenticator v${{ steps.get_version.outputs.VERSION }}
+          name: Conceal Authenticator v${{ steps.get_version.outputs.VERSION }} (F-Droid Release)
           body: |
             **RELEASE for F-Droid**
             *signed APK, in repo without signing for F-Droid to append*
