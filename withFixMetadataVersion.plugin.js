@@ -17,9 +17,6 @@ const withFixMetadataVersion = (config) => {
       'org.jetbrains.kotlin.compiler.freeCompilerArgs': '-Xskip-metadata-version-check',
       // Memory settings for CI builds (prevents Metaspace OutOfMemoryError during lint)
       'org.gradle.jvmargs': '-Xmx4g -XX:MaxMetaspaceSize=2g',
-      // Phone architectures only (ARM): armeabi-v7a (32-bit), arm64-v8a (64-bit)
-      // Excluded: x86, x86_64 (emulator/Intel devices)
-      'reactNativeArchitectures': 'armeabi-v7a,arm64-v8a',
     };
     
     // Remove existing properties with these keys
