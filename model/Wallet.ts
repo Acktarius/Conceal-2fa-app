@@ -23,7 +23,7 @@ import { Currency } from './Currency';
 import { KeysRepository, type UserKeys } from './KeysRepository';
 
 import { MathUtil } from './MathUtil';
-import { Deposit, SharedKey, Transaction, TransactionIn, type TransactionOut, Withdrawal } from './Transaction';
+import { Deposit, Transaction, type TransactionOut, Withdrawal } from './Transaction';
 import { TransactionsExplorer } from './TransactionsExplorer';
 
 type RawOutForTx = {

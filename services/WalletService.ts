@@ -28,6 +28,8 @@ import type { IWalletOperations } from './interfaces/IWalletOperations';
 import { getGlobalWorkletLogging } from './interfaces/IWorkletLogging';
 import { WalletStorageManager } from './WalletStorageManager';
 
+declare const global: any;
+
 export class WalletService implements IWalletOperations {
   private static readonly ENCRYPTION_KEY = 'wallet_encryption_key';
   private static wallet: Wallet | null = null;
@@ -433,7 +435,7 @@ export class WalletService implements IWalletOperations {
 
   static async promptForPassword(message: string): Promise<string | null> {
     // Get the password prompt context from global state
-    const passwordPromptContext = (global as any).passwordPromptContext;
+    const passwordPromptContext = global.passwordPromptContext;
 
     if (!passwordPromptContext) {
       throw new Error('Password prompt context not available. App must be properly initialized.');
@@ -483,8 +485,8 @@ export class WalletService implements IWalletOperations {
       const keys = Cn.create_address(seed);
 
       // Set initial creation height
-      // If offline, we'll start from 0 and sync later
-      let creationHeight = 0;
+      // If offline, we'll start from conservative creation height from config.minCreationHeight
+      let creationHeight = config.minCreationHeight;
 
       // Try to get blockchain height if possible, but don't block on it
       try {
@@ -497,22 +499,45 @@ export class WalletService implements IWalletOperations {
             new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 5000)),
           ]);
 
-          // Get current height (already cached for 20s, no need for additional race)
-          const currentHeight = await WalletService.blockchainExplorer.getHeight();
-
-          // Current height is 1930143+ as of 2025 September, so currentHeight - 10 is safe minimum
-          creationHeight = Math.max(1920000, currentHeight - 10);
+          // Small delay to ensure session node is ready after resetNodes()
+          await new Promise((resolve) => setTimeout(resolve, 300));
         }
-      } catch (error) {
-        // If we can't get height, use a conservative starting point, 2FA creation September 2025
-        creationHeight = 1920000;
-        getGlobalWorkletLogging().logging1string('UPGRADE: Failed to get blockchain height, using conservative creationHeight 1920000');
+
+        // Race: Try to get height (with retries) vs 5-second timeout
+        const currentHeight = await Promise.race([
+          (async (): Promise<number> => {
+            let attempt = 0;
+            while (attempt < 3) {
+              try {
+                const height = await WalletService.blockchainExplorer!.getHeight();
+                if (height && height > 0) {
+                  return height;
+                }
+              } catch (error: any) {
+                // Continue to retry - errors are expected during initialization
+              }
+              attempt++;
+              if (attempt < 3) {
+                await new Promise((resolve) => setTimeout(resolve, 500));
+              }
+            }
+            throw new Error('Failed to get height after 3 attempts');
+          })(),
+          new Promise<number>((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 1500)),
+        ]);
+        // Current height is 1944500+ as of 2025 November 15, so currentHeight - 10 is safe minimum
+        creationHeight = Math.max(config.minCreationHeight, currentHeight - 10);
+      } catch (error: any) {
+        // If we can't get height, fallback to config.minCreationHeight as set above
+        const errorMsg = error?.message || error?.toString() || 'Unknown error';
+        console.error('WALLET SERVICE: Error getting blockchain height:', errorMsg);
       }
 
       // Upgrade the existing wallet with blockchain data
       const wallet = existingWallet;
       wallet.keys = KeysRepository.fromPriv(keys.spend.sec, keys.view.sec);
       wallet.creationHeight = creationHeight;
+      wallet.lastHeight = creationHeight;
 
       // Save the upgraded wallet with appropriate encryption
       if (await BiometricService.isBiometricChecked()) {

@@ -91,12 +91,11 @@ android {
 
     namespace 'com.acktarius.concealauthenticator'
     defaultConfig {
-        missingDimensionStrategy 'react-native-camera', 'general'
         applicationId 'com.acktarius.concealauthenticator'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 33
-        versionName "1.0.7"
+        versionCode 35
+        versionName "1.0.9"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }
@@ -113,10 +112,9 @@ android {
             signingConfig signingConfigs.debug
         }
         release {
-        // No signingConfig here for F-Droid!
             // Caution! In production, you need to generate your own keystore file.
             // see https://reactnative.dev/docs/signed-apk-android.
-            
+            signingConfig signingConfigs.debug
             def enableShrinkResources = findProperty('android.enableShrinkResourcesInReleaseBuilds') ?: 'false'
             shrinkResources enableShrinkResources.toBoolean()
             minifyEnabled enableMinifyInReleaseBuilds
@@ -138,7 +136,7 @@ android {
 
     applicationVariants.all { variant ->
         variant.outputs.each { output ->
-            def newName = "ConcealAuthenticator-1.0.7-33.apk"
+            def newName = "ConcealAuthenticator-1.0.9-35.apk"
             if (output.outputFileName != null) {
                 output.outputFileName = newName
             } else if (outputFileName != null) {

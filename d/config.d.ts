@@ -58,6 +58,7 @@ declare var config: {
   depositRateV3: number[];
   //Height references
   UPGRADE_HEIGHT_V4: number;
+  minCreationHeight: number;
   //PRETTY_AMOUNTS
   PRETTY_AMOUNTS: number[];
 };

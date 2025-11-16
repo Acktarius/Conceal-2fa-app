@@ -37,7 +37,7 @@
     "prettier-plugin-tailwindcss": "^0.5.14",
     "react": "19.1.0",
     "react-native": "0.81.5",
-    "react-native-conceal-crypto": "https://github.com/concealnetwork/react-native-conceal-crypto/releases/download/v0.2.7/react-native-conceal-crypto-0.2.7.tgz",
+    "react-native-conceal-crypto": "https://github.com/concealnetwork/react-native-conceal-crypto/releases/download/v0.2.8/react-native-conceal-crypto-0.2.8.tgz",
     "react-native-dynamic-app-icon": "^1.1.0",
     "react-native-gesture-handler": "~2.28.0",
     "react-native-nitro-modules": "^0.30.2",
@@ -52,7 +52,6 @@
   "devDependencies": {
     "@babel/core": "^7.20.0",
     "@biomejs/biome": "2.2.6",
-    "@expo/config-plugins": "^54.0.2",
     "@react-native-community/cli": "^20.0.1",
     "@react-native/metro-config": "^0.81.4",
     "@types/node": "^24.9.1",
@@ -72,11 +71,21 @@
     "react-native-worklets": "^0.6.0",
     "typescript": "~5.9.2"
   },
-  "expo": {},
+  "expo": {
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "exclude": [
+          "@g9k/expo-dynamic-app-icon",
+          "react-native-dynamic-app-icon"
+        ]
+      }
+    }
+  },
   "overrides": {
     "@g9k/expo-dynamic-app-icon": {
       "expo-modules-core": "^3.0.25"
-    }
+    },
+    "js-yaml": "^4.1.1"
   },
   "postinstall": "patch-package",
   "private": true

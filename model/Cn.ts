@@ -40,6 +40,7 @@ import { JSChaCha8 } from './ChaCha8';
 import { Mnemonic } from './Mnemonic';
 
 declare let Module: any;
+declare const global: any;
 
 // Ensure Module is available globally (from crypto.js)
 if (typeof Module === 'undefined') {

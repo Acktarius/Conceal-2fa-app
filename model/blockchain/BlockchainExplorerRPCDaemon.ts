@@ -46,7 +46,7 @@ class NodeWorker {
   private _allErrors: number;
   private _requests: number;
   private _isWorking: boolean;
-  private errorInterval: NodeJS.Timer;
+  private errorInterval: ReturnType<typeof setInterval>;
 
   constructor(url: string) {
     this._url = url;
@@ -207,6 +207,12 @@ class NodeWorker {
       return 2;
     }
     return 3;
+  };
+
+  cleanup = (): void => {
+    if (this.errorInterval) {
+      clearInterval(this.errorInterval);
+    }
   };
 }
 
@@ -393,6 +399,10 @@ class NodeWorkersList {
   };
 
   stop = () => {
+    // Clean up intervals before clearing nodes
+    for (const node of this.nodes) {
+      node.cleanup();
+    }
     this.nodes = [];
     this.usedNodeUrls.clear(); // Clear used nodes to allow fresh random selection
     this.sessionNode = null; // Clear current session node

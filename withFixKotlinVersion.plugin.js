@@ -19,9 +19,7 @@ const withFixKotlinVersion = (config) => {
         return cfg;
       }
 
-      const kotlinVersion = cfg.modRequest.projectRoot
-        ? await getKotlinVersionFromConfig(cfg.modRequest.projectRoot)
-        : '2.2.0'; // fallback
+      const kotlinVersion = cfg.modRequest.projectRoot ? await getKotlinVersionFromConfig(cfg.modRequest.projectRoot) : '2.2.0'; // fallback
 
       // Check if Kotlin version is already set
       if (contents.includes("classpath('org.jetbrains.kotlin:kotlin-gradle-plugin:")) {
@@ -78,4 +76,3 @@ async function getKotlinVersionFromConfig(projectRoot) {
 }
 
 module.exports = withFixKotlinVersion;
-

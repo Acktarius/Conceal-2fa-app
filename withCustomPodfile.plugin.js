@@ -17,10 +17,10 @@ const withCustomPodfile = (config) => {
 
       const hasYogaFix = contents.includes('Yoga headers');
       const hasReactCoreFix = contents.includes('React-Core-umbrella.h not found issue');
-      
+
       if (!hasYogaFix || !hasReactCoreFix) {
         let fixesToAdd = '';
-        
+
         if (!hasYogaFix) {
           fixesToAdd += `
     # Inject custom fix for Yoga headers
@@ -33,7 +33,7 @@ const withCustomPodfile = (config) => {
       end
     end`;
         }
-        
+
         if (!hasReactCoreFix) {
           fixesToAdd += `
     # Fix React-Core-umbrella.h not found issue for ExpoModulesCore
@@ -58,12 +58,9 @@ const withCustomPodfile = (config) => {
       end
     end`;
         }
-        
+
         if (fixesToAdd) {
-          contents = contents.replace(
-            /post_install do \|installer\|/m,
-            `post_install do |installer|${fixesToAdd}`
-          );
+          contents = contents.replace(/post_install do \|installer\|/m, `post_install do |installer|${fixesToAdd}`);
         }
       }
 
