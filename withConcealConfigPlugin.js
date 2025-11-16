@@ -37,17 +37,6 @@ function withConcealConfigPlugin(config) {
     return config;
   });
 
-  // Gradle properties modifications
-  config = withGradleProperties(config, (config) => {
-    // Add any custom gradle properties needed for Conceal Authenticator
-    config.modResults.push({
-      type: 'property',
-      key: 'org.gradle.jvmargs',
-      value: '-Xmx4g -XX:MaxMetaspaceSize=512m',
-    });
-
-    return config;
-  });
 
   return config;
 }

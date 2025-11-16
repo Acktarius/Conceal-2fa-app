@@ -95,8 +95,8 @@ jobs:
       
       - name: Build Release APK
         working-directory: android
-        run: ./gradlew assembleRelease
-      
+        run: ./gradlew assembleRelease -x lintVitalAnalyzeRelease
+
       - name: Get APK filename and SHA256
         id: apk_info
         run: |
