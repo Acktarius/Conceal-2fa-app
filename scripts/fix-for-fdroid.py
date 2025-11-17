@@ -873,6 +873,322 @@ def add_google_play_services_exclusions(project_root: Path):
     write_file(app_build_gradle, content)
 
 
+def remove_mlkit_from_vision_camera_kt(project_root: Path):
+    """Remove MLKit code from react-native-vision-camera Kotlin files"""
+    log("Removing MLKit from react-native-vision-camera Kotlin files...")
+    react_native_vision_camera_dir = project_root / "node_modules" / "react-native-vision-camera"
+    
+    if not react_native_vision_camera_dir.exists():
+        log("  react-native-vision-camera not found, skipping", Colors.YELLOW)
+        return
+    
+    src_dir = react_native_vision_camera_dir / "android" / "src" / "main" / "java"
+    if not src_dir.exists():
+        log("  Source directory not found, skipping", Colors.YELLOW)
+        return
+    
+    # First, create a stub Barcode object for constants (FORMAT_*)
+    stub_barcode_file = src_dir / "com" / "mrousavy" / "camera" / "core" / "BarcodeStub.kt"
+    if not stub_barcode_file.exists():
+        stub_content = '''package com.mrousavy.camera.core
+
+// Stub Barcode type for F-Droid (MLKit disabled)
+// This replaces com.google.mlkit.vision.barcode.common.Barcode
+// Note: CodeScannerPipeline is disabled, so List<Barcode> types are changed to List<Any>
+object Barcode {
+  const val FORMAT_AZTEC = 1
+  const val FORMAT_EAN_13 = 2
+  const val FORMAT_EAN_8 = 3
+  const val FORMAT_QR_CODE = 4
+  const val FORMAT_PDF417 = 5
+  const val FORMAT_UPC_E = 6
+  const val FORMAT_DATA_MATRIX = 7
+  const val FORMAT_CODE_39 = 8
+  const val FORMAT_CODE_93 = 9
+  const val FORMAT_ITF = 10
+  const val FORMAT_CODABAR = 11
+  const val FORMAT_CODE_128 = 12
+  const val FORMAT_UPC_A = 13
+  const val FORMAT_ALL = 0
+}
+'''
+        write_file(stub_barcode_file, stub_content)
+        log("  Created BarcodeStub.kt", Colors.GREEN)
+    
+    # Fix CodeType.kt - replace MLKit import with stub
+    code_type_file = src_dir / "com" / "mrousavy" / "camera" / "core" / "types" / "CodeType.kt"
+    if code_type_file.exists():
+        content = read_file(code_type_file)
+        # Remove MLKit import and replace with stub import
+        lines = content.split('\n')
+        new_lines = []
+        for line in lines:
+            if 'import com.google.mlkit.vision.barcode.common.Barcode' in line:
+                new_lines.append('import com.mrousavy.camera.core.Barcode // Stub for F-Droid')
+            else:
+                new_lines.append(line)
+        write_file(code_type_file, '\n'.join(new_lines))
+        log(f"  Fixed {code_type_file.name}", Colors.GREEN)
+    
+    # Remove CodeScannerPipeline.kt entirely (MLKit-dependent, not needed for ZXing)
+    code_scanner_file = src_dir / "com" / "mrousavy" / "camera" / "core" / "CodeScannerPipeline.kt"
+    if code_scanner_file.exists():
+        code_scanner_file.unlink()
+        log(f"  Removed {code_scanner_file.name}", Colors.GREEN)
+    
+    # Fix CameraSession.kt - remove MLKit import, change List<Barcode> to List<Any>, and remove codeScannerOutput
+    camera_session_file = src_dir / "com" / "mrousavy" / "camera" / "core" / "CameraSession.kt"
+    if camera_session_file.exists():
+        content = read_file(camera_session_file)
+        lines = content.split('\n')
+        new_lines = []
+        for line in lines:
+            # Remove MLKit import and replace with stub
+            if 'import com.google.mlkit.vision.barcode.common.Barcode' in line:
+                new_lines.append('import com.mrousavy.camera.core.Barcode // Stub for F-Droid')
+            # Remove codeScannerOutput variable declaration
+            elif 'internal var codeScannerOutput' in line:
+                continue
+            # Remove codeScannerOutput usage (but keep the line structure intact)
+            elif 'codeScannerOutput' in line:
+                # Remove just the codeScannerOutput line, keep other lines in the .let block
+                continue
+            else:
+                # Change List<Barcode> to List<Any> since CodeScannerPipeline is removed
+                line = re.sub(r'List<Barcode>', 'List<Any>', line)
+                new_lines.append(line)
+        write_file(camera_session_file, '\n'.join(new_lines))
+        log(f"  Fixed {camera_session_file.name}", Colors.GREEN)
+    
+    # Fix CameraView.kt - remove MLKit import and change List<Barcode> to List<Any>
+    camera_view_file = src_dir / "com" / "mrousavy" / "camera" / "react" / "CameraView.kt"
+    if camera_view_file.exists():
+        content = read_file(camera_view_file)
+        lines = content.split('\n')
+        new_lines = []
+        for line in lines:
+            # Remove MLKit import and replace with stub
+            if 'import com.google.mlkit.vision.barcode.common.Barcode' in line:
+                new_lines.append('import com.mrousavy.camera.core.Barcode // Stub for F-Droid')
+            else:
+                # Change List<Barcode> to List<Any>
+                line = re.sub(r'List<Barcode>', 'List<Any>', line)
+                new_lines.append(line)
+        write_file(camera_view_file, '\n'.join(new_lines))
+        log("  Fixed CameraView.kt", Colors.GREEN)
+    
+    # Fix CameraView+Events.kt - remove MLKit import, change List<Barcode> to List<Any>, and remove function body
+    camera_view_events_file = src_dir / "com" / "mrousavy" / "camera" / "react" / "CameraView+Events.kt"
+    if camera_view_events_file.exists():
+        content = read_file(camera_view_events_file)
+        lines = content.split('\n')
+        new_lines = []
+        in_function = False
+        brace_count = 0
+        
+        for line in lines:
+            # Remove MLKit import and replace with stub
+            if 'import com.google.mlkit.vision.barcode.common.Barcode' in line:
+                new_lines.append('import com.mrousavy.camera.core.Barcode // Stub for F-Droid')
+                continue
+            
+            # Remove the entire invokeOnCodeScanned function (CodeScannerPipeline is removed)
+            if 'fun CameraView.invokeOnCodeScanned' in line:
+                in_function = True
+                brace_count = line.count('{') - line.count('}')
+                # Keep function signature but make it a no-op
+                new_lines.append('fun CameraView.invokeOnCodeScanned(barcodes: List<Any>, scannerFrame: CodeScannerFrame) {')
+                new_lines.append('  // No-op: CodeScannerPipeline removed for F-Droid (using ZXing instead)')
+                new_lines.append('}')
+                continue
+            
+            if in_function:
+                brace_count += line.count('{') - line.count('}')
+                if brace_count <= 0:
+                    in_function = False
+                # Skip all lines inside the function body
+                continue
+            
+            # Change List<Barcode> to List<Any> in remaining code
+            line = re.sub(r'List<Barcode>', 'List<Any>', line)
+            new_lines.append(line)
+        
+        write_file(camera_view_events_file, '\n'.join(new_lines))
+        log("  Fixed CameraView+Events.kt", Colors.GREEN)
+
+
+def fix_vision_camera_zxing_dependency(project_root: Path):
+    """Fix vision-camera-zxing dependency on react-native-vision-camera"""
+    log("Fixing vision-camera-zxing dependency...")
+    settings_gradle = project_root / "android" / "settings.gradle"
+    react_native_vision_camera_dir = project_root / "node_modules" / "react-native-vision-camera"
+    react_native_vision_camera_build = react_native_vision_camera_dir / "android" / "build.gradle"
+    
+    if not react_native_vision_camera_dir.exists():
+        log("  react-native-vision-camera not found, skipping", Colors.YELLOW)
+        return
+    
+    # Remove Google Play Services dependencies from react-native-vision-camera
+    if react_native_vision_camera_build.exists():
+        log("  Removing Google Play Services from react-native-vision-camera...")
+        content = read_file(react_native_vision_camera_build)
+        lines = content.split('\n')
+        new_lines = []
+        
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            
+            # Remove the entire if (enableCodeScanner) block
+            if 'if (enableCodeScanner)' in line:
+                # Skip the entire if/else block
+                brace_count = line.count('{') - line.count('}')
+                i += 1
+                # Skip until we find the closing brace of the if block
+                while i < len(lines) and brace_count > 0:
+                    brace_count += lines[i].count('{') - lines[i].count('}')
+                    i += 1
+                # Check if there's an else block
+                if i < len(lines) and '} else {' in lines[i]:
+                    brace_count = lines[i].count('{') - lines[i].count('}')
+                    i += 1
+                    while i < len(lines) and brace_count > 0:
+                        brace_count += lines[i].count('{') - lines[i].count('}')
+                        i += 1
+                continue
+            
+            # Remove standalone Google Play Services / MLKit dependencies
+            if any(keyword in line for keyword in [
+                'com.google.mlkit:barcode-scanning',
+                'com.google.android.gms:play-services-mlkit-barcode-scanning',
+            ]):
+                i += 1
+                continue
+            
+            new_lines.append(line)
+            i += 1
+        
+        content = '\n'.join(new_lines)
+        # Also remove the enableCodeScanner variable and its log
+        content = re.sub(r'def enableCodeScanner = safeExtGetBool\([^)]+\)\s*\n', '', content)
+        content = re.sub(r'logger\.warn\("\[VisionCamera\] VisionCamera_enableCodeScanner[^"]+"\)\s*\n', '', content)
+        
+        write_file(react_native_vision_camera_build, content)
+        log("  Removed Google Play Services dependencies", Colors.GREEN)
+    
+    # Remove MLKit from Kotlin source files
+    remove_mlkit_from_vision_camera_kt(project_root)
+    
+    # Remove CodeScannerPipeline usage from CameraSession+Configuration.kt
+    src_dir = react_native_vision_camera_dir / "android" / "src" / "main" / "java"
+    config_file = src_dir / "com" / "mrousavy" / "camera" / "core" / "CameraSession+Configuration.kt"
+    if config_file.exists():
+        content = read_file(config_file)
+        lines = content.split('\n')
+        new_lines = []
+        i = 0
+        
+        while i < len(lines):
+            line = lines[i]
+            
+            # Remove CodeScannerPipeline import if present
+            if 'CodeScannerPipeline' in line and 'import' in line:
+                i += 1
+                continue
+            
+            # Remove codeScannerConfig variable definition if present
+            if 'codeScannerConfig' in line and 'as?' in line:
+                i += 1
+                continue
+            
+            # Remove the entire CodeScanner if block
+            if 'if (codeScannerConfig != null)' in line:
+                # Count braces to skip entire if/else block
+                brace_count = line.count('{') - line.count('}')
+                i += 1
+                while i < len(lines) and brace_count > 0:
+                    brace_count += lines[i].count('{') - lines[i].count('}')
+                    i += 1
+                continue
+            
+            # Remove any remaining CodeScannerPipeline references
+            if 'CodeScannerPipeline' in line:
+                i += 1
+                continue
+            
+            # Remove codeScannerOutput from useCases list
+            if 'codeScannerOutput' in line and 'listOfNotNull' in line:
+                # Remove codeScannerOutput from the list
+                line = re.sub(r',\s*codeScannerOutput', '', line)
+            
+            # Update needsImageAnalysis to only check frameProcessorOutput
+            if 'needsImageAnalysis' in line and 'codeScannerOutput' in line:
+                line = re.sub(r'codeScannerOutput != null \|\| ', '', line)
+            
+            new_lines.append(line)
+            i += 1
+        
+        content = '\n'.join(new_lines)
+        # Remove leftover "// 5. Code Scanner" comment if present
+        content = re.sub(r'\s*//\s*5\.\s*Code\s*Scanner\s*\n', '\n', content)
+        write_file(config_file, content)
+        log("  Fixed CameraSession+Configuration.kt", Colors.GREEN)
+    
+    if not settings_gradle.exists():
+        log(f"Warning: {settings_gradle} not found", Colors.YELLOW)
+        return
+    
+    # Check if react-native-vision-camera is already included
+    content = read_file(settings_gradle)
+    if ":react-native-vision-camera" in content:
+        log("  react-native-vision-camera already in settings.gradle", Colors.GREEN)
+        return
+    
+    # Check if vision-camera-zxing exists (it needs react-native-vision-camera)
+    vision_camera_zxing_dir = project_root / "node_modules" / "vision-camera-zxing"
+    
+    if not vision_camera_zxing_dir.exists():
+        log("  vision-camera-zxing not found, skipping", Colors.YELLOW)
+        return
+    
+    # Add react-native-vision-camera to settings.gradle BEFORE autolinking
+    # Find where to insert it (before expoAutolinking.useExpoModules())
+    lines = content.split('\n')
+    new_lines = []
+    inserted = False
+    
+    for i, line in enumerate(lines):
+        # Insert before expoAutolinking.useExpoModules() or before include ':app'
+        if not inserted and ('expoAutolinking.useExpoModules()' in line or 'include \':app\'' in line):
+            # Insert before this line
+            new_lines.append('include ":react-native-vision-camera"')
+            new_lines.append('project(":react-native-vision-camera").projectDir = new File(rootProject.projectDir, "../node_modules/react-native-vision-camera/android")')
+            new_lines.append('')
+            inserted = True
+        new_lines.append(line)
+    
+    # If we didn't find a good place, append at the end before include ':app'
+    if not inserted:
+        lines = content.split('\n')
+        new_lines = []
+        for i, line in enumerate(lines):
+            if 'include \':app\'' in line and not inserted:
+                new_lines.append('include ":react-native-vision-camera"')
+                new_lines.append('project(":react-native-vision-camera").projectDir = new File(rootProject.projectDir, "../node_modules/react-native-vision-camera/android")')
+                new_lines.append('')
+                inserted = True
+            new_lines.append(line)
+        
+        if not inserted:
+            # Last resort: append at the end
+            new_lines.append('include ":react-native-vision-camera"')
+            new_lines.append('project(":react-native-vision-camera").projectDir = new File(rootProject.projectDir, "../node_modules/react-native-vision-camera/android")')
+    
+    content = '\n'.join(new_lines)
+    write_file(settings_gradle, content)
+    log("  Added react-native-vision-camera to settings.gradle", Colors.GREEN)
+
+
 def cleanup(project_root: Path):
     """Clean up temporary files and directories"""
     log("Cleaning up...")
@@ -916,6 +1232,7 @@ def main():
         remove_mlkit_from_react_native_camera(project_root)
         # expo-camera removed - using react-native-vision-camera with ZXing instead
         # remove_mlkit_from_expo_camera(project_root)
+        fix_vision_camera_zxing_dependency(project_root)
         add_google_play_services_exclusions(project_root)
         cleanup(project_root)
         
