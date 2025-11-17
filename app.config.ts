@@ -26,7 +26,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     },
     buildNumber: process.env.IOS_BUILD_NUMBER || '2',
     infoPlist: {
-      NSCameraUsageDescription: 'This app needs access to camera to scan QR codes for adding 2FA services.',
+      NSCameraUsageDescription: 'Allow SecureAuth to access your camera to scan QR codes.',
     },
     bundleIdentifier: 'com.acktarius.concealauthenticator',
   },
@@ -37,7 +37,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       backgroundColor: '#000000',
     },
     versionCode: parseInt(process.env.ANDROID_VERSION_CODE || '2'),
-    permissions: ['CAMERA', 'android.permission.CAMERA', 'android.permission.RECORD_AUDIO'],
+    permissions: ['CAMERA', 'android.permission.CAMERA'],
     package: 'com.acktarius.concealauthenticator',
   },
 
@@ -61,15 +61,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         jsEngine: 'hermes',
       },
     ],
-    [
-      'expo-camera',
-      {
-        cameraPermission: 'Allow SecureAuth to access your camera to scan QR codes.',
-      },
-    ],
-    // Conditionally apply @g9k/expo-dynamic-app-icon only for Android
-    // Temporarily disabled for iOS to test if it's causing build issues
-    // The plugin will only configure iOS if ios config is present
+    // UNCERTAINTY: This plugin might be causing build issues for iOS, but it's not clear why.
     [
       '@g9k/expo-dynamic-app-icon',
       {

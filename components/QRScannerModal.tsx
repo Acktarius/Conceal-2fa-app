@@ -1,7 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Camera, CameraView } from 'expo-camera';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Camera, useCameraDevice, useCameraPermission, useFrameProcessor, runAtTargetFps, type Frame } from 'react-native-vision-camera';
+import { zxing } from 'vision-camera-zxing';
+import { Worklets } from 'react-native-worklets-core';
+import { useSharedValue } from 'react-native-reanimated';
 
 interface QRScannerModalProps {
   visible: boolean;
@@ -10,42 +13,111 @@ interface QRScannerModalProps {
 }
 
 export default function QRScannerModal({ visible, onClose, onScan }: QRScannerModalProps) {
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const { hasPermission, requestPermission } = useCameraPermission();
   const [scanned, setScanned] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
+  const device = useCameraDevice('back');
+  const isProcessingScan = useRef(false);
+  // Shared value to track camera active state (accessible in worklets)
+  const cameraActiveShared = useSharedValue(false);
 
-  useEffect(() => {
-    const getCameraPermissions = async () => {
-      const { status } = await Camera.requestCameraPermissionsAsync();
-      setHasPermission(status === 'granted');
-    };
-
-    getCameraPermissions();
-  }, []);
-
-  const handleBarCodeScanned = ({ data }: { data: string }) => {
-    if (!scanned && cameraActive) {
+  // JS handler for a successful scan (must be outside frameProcessor)
+  const handleBarCodeScanned = useCallback(
+    (data: string) => {
+      if (isProcessingScan.current || scanned) return;
+      isProcessingScan.current = true;
       setScanned(true);
       setCameraActive(false); // Deactivate camera immediately after scan
       onScan(data);
-    }
-  };
+    },
+    [scanned, onScan]
+  );
+
+  // Create the runOnJS wrapper outside the frame processor
+  const onBarCodeScanned = Worklets.createRunOnJS(handleBarCodeScanned);
+
+  // Create error handler outside the frame processor
+  const onError = Worklets.createRunOnJS((msg: string) => {
+    console.error('QR Scanner frame processor error:', msg);
+  });
+
+  // Update shared value when cameraActive changes
+  useEffect(() => {
+    cameraActiveShared.value = cameraActive;
+  }, [cameraActive, cameraActiveShared]);
+
+  // Frame Processor (runs in a worklet context)
+  // Note: This only runs when Camera isActive={true} and the component is mounted
+  const frameProcessor = useFrameProcessor(
+    (frame: Frame) => {
+      'worklet';
+      // Early return if camera is not active
+      if (!cameraActiveShared.value) return;
+
+      // Throttle barcode scanning to 3 FPS to reduce CPU usage
+      runAtTargetFps(3, () => {
+        'worklet';
+        // Double-check camera is still active before processing
+        if (!cameraActiveShared.value) return;
+
+        try {
+          const barcodes = zxing(frame, { multiple: true });
+
+          // Handle both array and object formats
+          let firstBarcode: any = null;
+          if (Array.isArray(barcodes) && barcodes.length > 0) {
+            firstBarcode = barcodes[0];
+          } else if (barcodes && typeof barcodes === 'object') {
+            const keys = Object.keys(barcodes);
+            if (keys.length > 0) {
+              firstBarcode = barcodes[keys[0]];
+            }
+          }
+
+          // Validate barcode data before processing
+          if (firstBarcode && typeof firstBarcode === 'object') {
+            const barcodeText = firstBarcode.barcodeText || firstBarcode.displayValue || firstBarcode.text;
+            if (barcodeText && typeof barcodeText === 'string' && barcodeText.length > 0) {
+              // Call the runOnJS wrapper to invoke JS handler on the JS thread
+              onBarCodeScanned(barcodeText);
+            }
+          }
+        } catch (error) {
+          // Log errors for debugging - convert error to string for serialization
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          onError(errorMessage);
+        }
+      });
+    },
+    [onBarCodeScanned, onError]
+  );
 
   const handleClose = () => {
+    isProcessingScan.current = false;
     setScanned(false);
     setCameraActive(false); // Ensure camera is deactivated
     onClose();
   };
 
-  // Control camera activation based on modal visibility
+  // Control camera activation based on modal visibility and permission
   useEffect(() => {
     if (visible && hasPermission === true) {
+      isProcessingScan.current = false;
       setCameraActive(true);
       setScanned(false);
     } else {
       setCameraActive(false);
     }
   }, [visible, hasPermission]);
+
+  // Reset scanned state when modal closes
+  useEffect(() => {
+    if (!visible) {
+      isProcessingScan.current = false;
+      setScanned(false);
+      setCameraActive(false);
+    }
+  }, [visible]);
 
   if (hasPermission === null) {
     return (
@@ -64,8 +136,11 @@ export default function QRScannerModal({ visible, onClose, onScan }: QRScannerMo
           <Ionicons name="camera-outline" size={64} color="#9CA3AF" />
           <Text style={styles.permissionTitle}>Camera Permission Required</Text>
           <Text style={styles.permissionText}>Please allow camera access to scan QR codes for adding 2FA services.</Text>
-          <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-            <Text style={styles.closeButtonText}>Close</Text>
+          <TouchableOpacity style={styles.closeButton} onPress={requestPermission}>
+            <Text style={styles.closeButtonText}>Grant Permission</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.closeButton, { marginTop: 12, backgroundColor: '#6B7280' }]} onPress={handleClose}>
+            <Text style={styles.closeButtonText}>Cancel</Text>
           </TouchableOpacity>
         </View>
       </Modal>
@@ -84,7 +159,14 @@ export default function QRScannerModal({ visible, onClose, onScan }: QRScannerMo
         </View>
 
         <View style={styles.cameraContainer}>
-          {visible && <CameraView style={styles.camera} facing="back" onBarcodeScanned={cameraActive ? handleBarCodeScanned : undefined} />}
+          {device && hasPermission && cameraActive && visible && (
+            <Camera
+              style={styles.camera}
+              device={device}
+              isActive={cameraActive}
+              frameProcessor={cameraActive ? frameProcessor : undefined}
+            />
+          )}
 
           <View style={styles.overlay}>
             {/* Top overlay */}

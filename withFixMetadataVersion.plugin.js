@@ -18,12 +18,10 @@ const withFixMetadataVersion = (config) => {
       // Memory settings for CI builds (prevents Metaspace OutOfMemoryError during lint)
       'org.gradle.jvmargs': '-Xmx4g -XX:MaxMetaspaceSize=2g',
     };
-    
+
     // Remove existing properties with these keys
-    const filtered = modResults.filter(
-      (item) => !(item.type === 'property' && propertiesToSet.hasOwnProperty(item.key))
-    );
-    
+    const filtered = modResults.filter((item) => !(item.type === 'property' && propertiesToSet.hasOwnProperty(item.key)));
+
     // Add the new/updated properties
     Object.entries(propertiesToSet).forEach(([key, value]) => {
       filtered.push({
@@ -32,7 +30,7 @@ const withFixMetadataVersion = (config) => {
         value: value,
       });
     });
-    
+
     config.modResults = filtered;
     return config;
   });

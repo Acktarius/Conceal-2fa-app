@@ -381,12 +381,11 @@ export class WalletService implements IWalletOperations {
       return wallet;
     } catch (error) {
       console.error('Error getting/creating wallet:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       console.error('Wallet initialization error details:', {
-        message: error.message,
-        stack: error.stack,
-        name: error.name,
+        message: errorMessage,
       });
-      throw new Error(`Failed to initialize wallet: ${error.message}`);
+      throw new Error(`Failed to initialize wallet: ${errorMessage}`);
     }
   }
 

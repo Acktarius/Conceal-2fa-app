@@ -112,7 +112,6 @@ def add_expo_modules_to_settings(project_root: Path):
     
     expo_modules = [
         ("expo-asset", "expo-asset"),
-        ("expo-camera", "expo-camera"),
         ("expo-clipboard", "expo-clipboard"),
         ("expo-crypto", "expo-crypto"),
         ("expo-file-system", "expo-file-system"),
@@ -147,7 +146,6 @@ def replace_expo_module_dependencies(project_root: Path):
     
     replacements = [
         (r'expo\.modules\.asset:expo\.modules\.asset:[0-9.]+', 'project(":expo-asset")'),
-        (r'host\.exp\.exponent:expo\.modules\.camera:[0-9.]+', 'project(":expo-camera")'),
         (r'host\.exp\.exponent:expo\.modules\.clipboard:[0-9.]+', 'project(":expo-clipboard")'),
         (r'host\.exp\.exponent:expo\.modules\.crypto:[0-9.]+', 'project(":expo-crypto")'),
         (r'host\.exp\.exponent:expo\.modules\.filesystem:[0-9.]+', 'project(":expo-file-system")'),
@@ -175,7 +173,7 @@ def add_dependency_substitution(project_root: Path):
         return
     
     substitution = '''
-allprojects { configurations.all { resolutionStrategy.dependencySubstitution { substitute module("expo.modules.asset:expo.modules.asset") using project(":expo-asset"); substitute module("host.exp.exponent:expo.modules.camera") using project(":expo-camera"); substitute module("host.exp.exponent:expo.modules.clipboard") using project(":expo-clipboard"); substitute module("host.exp.exponent:expo.modules.crypto") using project(":expo-crypto"); substitute module("host.exp.exponent:expo.modules.filesystem") using project(":expo-file-system"); substitute module("host.exp.exponent:expo.modules.font") using project(":expo-font"); substitute module("host.exp.exponent:expo.modules.keepawake") using project(":expo-keep-awake"); substitute module("host.exp.exponent:expo.modules.localauthentication") using project(":expo-local-authentication"); substitute module("host.exp.exponent:expo.modules.securestore") using project(":expo-secure-store"); substitute module("host.exp.exponent:expo.modules.splashscreen") using project(":expo-splash-screen"); } } }
+allprojects { configurations.all { resolutionStrategy.dependencySubstitution { substitute module("expo.modules.asset:expo.modules.asset") using project(":expo-asset"); substitute module("host.exp.exponent:expo.modules.clipboard") using project(":expo-clipboard"); substitute module("host.exp.exponent:expo.modules.crypto") using project(":expo-crypto"); substitute module("host.exp.exponent:expo.modules.filesystem") using project(":expo-file-system"); substitute module("host.exp.exponent:expo.modules.font") using project(":expo-font"); substitute module("host.exp.exponent:expo.modules.keepawake") using project(":expo-keep-awake"); substitute module("host.exp.exponent:expo.modules.localauthentication") using project(":expo-local-authentication"); substitute module("host.exp.exponent:expo.modules.securestore") using project(":expo-secure-store"); substitute module("host.exp.exponent:expo.modules.splashscreen") using project(":expo-splash-screen"); } } }
 '''
     append_to_file(build_gradle, substitution)
 
@@ -916,7 +914,8 @@ def main():
         add_expo_maven_repo(project_root)
         fix_react_native_screens(project_root)
         remove_mlkit_from_react_native_camera(project_root)
-        remove_mlkit_from_expo_camera(project_root)
+        # expo-camera removed - using react-native-vision-camera with ZXing instead
+        # remove_mlkit_from_expo_camera(project_root)
         add_google_play_services_exclusions(project_root)
         cleanup(project_root)
         
