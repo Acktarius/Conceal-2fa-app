@@ -101,6 +101,12 @@ jobs:
         run: |
           git clone --depth 1 --branch v0.3.0 https://github.com/obfusk/reproducible-apk-tools.git /tmp/reproducible-apk-tools
 
+      - name: Add build-tools to PATH
+        run: |
+          BUILD_TOOLS_DIR=$(find $ANDROID_HOME/build-tools -type d -maxdepth 1 | sort -V | tail -1)
+          echo "$BUILD_TOOLS_DIR" >> $GITHUB_PATH
+          echo "Added $BUILD_TOOLS_DIR to PATH"
+
       - name: Normalize APK for reproducibility
         run: |
           APK_FILE=$(find android/app/build/outputs/apk/release -name "ConcealAuthenticator*.apk" | head -1)
