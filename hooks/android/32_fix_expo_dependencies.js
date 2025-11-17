@@ -53,8 +53,7 @@ function findBuildGradleFiles(dir) {
         // Skip build directories, but include node_modules/expo/android (we need to patch it)
         if (entry.name !== 'build') {
           // Only skip node_modules if it's not the expo/android directory we need
-          if (!entry.name.includes('node_modules') || 
-              (entry.name === 'node_modules' && currentDir === dir)) {
+          if (!entry.name.includes('node_modules') || (entry.name === 'node_modules' && currentDir === dir)) {
             walk(fullPath);
           }
         }
@@ -64,13 +63,13 @@ function findBuildGradleFiles(dir) {
     }
   }
   walk(dir);
-  
+
   // Also explicitly add node_modules/expo/android/build.gradle if it exists
   const expoBuildGradle = path.join(dir, '..', 'node_modules', 'expo', 'android', 'build.gradle');
   if (fs.existsSync(expoBuildGradle) && !files.includes(expoBuildGradle)) {
     files.push(expoBuildGradle);
   }
-  
+
   return files;
 }
 
@@ -83,7 +82,7 @@ function getProjectNameFromMavenCoord(group, artifact) {
       return expoModuleMap[group] || expoModuleMap[`expo.modules.${moduleKey}`];
     }
   }
-  
+
   // Handle host.exp.exponent group
   if (group === 'host.exp.exponent') {
     if (artifact.startsWith('expo.modules.')) {
@@ -91,7 +90,7 @@ function getProjectNameFromMavenCoord(group, artifact) {
       return hostExpoModuleMap[`expo.modules.${moduleKey}`];
     }
   }
-  
+
   return null;
 }
 
@@ -112,18 +111,18 @@ function replaceMavenDependencies(content) {
     // Without parentheses, with single quotes
     /(implementation|api|compileOnly|runtimeOnly)\s+['"]([^'"]+):([^'"]+):([^'"]+)['"]/g,
   ];
-  
+
   for (const pattern of patterns) {
     modified = modified.replace(pattern, (match, depType, group, artifact, version) => {
       const projectName = getProjectNameFromMavenCoord(group, artifact);
-      
+
       if (projectName) {
         replacements++;
         console.log(`  ✅ Replacing ${group}:${artifact}:${version} with project(":${projectName}")`);
         // Always use parentheses for consistency
         return `${depType}(project(":${projectName}"))`;
       }
-      
+
       return match;
     });
   }
@@ -136,7 +135,7 @@ if (fs.existsSync(settingsGradlePath)) {
   console.log(`\n📝 Processing: settings.gradle`);
   let settingsContent = fs.readFileSync(settingsGradlePath, 'utf8');
   const originalSettings = settingsContent;
-  
+
   // Comment out useExpoVersionCatalog() which generates Maven dependencies
   if (settingsContent.includes('expoAutolinking.useExpoVersionCatalog()')) {
     settingsContent = settingsContent.replace(
@@ -145,7 +144,7 @@ if (fs.existsSync(settingsGradlePath)) {
     );
     console.log(`  ✅ Disabled expoAutolinking.useExpoVersionCatalog() to force project() references`);
   }
-  
+
   if (settingsContent !== originalSettings) {
     fs.writeFileSync(settingsGradlePath, settingsContent, 'utf8');
   }
@@ -158,7 +157,7 @@ const buildGradleFiles = findBuildGradleFiles(androidDir);
 const expoBuildGradlePath = path.join(androidDir, '..', 'node_modules', 'expo', 'android', 'build.gradle');
 if (fs.existsSync(expoBuildGradlePath)) {
   const normalizedExpoPath = path.normalize(expoBuildGradlePath);
-  const normalizedFiles = buildGradleFiles.map(f => path.normalize(f));
+  const normalizedFiles = buildGradleFiles.map((f) => path.normalize(f));
   if (!normalizedFiles.includes(normalizedExpoPath)) {
     buildGradleFiles.push(expoBuildGradlePath);
     console.log(`\n📝 Added node_modules/expo/android/build.gradle to patch list`);
@@ -169,16 +168,16 @@ if (buildGradleFiles.length === 0) {
   console.log('⚠️  No build.gradle files found in android directory');
 } else {
   console.log(`\n📁 Found ${buildGradleFiles.length} build.gradle file(s)`);
-  
+
   let totalReplacements = 0;
-  
+
   for (const filePath of buildGradleFiles) {
     const relativePath = path.relative(androidDir, filePath) || path.relative(path.dirname(androidDir), filePath);
     console.log(`\n📝 Processing: ${relativePath}`);
-    
+
     let content = fs.readFileSync(filePath, 'utf8');
     const result = replaceMavenDependencies(content);
-    
+
     if (result.replacements > 0) {
       fs.writeFileSync(filePath, result.content, 'utf8');
       totalReplacements += result.replacements;
@@ -187,7 +186,7 @@ if (buildGradleFiles.length === 0) {
       console.log(`  ℹ️  No Maven-style Expo dependencies found`);
     }
   }
-  
+
   if (totalReplacements > 0) {
     console.log(`\n✅ Fixed ${totalReplacements} Expo module dependency(ies) in build.gradle files.`);
   }
@@ -199,12 +198,12 @@ if (fs.existsSync(appBuildGradlePath)) {
   console.log(`\n📝 Checking app/build.gradle for expoLibs usage...`);
   let appContent = fs.readFileSync(appBuildGradlePath, 'utf8');
   const originalApp = appContent;
-  
+
   // Try to find the actual version from version catalog or use fallback
   let expoLibVersions = {
-    'fresco': '3.1.3', // Fallback version
+    fresco: '3.1.3', // Fallback version
   };
-  
+
   // Try to read version from gradle/libs.versions.toml if it exists
   const libsVersionsPath = path.join(androidDir, 'gradle', 'libs.versions.toml');
   if (fs.existsSync(libsVersionsPath)) {
@@ -215,7 +214,7 @@ if (fs.existsSync(appBuildGradlePath)) {
       console.log(`  ℹ️  Found fresco version ${frescoMatch[1]} from libs.versions.toml`);
     }
   }
-  
+
   // Also check expo-modules-core for version
   const expoModulesCorePath = path.join(androidDir, '..', 'node_modules', 'expo-modules-core', 'android', 'build.gradle');
   if (fs.existsSync(expoModulesCorePath)) {
@@ -226,9 +225,9 @@ if (fs.existsSync(appBuildGradlePath)) {
       console.log(`  ℹ️  Found fresco version ${frescoVersionMatch[1]} from expo-modules-core`);
     }
   }
-  
+
   let replacements = 0;
-  
+
   // Pattern 1: ${expoLibs.versions.fresco.get()} - inside string interpolation
   appContent = appContent.replace(/\$\{expoLibs\.versions\.(\w+)\.get\(\)\}/g, (match, libName) => {
     if (expoLibVersions[libName]) {
@@ -239,7 +238,7 @@ if (fs.existsSync(appBuildGradlePath)) {
     console.log(`  ⚠️  Unknown expoLibs version: ${libName}, keeping original`);
     return match;
   });
-  
+
   // Pattern 2: expoLibs.versions.fresco.get() - standalone
   const expoLibsPattern = /expoLibs\.versions\.(\w+)\.get\(\)/g;
   appContent = appContent.replace(expoLibsPattern, (match, libName) => {
@@ -251,7 +250,7 @@ if (fs.existsSync(appBuildGradlePath)) {
     console.log(`  ⚠️  Unknown expoLibs version: ${libName}, keeping original`);
     return match;
   });
-  
+
   if (appContent !== originalApp) {
     fs.writeFileSync(appBuildGradlePath, appContent, 'utf8');
     console.log(`  ✅ Updated app/build.gradle with ${replacements} replacement(s)`);
@@ -264,14 +263,14 @@ if (fs.existsSync(appBuildGradlePath)) {
 if (fs.existsSync(settingsGradlePath)) {
   console.log(`\n📝 Verifying Expo module includes in settings.gradle...`);
   const settingsContent = fs.readFileSync(settingsGradlePath, 'utf8');
-  
+
   // Check for expo module includes
   const expoIncludes = settingsContent.match(/include\([^)]*expo[^)]*\)/g) || [];
   const expoProjects = settingsContent.match(/project\([^)]*expo[^)]*\)/g) || [];
-  
+
   if (expoIncludes.length > 0 || expoProjects.length > 0) {
     console.log(`  ✅ Found ${expoIncludes.length} expo include(s) and ${expoProjects.length} expo project reference(s)`);
-    expoIncludes.forEach(inc => console.log(`     - ${inc}`));
+    expoIncludes.forEach((inc) => console.log(`     - ${inc}`));
   } else {
     console.log(`  ℹ️  No explicit expo includes found (autolinking handles this dynamically)`);
   }
@@ -281,11 +280,11 @@ if (fs.existsSync(settingsGradlePath)) {
 if (fs.existsSync(appBuildGradlePath)) {
   console.log(`\n📝 Verifying project() references in app/build.gradle...`);
   const appContent = fs.readFileSync(appBuildGradlePath, 'utf8');
-  
+
   const projectRefs = appContent.match(/project\([^)]*expo[^)]*\)/g) || [];
   if (projectRefs.length > 0) {
     console.log(`  ✅ Found ${projectRefs.length} project() reference(s) to expo modules`);
-    projectRefs.forEach(ref => console.log(`     - ${ref}`));
+    projectRefs.forEach((ref) => console.log(`     - ${ref}`));
   } else {
     console.log(`  ℹ️  No explicit project() references found (autolinking handles this via autolinkLibrariesWithApp())`);
   }
@@ -294,4 +293,3 @@ if (fs.existsSync(appBuildGradlePath)) {
 console.log(`\n✅ Success! Expo autolinking configured to use project() references instead of Maven coordinates.`);
 console.log(`   Note: Expo autolinking adds includes and dependencies dynamically at build time.`);
 console.log(`   With useExpoVersionCatalog() disabled, it will use project() references instead of Maven coordinates.`);
-
