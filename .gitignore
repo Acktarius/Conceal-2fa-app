@@ -11,8 +11,9 @@ scripts/__pycache__/
 
 *.apk
 
-android
-ios
+/android
+/ios
+
 
 add.sh
 

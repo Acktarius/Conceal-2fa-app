@@ -97,6 +97,33 @@ jobs:
         working-directory: android
         run: ./gradlew assembleRelease -x lintVitalAnalyzeRelease
 
+      - name: Get reproducible-apk-tools
+        run: |
+          git clone --depth 1 --branch v0.3.0 https://github.com/obfusk/reproducible-apk-tools.git /tmp/reproducible-apk-tools
+
+      - name: Normalize APK for reproducibility
+        run: |
+          APK_FILE=$(find android/app/build/outputs/apk/release -name "ConcealAuthenticator*.apk" | head -1)
+          # For reproducible builds: normalize the APK content
+          # Unsign, normalize, then re-sign to match F-Droid's process
+          UNSIGNED_APK="${APK_FILE}.unsigned"
+          cp "$APK_FILE" "$UNSIGNED_APK"
+          # Remove META-INF/ directory (contains signatures)
+          zip -d "$UNSIGNED_APK" 'META-INF/*.SF' 'META-INF/*.RSA' 'META-INF/*.DSA' 'META-INF/*.EC' 'META-INF/MANIFEST.MF' 2>/dev/null || true
+          # Normalize the unsigned APK (zipalign + fix newlines) - same as F-Droid
+          python3 /tmp/reproducible-apk-tools/inplace-fix.py --zipalign --page-size 16 fix-newlines "$UNSIGNED_APK"
+          # Re-sign the normalized APK
+          apksigner sign \
+            --ks android/app/local-release-key.keystore \
+            --ks-pass pass:${{ secrets.ANDROID_KEYSTORE_PASSWORD }} \
+            --key-pass pass:${{ secrets.ANDROID_KEY_PASSWORD }} \
+            --ks-key-alias ${{ secrets.ANDROID_KEY_ALIAS }} \
+            --v1-signing-enabled true \
+            --v2-signing-enabled true \
+            --v3-signing-enabled true \
+            "$UNSIGNED_APK"
+          mv "$UNSIGNED_APK" "$APK_FILE"
+
       - name: Get APK filename and SHA256
         id: apk_info
         run: |
