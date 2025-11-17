@@ -106,8 +106,8 @@ jobs:
           APK_FILE=$(find android/app/build/outputs/apk/release -name "ConcealAuthenticator*.apk" | head -1)
           UNSIGNED_APK="${APK_FILE}.unsigned"
           cp "$APK_FILE" "$UNSIGNED_APK"
+          python3 /tmp/reproducible-apk-tools/inplace-fix.py --zipalign fix-newlines "$UNSIGNED_APK" "META-INF/*.MF" "META-INF/*.SF" "META-INF/*.RSA" "assets/*.txt" "assets/*.properties"
           zip -d "$UNSIGNED_APK" 'META-INF/*.SF' 'META-INF/*.RSA' 'META-INF/*.DSA' 'META-INF/*.EC' 'META-INF/MANIFEST.MF' 2>/dev/null || true
-          python3 /tmp/reproducible-apk-tools/inplace-fix.py --zipalign fix-newlines "$UNSIGNED_APK" "**/*"
           apksigner sign \
             --ks android/app/local-release-key.keystore \
             --ks-pass pass:${{ secrets.ANDROID_KEYSTORE_PASSWORD }} \
