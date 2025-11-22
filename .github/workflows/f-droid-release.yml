@@ -26,6 +26,10 @@ jobs:
       - name: Install NPM dependencies
         run: npm ci
 
+      - name: Remove dev-only modules
+        run: rm -rf node_modules/expo-dev-client node_modules/expo-dev-menu node_modules/expo-dev-launcher node_modules/@biomejs/biome || true
+
+
       - name: Set up Java (for Android build)
         uses: actions/setup-java@v4
         with:

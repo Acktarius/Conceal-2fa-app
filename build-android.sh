@@ -6,6 +6,10 @@ echo "🔄 Starting Android rebuild process..."
 echo "📁 Removing existing android folder..."
 rm -rf android
 
+# Step 1.1: Remove dev-only modules
+echo "📁 Removing dev-only modules..."
+rm -rf node_modules/expo-dev-client node_modules/expo-dev-menu node_modules/expo-dev-launcher node_modules/@biomejs/biome || true
+
 # Step 2: Eject to recreate android and ios folders
 echo "🚀 Running expo prebuild to recreate native folders..."
 CI=1 npx expo prebuild --platform android --clean
