@@ -1225,7 +1225,7 @@ def main():
         replace_expo_module_dependencies(project_root)
         add_dependency_substitution(project_root)
         fix_fresco_version(project_root)
-        fix_expo_autolinking(project_root)
+        # fix_expo_autolinking(project_root)  # Disabled: Using expo.autolinking.android.buildFromSource in package.json instead
         remove_problematic_maven_repos(project_root)
         add_expo_maven_repo(project_root)
         fix_react_native_screens(project_root)
