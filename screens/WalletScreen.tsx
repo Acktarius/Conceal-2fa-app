@@ -420,7 +420,7 @@ export default function WalletScreen() {
                   {syncStatus.isRunning && (
                     <View className="mt-2">
                       <Text className="text-sm mb-1" style={{ color: theme.colors.textSecondary }}>
-                        Block: {syncStatus.lastBlockLoading} / {syncStatus.lastMaximumHeight}
+                        Block: {syncStatus.walletLastHeight} / {syncStatus.lastMaximumHeight}
                       </Text>
                       {syncStatus.transactionsInQueue > 0 && (
                         <Text className="text-sm" style={{ color: theme.colors.textSecondary }}>

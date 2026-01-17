@@ -1,0 +1,1 @@
+- wallet last height more accurate display

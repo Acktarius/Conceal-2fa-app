@@ -830,10 +830,12 @@ export class WalletService implements IWalletOperations {
       const lastBlockLoading = WalletService.walletWatchdog.getLastBlockLoading();
       const blockList = WalletService.walletWatchdog.getBlockList();
       const blockchainHeight = WalletService.walletWatchdog.getBlockchainHeight();
+      const walletLastHeight = WalletService.wallet.lastHeight;
 
       return {
         isRunning: true,
         lastBlockLoading: lastBlockLoading,
+        walletLastHeight: walletLastHeight, // Actual synced height
         lastMaximumHeight: blockchainHeight,
         transactionsInQueue: blockList ? blockList.getTxQueue().getSize() : 0,
         //isWalletSynced: lastBlockLoading >= blockchainHeight - 1 // Allow 1 block tolerance
@@ -843,6 +845,7 @@ export class WalletService implements IWalletOperations {
     return {
       isRunning: false,
       lastBlockLoading: 0,
+      walletLastHeight: 0,
       lastMaximumHeight: 0,
       transactionsInQueue: 0,
       isWalletSynced: false,
