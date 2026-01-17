@@ -27,6 +27,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     buildNumber: process.env.IOS_BUILD_NUMBER || '2',
     infoPlist: {
       NSCameraUsageDescription: 'Allow SecureAuth to access your camera to scan QR codes.',
+      ITSAppUsesNonExemptEncryption: false,
     },
     bundleIdentifier: 'com.acktarius.concealauthenticator',
   },
