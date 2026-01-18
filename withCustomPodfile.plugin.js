@@ -55,6 +55,48 @@ function addReactCoreFix(src) {
   });
 }
 
+function addVisionCameraPreInstall(src) {
+  // Check if pre_install already exists
+  if (src.includes('pre_install do |installer|')) {
+    // Merge into existing pre_install block
+    return mergeContents({
+      tag: 'vision-camera-static-libs',
+      src,
+      newSrc: `  installer.pod_targets.each do |pod|
+    if ['VisionCamera', 'VisionCameraZXing', 'vision-camera-code-scanner'].include?(pod.name)
+      def pod.build_type
+        Pod::BuildType.static_library
+      end
+    end
+  end
+`,
+      anchor: /pre_install do \|installer\|/,
+      offset: 1,
+      comment: '#',
+    });
+  } else {
+    // Create new pre_install block
+    return mergeContents({
+      tag: 'vision-camera-static-libs',
+      src,
+      newSrc: `pre_install do |installer|
+  installer.pod_targets.each do |pod|
+    if ['VisionCamera', 'VisionCameraZXing', 'vision-camera-code-scanner'].include?(pod.name)
+      def pod.build_type
+        Pod::BuildType.static_library
+      end
+    end
+  end
+end
+
+`,
+      anchor: /prepare_react_native_project!/,
+      offset: 1,
+      comment: '#',
+    });
+  }
+}
+
 function addVisionCameraFix(src) {
   return mergeContents({
     tag: 'vision-camera-zxing-fix',
@@ -125,7 +167,19 @@ const withCustomPodfile = (config) => {
         }
       }
 
-      // Apply VisionCamera fix
+      // Apply VisionCamera pre_install (static libraries)
+      if (!contents.includes('vision-camera-static-libs')) {
+        const visionCameraPreResult = addVisionCameraPreInstall(contents);
+        if (visionCameraPreResult.didMerge) {
+          contents = visionCameraPreResult.contents;
+          modified = true;
+          console.log('✅ Applied VisionCamera static libraries fix');
+        } else {
+          console.warn('⚠️ Failed to merge VisionCamera pre_install fix – check anchor/Podfile template');
+        }
+      }
+
+      // Apply VisionCamera post_install fix
       if (!contents.includes('vision-camera-zxing-fix')) {
         const visionCameraResult = addVisionCameraFix(contents);
         if (visionCameraResult.didMerge) {
