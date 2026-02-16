@@ -48,7 +48,8 @@
     "react-native-css-interop": "^0.2.1",
     "react-native-worklets-core": "^1.6.2",
     "tailwindcss": "^3.4.18",
-    "vision-camera-zxing": "^0.1.1"
+    "vision-camera-zxing": "^0.1.1",
+    "dotenv": "^17.2.3"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
@@ -59,7 +60,6 @@
     "@types/react": "~19.1.10",
     "babel-plugin-module-resolver": "^5.0.2",
     "babel-preset-expo": "^54.0.4",
-    "dotenv": "^17.2.3",
     "expo-build-properties": "^1.0.9",
     "expo-dev-client": "~6.0.13",
     "metro": "^0.83.1",
