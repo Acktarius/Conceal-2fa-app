@@ -103,6 +103,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     './withFixMetadataVersion.plugin.js',
     'expo-secure-store',
     'expo-font',
+    './withNoLocationPlugin.js',
   ],
 
   web: {
