@@ -28,6 +28,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     infoPlist: {
       NSCameraUsageDescription: 'Allow SecureAuth to access your camera to scan QR codes.',
       ITSAppUsesNonExemptEncryption: false,
+      NSLocationWhenInUseUsageDescription:
+        'This app does not use your location. This message is required because a bundled library may reference location APIs; we do not collect or use location data.',
     },
     bundleIdentifier: 'com.acktarius.concealauthenticator',
   },
@@ -103,7 +105,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     './withFixMetadataVersion.plugin.js',
     'expo-secure-store',
     'expo-font',
-    './withNoLocationPlugin.js',
   ],
 
   web: {

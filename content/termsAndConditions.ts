@@ -1,6 +1,6 @@
 /**
  * Terms and Conditions Content
- * Copyright (c) 2025, Acktarius
+ * Copyright (c) 2025-2026, Acktarius
  */
 
 export const TERMS_AND_CONDITIONS = `TERMS AND CONDITIONS
