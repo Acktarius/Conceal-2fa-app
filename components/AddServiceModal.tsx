@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Alert, Modal, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 import { StorageService } from '../services/StorageService';
-import QRScannerModal from './QRScannerModal';
+import { QRScannerContent } from './QRScannerModal';
 
 interface AddServiceModalProps {
   visible: boolean;
@@ -15,7 +15,7 @@ export default function AddServiceModal({ visible, onClose, onAdd }: AddServiceM
   const [name, setName] = useState('');
   const [issuer, setIssuer] = useState('');
   const [secret, setSecret] = useState('');
-  const [showScanner, setShowScanner] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
   const { theme } = useTheme();
 
   const handleAdd = async () => {
@@ -80,34 +80,26 @@ export default function AddServiceModal({ visible, onClose, onAdd }: AddServiceM
   };
 
   const handleClose = () => {
-    // Reset all fields when closing
     setName('');
     setIssuer('');
     setSecret('');
-    setShowScanner(false);
+    setScannerOpen(false);
     onClose();
   };
 
   const handleQRScan = (data: string) => {
     try {
-      // Parse TOTP URI format: otpauth://totp/Service:account?secret=XXXXX&issuer=Service
       const url = new URL(data);
-
       if (url.protocol === 'otpauth:' && url.hostname === 'totp') {
         const pathParts = url.pathname.slice(1).split(':');
         const serviceName = pathParts[pathParts.length - 1] || 'Unknown Service';
         const issuerName = url.searchParams.get('issuer') || pathParts[0] || 'Unknown';
         const secretKey = url.searchParams.get('secret');
-
         if (secretKey) {
-          // Decode URI-encoded strings for both service name and issuer
-          const decodedServiceName = decodeURIComponent(serviceName);
-          const decodedIssuerName = decodeURIComponent(issuerName);
-
-          setName(decodedServiceName);
-          setIssuer(decodedIssuerName);
+          setName(decodeURIComponent(serviceName));
+          setIssuer(decodeURIComponent(issuerName));
           setSecret(secretKey);
-          setShowScanner(false);
+          setScannerOpen(false);
         } else {
           Alert.alert('Error', 'Invalid QR code: No secret key found.');
         }
@@ -120,8 +112,14 @@ export default function AddServiceModal({ visible, onClose, onAdd }: AddServiceM
   };
 
   return (
-    <>
-      <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={handleClose}>
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={handleClose}>
+      {scannerOpen ? (
+        <QRScannerContent
+          onClose={() => setScannerOpen(false)}
+          onScan={handleQRScan}
+          isActive={true}
+        />
+      ) : (
         <View className="flex-1" style={{ backgroundColor: theme.colors.background }}>
           <View
             className="flex-row items-center justify-center px-5 pt-5 pb-4 border-b"
@@ -139,7 +137,7 @@ export default function AddServiceModal({ visible, onClose, onAdd }: AddServiceM
             <TouchableOpacity
               className="flex-row items-center justify-center rounded-2xl p-5 mb-6"
               style={{ backgroundColor: theme.colors.primaryLight }}
-              onPress={() => setShowScanner(true)}
+              onPress={() => setScannerOpen(true)}
               activeOpacity={0.8}
             >
               <Ionicons name="qr-code-outline" size={24} color={theme.colors.primary} />
@@ -240,9 +238,7 @@ export default function AddServiceModal({ visible, onClose, onAdd }: AddServiceM
             <Ionicons name="close" size={24} color={theme.colors.text} />
           </TouchableOpacity>
         </View>
-      </Modal>
-
-      <QRScannerModal visible={showScanner} onClose={() => setShowScanner(false)} onScan={handleQRScan} />
-    </>
+      )}
+    </Modal>
   );
 }

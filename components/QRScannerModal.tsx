@@ -1,89 +1,70 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Camera, useCameraDevice, useCameraPermission, useFrameProcessor, runAtTargetFps, type Frame } from 'react-native-vision-camera';
 import { zxing } from 'vision-camera-zxing';
 import { Worklets } from 'react-native-worklets-core';
 import { useSharedValue } from 'react-native-reanimated';
 
-interface QRScannerModalProps {
-  visible: boolean;
+export interface QRScannerContentProps {
   onClose: () => void;
   onScan: (data: string) => void;
+  /** When true, scanner is shown and camera is active. Use when this content is the visible branch. */
+  isActive: boolean;
 }
 
-export default function QRScannerModal({ visible, onClose, onScan }: QRScannerModalProps) {
+/** Scanner UI without a Modal. Use inside a parent Modal or full-screen view so only one modal is used (fixes iOS). */
+export function QRScannerContent({ onClose, onScan, isActive }: QRScannerContentProps) {
   const { hasPermission, requestPermission } = useCameraPermission();
   const [scanned, setScanned] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
   const device = useCameraDevice('back');
   const isProcessingScan = useRef(false);
-  // Shared value to track camera active state (accessible in worklets)
   const cameraActiveShared = useSharedValue(false);
 
-  // JS handler for a successful scan (must be outside frameProcessor)
   const handleBarCodeScanned = useCallback(
     (data: string) => {
       if (isProcessingScan.current || scanned) return;
       isProcessingScan.current = true;
       setScanned(true);
-      setCameraActive(false); // Deactivate camera immediately after scan
+      setCameraActive(false);
       onScan(data);
     },
     [scanned, onScan]
   );
 
-  // Create the runOnJS wrapper outside the frame processor
   const onBarCodeScanned = Worklets.createRunOnJS(handleBarCodeScanned);
-
-  // Create error handler outside the frame processor
   const onError = Worklets.createRunOnJS((msg: string) => {
     console.error('QR Scanner frame processor error:', msg);
   });
 
-  // Update shared value when cameraActive changes
   useEffect(() => {
     cameraActiveShared.value = cameraActive;
   }, [cameraActive, cameraActiveShared]);
 
-  // Frame Processor (runs in a worklet context)
-  // Note: This only runs when Camera isActive={true} and the component is mounted
   const frameProcessor = useFrameProcessor(
     (frame: Frame) => {
       'worklet';
-      // Early return if camera is not active
       if (!cameraActiveShared.value) return;
-
-      // Throttle barcode scanning to 3 FPS to reduce CPU usage
       runAtTargetFps(3, () => {
         'worklet';
-        // Double-check camera is still active before processing
         if (!cameraActiveShared.value) return;
-
         try {
           const barcodes = zxing(frame, { multiple: true });
-
-          // Handle both array and object formats
           let firstBarcode: any = null;
           if (Array.isArray(barcodes) && barcodes.length > 0) {
             firstBarcode = barcodes[0];
           } else if (barcodes && typeof barcodes === 'object') {
             const keys = Object.keys(barcodes);
-            if (keys.length > 0) {
-              firstBarcode = barcodes[keys[0]];
-            }
+            if (keys.length > 0) firstBarcode = barcodes[keys[0]];
           }
-
-          // Validate barcode data before processing
           if (firstBarcode && typeof firstBarcode === 'object') {
             const barcodeText = firstBarcode.barcodeText || firstBarcode.displayValue || firstBarcode.text;
             if (barcodeText && typeof barcodeText === 'string' && barcodeText.length > 0) {
-              // Call the runOnJS wrapper to invoke JS handler on the JS thread
               onBarCodeScanned(barcodeText);
             }
           }
         } catch (error) {
-          // Log errors for debugging - convert error to string for serialization
           const errorMessage = error instanceof Error ? error.message : String(error);
           onError(errorMessage);
         }
@@ -95,109 +76,110 @@ export default function QRScannerModal({ visible, onClose, onScan }: QRScannerMo
   const handleClose = () => {
     isProcessingScan.current = false;
     setScanned(false);
-    setCameraActive(false); // Ensure camera is deactivated
+    setCameraActive(false);
     onClose();
   };
 
-  // Control camera activation based on modal visibility and permission
   useEffect(() => {
-    if (visible && hasPermission === true) {
+    if (isActive && hasPermission === true) {
       isProcessingScan.current = false;
       setCameraActive(true);
       setScanned(false);
     } else {
       setCameraActive(false);
     }
-  }, [visible, hasPermission]);
+  }, [isActive, hasPermission]);
 
-  // Reset scanned state when modal closes
   useEffect(() => {
-    if (!visible) {
+    if (!isActive) {
       isProcessingScan.current = false;
       setScanned(false);
       setCameraActive(false);
     }
-  }, [visible]);
+  }, [isActive]);
 
   if (hasPermission === null) {
     return (
-      <Modal visible={visible} animationType="slide" transparent={true} statusBarTranslucent={true}>
-        <View style={[styles.container, styles.centered]}>
-          <Text>Requesting camera permission...</Text>
-        </View>
-      </Modal>
+      <View style={[styles.container, styles.centered]}>
+        <Text>Requesting camera permission...</Text>
+      </View>
     );
   }
 
   if (hasPermission === false) {
     return (
-      <Modal visible={visible} animationType="slide" transparent={true} statusBarTranslucent={true}>
-        <View style={[styles.container, styles.centered]}>
-          <Ionicons name="camera-outline" size={64} color="#9CA3AF" />
-          <Text style={styles.permissionTitle}>Camera Permission Required</Text>
-          <Text style={styles.permissionText}>Please allow camera access to scan QR codes for adding 2FA services.</Text>
-          <TouchableOpacity style={styles.closeButton} onPress={requestPermission}>
-            <Text style={styles.closeButtonText}>Grant Permission</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.closeButton, { marginTop: 12, backgroundColor: '#6B7280' }]} onPress={handleClose}>
-            <Text style={styles.closeButtonText}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
-      </Modal>
+      <View style={[styles.container, styles.centered]}>
+        <Ionicons name="camera-outline" size={64} color="#9CA3AF" />
+        <Text style={styles.permissionTitle}>Camera Permission Required</Text>
+        <Text style={styles.permissionText}>Please allow camera access to scan QR codes for adding 2FA services.</Text>
+        <TouchableOpacity style={styles.closeButton} onPress={requestPermission}>
+          <Text style={styles.closeButtonText}>Grant Permission</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.closeButton, { marginTop: 12, backgroundColor: '#6B7280' }]} onPress={handleClose}>
+          <Text style={styles.closeButtonText}>Cancel</Text>
+        </TouchableOpacity>
+      </View>
     );
   }
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={handleClose}>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={handleClose} style={styles.headerButton}>
-            <Ionicons name="close" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Scan QR Code</Text>
-          <View style={styles.placeholder} />
-        </View>
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={handleClose} style={styles.headerButton}>
+          <Ionicons name="close" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Scan QR Code</Text>
+        <View style={styles.placeholder} />
+      </View>
 
-        <View style={styles.cameraContainer}>
-          {device && hasPermission && cameraActive && visible && (
-            <Camera
-              style={styles.camera}
-              device={device}
-              isActive={cameraActive}
-              frameProcessor={cameraActive ? frameProcessor : undefined}
-            />
-          )}
+      <View style={styles.cameraContainer}>
+        {device && hasPermission && cameraActive && isActive && (
+          <Camera
+            style={styles.camera}
+            device={device}
+            isActive={cameraActive}
+            frameProcessor={cameraActive ? frameProcessor : undefined}
+          />
+        )}
 
-          <View style={styles.overlay}>
-            {/* Top overlay */}
-            <View style={styles.topOverlay} />
-
-            {/* Middle row with left overlay, scan area, and right overlay */}
-            <View style={styles.middleRow}>
-              <View style={styles.sideOverlay} />
-              <View style={styles.scanArea}>
-                <View style={[styles.corner, styles.topLeft]} />
-                <View style={[styles.corner, styles.topRight]} />
-                <View style={[styles.corner, styles.bottomLeft]} />
-                <View style={[styles.corner, styles.bottomRight]} />
-              </View>
-              <View style={styles.sideOverlay} />
+        <View style={styles.overlay}>
+          <View style={styles.topOverlay} />
+          <View style={styles.middleRow}>
+            <View style={styles.sideOverlay} />
+            <View style={styles.scanArea}>
+              <View style={[styles.corner, styles.topLeft]} />
+              <View style={[styles.corner, styles.topRight]} />
+              <View style={[styles.corner, styles.bottomLeft]} />
+              <View style={[styles.corner, styles.bottomRight]} />
             </View>
-
-            {/* Bottom overlay */}
-            <View style={styles.bottomOverlay} />
+            <View style={styles.sideOverlay} />
           </View>
-        </View>
-
-        <View style={styles.instructions}>
-          <Text style={styles.instructionText}>Position the QR code within the frame to scan</Text>
-          {scanned && (
-            <TouchableOpacity style={styles.scanAgainButton} onPress={() => setScanned(false)}>
-              <Text style={styles.scanAgainText}>Tap to scan again</Text>
-            </TouchableOpacity>
-          )}
+          <View style={styles.bottomOverlay} />
         </View>
       </View>
+
+      <View style={styles.instructions}>
+        <Text style={styles.instructionText}>Position the QR code within the frame to scan</Text>
+        {scanned && (
+          <TouchableOpacity style={styles.scanAgainButton} onPress={() => setScanned(false)}>
+            <Text style={styles.scanAgainText}>Tap to scan again</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+}
+
+interface QRScannerModalProps {
+  visible: boolean;
+  onClose: () => void;
+  onScan: (data: string) => void;
+}
+
+export default function QRScannerModal({ visible, onClose, onScan }: QRScannerModalProps) {
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
+      <QRScannerContent onClose={onClose} onScan={onScan} isActive={visible} />
     </Modal>
   );
 }
@@ -206,16 +188,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000000',
-    zIndex: 9999,
-    ...(Platform.OS === 'ios' && {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      width: '100%',
-      height: '100%',
-    }),
   },
   centered: {
     alignItems: 'center',
