@@ -69,6 +69,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       '@g9k/expo-dynamic-app-icon',
       {
         // iOS config removed - plugin won't be applied to iOS builds
+        pink: {
+          ios: './assets/icon-pink-1024.png',
+          android: {
+            foregroundImage: './assets/icon-android-pink-1024.png',
+            backgroundColor: '#000000',
+          },
+        },
         velvet: {
           ios: './assets/icon-velvet-1024.png',
           android: {

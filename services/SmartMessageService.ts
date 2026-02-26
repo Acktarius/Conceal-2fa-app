@@ -11,6 +11,9 @@ import { SharedKey } from '../model/Transaction';
 import { dependencyContainer } from './DependencyContainer';
 
 export class SmartMessageService {
+  // Mutex to serialize concurrent handle2FACreate calls and prevent last-write-wins race condition
+  private static createLock: Promise<void> = Promise.resolve();
+
   // Get wallet operations once for the entire class
   private static getWalletOperations() {
     return dependencyContainer.getWalletOperations();
@@ -49,8 +52,19 @@ export class SmartMessageService {
 
   /**
    * Handle 2FA delete from smart message
+   *
+   * Serialized via the same createLock mutex as handle2FACreate so a DELETE that arrives
+   * in the same sync batch as its corresponding CREATE always runs AFTER the CREATE has
+   * saved the key with the correct hash — preventing a TOCTOU miss where the key is still
+   * stored with hash='' when the DELETE tries to find it.
    */
   private static async handle2FADelete(hash: string, transactionHash?: string): Promise<void> {
+    let releaseLock!: () => void;
+    const acquired = new Promise<void>((resolve) => { releaseLock = resolve; });
+    const prev = SmartMessageService.createLock;
+    SmartMessageService.createLock = acquired;
+    await prev;
+
     try {
       console.log('SmartMessageService: Processing 2FA delete for hash:', hash);
 
@@ -63,22 +77,10 @@ export class SmartMessageService {
       if (sharedKeyToDelete) {
         console.log('SmartMessageService: Found shared key to delete:', sharedKeyToDelete.name);
 
-        // Update the shared key with revoke information
-        // Keep the existing timeStampSharedKeyRevoke (set when user clicked delete)
-        // Just clear the flags to confirm blockchain processing
-        sharedKeyToDelete.revokeInQueue = false; // Clear revoke queue flag
-        sharedKeyToDelete.toBePush = false; // Clear toBePush flag
-
-        console.log('SmartMessageService: Updated shared key with revoke timestamp:', {
-          name: sharedKeyToDelete.name,
-          timeStampSharedKeyRevoke: sharedKeyToDelete.timeStampSharedKeyRevoke,
-          revokeInQueue: sharedKeyToDelete.revokeInQueue,
-          toBePush: sharedKeyToDelete.toBePush,
-        });
-
-        // Save updated shared keys
-        await storageService.saveSharedKeys(existingSharedKeys);
-        console.log('SmartMessageService: Successfully processed 2FA delete for:', sharedKeyToDelete.name);
+        // Remove the key entirely from storage
+        const sharedKeysToKeep = existingSharedKeys.filter((sk: any) => sk.hash !== hash);
+        await storageService.saveSharedKeys(sharedKeysToKeep);
+        console.log('SmartMessageService: Successfully deleted 2FA key:', sharedKeyToDelete.name);
 
         // Trigger HomeScreen refresh to show updated shared keys
         SmartMessageService.getWalletOperations().triggerSharedKeysRefresh();
@@ -87,17 +89,29 @@ export class SmartMessageService {
       }
     } catch (error) {
       console.error('SmartMessageService: Error processing 2FA delete:', error);
+    } finally {
+      releaseLock();
     }
   }
 
   /**
    * Handle 2FA create from smart message
+   * data may include optional algorithm, digits, period (defaults: SHA1, 6, 30)
+   *
+   * Calls are serialized via createLock to prevent concurrent reads/writes from
+   * a batch of transactions overwriting each other (last-write-wins race condition).
    */
   private static async handle2FACreate(
-    data: { name: string; issuer: string; sharedKey: string },
+    data: { name: string; issuer: string; sharedKey: string; algorithm?: 'SHA1' | 'SHA256' | 'SHA512'; digits?: 6 | 7 | 8; period?: 30 | 60 },
     transactionHash?: string,
     unknownSource?: boolean
   ): Promise<void> {
+    let releaseLock!: () => void;
+    const acquired = new Promise<void>((resolve) => { releaseLock = resolve; });
+    const prev = SmartMessageService.createLock;
+    SmartMessageService.createLock = acquired;
+    await prev;
+
     try {
       // Get existing shared keys from localStorage
       const storageService = SmartMessageService.getStorageService();
@@ -109,6 +123,10 @@ export class SmartMessageService {
         console.log('SmartMessageService: 2FA service already exists by hash, updating isLocal to false:', data.name);
         // We know about this shared key, it's safe to update and set isLocal = false
         existingByHash.isLocal = false; // Now confirmed on blockchain
+        // Also sync optional fields so a rescan always reflects the canonical blockchain values
+        if (data.algorithm != null) existingByHash.algorithm = data.algorithm;
+        if (data.digits != null) existingByHash.digits = data.digits;
+        if (data.period != null) existingByHash.period = data.period;
 
         // Save updated shared keys
         await storageService.saveSharedKeys(existingSharedKeys);
@@ -124,11 +142,17 @@ export class SmartMessageService {
       if (existingBySharedKey) {
         console.log('SmartMessageService: 2FA service already exists by sharedKey, updating with hash:', data.name);
         // We know about this key, it's safe to import, update hash and isLocal=false
+        // Also update name/issuer so a newer blockchain transaction always wins over an older one
+        existingBySharedKey.name = data.name;
+        existingBySharedKey.issuer = data.issuer;
         existingBySharedKey.hash = transactionHash || 'blockchain-imported';
         existingBySharedKey.toBePush = false; // Safety: ensure toBePush is false
         existingBySharedKey.revokeInQueue = false; // Safety: ensure not in revoke queue
         existingBySharedKey.unknownSource = unknownSource !== undefined ? unknownSource : false; // Use the provided unknownSource flag
         existingBySharedKey.isLocal = false; // Now confirmed on blockchain
+        if (data.algorithm != null) existingBySharedKey.algorithm = data.algorithm;
+        if (data.digits != null) existingBySharedKey.digits = data.digits;
+        if (data.period != null) existingBySharedKey.period = data.period;
 
         // Save updated shared keys
         await storageService.saveSharedKeys(existingSharedKeys);
@@ -142,11 +166,14 @@ export class SmartMessageService {
       // 3. Shared key is unknown, import it but mark as unknown source
       console.log('SmartMessageService: Unknown 2FA service, importing with unknownSource flag:', data.name);
 
-      // Create new SharedKey object from smart message data
+      // Create new SharedKey object from smart message data (algorithm, digits, period optional; defaults in fromRaw)
       const newSharedKey = SharedKey.fromRaw({
         name: data.name,
         issuer: data.issuer,
         secret: data.sharedKey,
+        algorithm: data.algorithm,
+        digits: data.digits,
+        period: data.period,
       });
 
       // Set properties for blockchain-imported shared key
@@ -166,6 +193,8 @@ export class SmartMessageService {
       SmartMessageService.getWalletOperations().triggerSharedKeysRefresh();
     } catch (error) {
       console.error('SmartMessageService: Error creating 2FA from smart message:', error);
+    } finally {
+      releaseLock();
     }
   }
 

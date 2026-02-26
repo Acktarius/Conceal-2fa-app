@@ -343,6 +343,11 @@ export class CronBuddy {
           // Transaction was sent successfully
           getGlobalWorkletLogging().loggingWithString(`CronBuddy: Successfully sent revoke transaction for: {}`, keyToRevoke.name);
           getGlobalWorkletLogging().loggingWithString(`CronBuddy: Delete transaction hash: {}`, result.txHash);
+          // Remove the key from storage so it no longer appears in loadRevokedKeys()
+          const updatedKeys = sharedKeys.filter((key) => key.hash !== keyToRevoke.hash);
+          await storageService.saveSharedKeys(updatedKeys);
+          // Notify UI so HomeScreen and SettingsScreen reflect the removal immediately
+          walletOperations.triggerSharedKeysRefresh();
         } else {
           console.error(`CronBuddy: Failed to revoke shared key: ${keyToRevoke.name}`);
           // Re-enable revokeInQueue for retry on next cycle

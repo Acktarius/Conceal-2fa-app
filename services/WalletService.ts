@@ -211,7 +211,8 @@ export class WalletService implements IWalletOperations {
   private static async hasAnyWalletData(): Promise<boolean> {
     try {
       // Use WalletStorageManager to check if wallet data exists
-      return await WalletStorageManager.hasAnyWalletData();
+      const result = await WalletStorageManager.hasAnyWalletData();
+      return result;
     } catch (error) {
       console.error('Error checking for wallet data:', error);
       return false;
@@ -300,6 +301,7 @@ export class WalletService implements IWalletOperations {
 
         // Check if this is a new user (no data) vs auth failure (data exists but can't decrypt)
         const hasAnyWalletData = await WalletService.hasAnyWalletData();
+
         if (hasAnyWalletData) {
           getGlobalWorkletLogging().logging1string(
             'WALLET SERVICE: Wallet data exists but authentication failed - EXITING APP for security'
@@ -324,7 +326,7 @@ export class WalletService implements IWalletOperations {
 
       // If wallet exists but is local-only (no keys), check flags and show prompt
       if (wallet && wallet.isLocal()) {
-        // Only show prompt if not prompted before
+        // Only show prompt if not prompted before on this tab
         if (!WalletService.flag_prompt_main_tab || !WalletService.flag_prompt_wallet_tab) {
           const result = await new Promise<'create' | 'import' | 'cancel'>((resolve) => {
             Alert.alert(
@@ -398,14 +400,20 @@ export class WalletService implements IWalletOperations {
 
       if (await BiometricService.isBiometricEnabled()) {
         // Biometric mode: Encrypt with biometric key
-        // Generate cryptographically secure biometric salt
-        const randomBytes = new Uint8Array(32);
-        crypto.getRandomValues(randomBytes);
-        const randomSalt = await Crypto.digestStringAsync(
-          Crypto.CryptoDigestAlgorithm.SHA256,
-          'biometric_salt_' + Date.now() + Array.from(randomBytes).join('')
-        );
-        await WalletStorageManager.generateAndStoreBiometricSalt(randomSalt);
+        // First check if biometric salt already exists (don't overwrite!)
+        const existingSalt = await WalletStorageManager.getBiometricSalt();
+        if (!existingSalt) {
+          // Generate cryptographically secure biometric salt ONLY if none exists
+          const randomBytes = new Uint8Array(32);
+          crypto.getRandomValues(randomBytes);
+          const randomSalt = await Crypto.digestStringAsync(
+            Crypto.CryptoDigestAlgorithm.SHA256,
+            'biometric_salt_' + Date.now() + Array.from(randomBytes).join('')
+          );
+          await WalletStorageManager.generateAndStoreBiometricSalt(randomSalt);
+        } else {
+          console.log('WALLET SERVICE: Using existing biometric salt');
+        }
 
         // THEN derive the biometric key
         const biometricKey = await WalletStorageManager.deriveBiometricKey();
@@ -578,7 +586,14 @@ export class WalletService implements IWalletOperations {
     }
   }
 
-  static async addSharedKey(serviceData: { name: string; issuer: string; secret: string }): Promise<void> {
+  static async addSharedKey(serviceData: {
+    name: string;
+    issuer: string;
+    secret: string;
+    algorithm?: 'SHA1' | 'SHA256' | 'SHA512';
+    digits?: 6 | 7 | 8;
+    period?: 30 | 60;
+  }): Promise<void> {
     if (!WalletService.wallet) {
       throw new Error('Wallet not initialized');
     }
@@ -1133,7 +1148,15 @@ export class WalletService implements IWalletOperations {
 
       if (action === 'create') {
         // Use SmartMessageParser.encode2FA() for encoding create command
-        smartMessageResult = await SmartMessageParser.encode2FA('c', sharedKey.name, sharedKey.issuer, sharedKey.secret);
+        smartMessageResult = await SmartMessageParser.encode2FA(
+          'c',
+          sharedKey.name,
+          sharedKey.issuer,
+          sharedKey.secret,
+          sharedKey.algorithm ?? 'SHA1',
+          String(sharedKey.digits ?? 6),
+          String(sharedKey.period ?? 30)
+        );
       } else if (action === 'delete') {
         // Use SmartMessageParser.encode2FA() for encoding delete command
         if (!sharedKey.hash) {

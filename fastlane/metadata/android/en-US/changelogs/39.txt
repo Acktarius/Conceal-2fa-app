@@ -1,0 +1,8 @@
+- add support for HMAC-SHA256 and HMAC-SHA512
+- add support for period 60seconds
+- add support for 7 and 8 digits
+- add new theme pink
+- blockchain synchronization more robust
+- fix future code partial display
+- ALWAYS MAKE SURE YOU BACKUP YOUR SEED PHRASE WITH CREATION HEIGHT or QR CODE, BEFORE UPGRADING
+- ANTICIPATE TO RESCAN WALLET AFTER UPGRADE

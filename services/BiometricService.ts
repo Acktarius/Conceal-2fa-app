@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 Acktarius, Conceal Devs
+ * Copyright (c) 2025 - 2026 Acktarius, Conceal Devs
  *
  * This file is part of Conceal-2FA-App
  *

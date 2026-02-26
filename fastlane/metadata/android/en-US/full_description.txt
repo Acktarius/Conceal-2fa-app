@@ -2,6 +2,11 @@ Conceal Authenticator - The First Decentralized 2FA App
 
 🔐 SECURE 2FA AUTHENTICATOR
 Generate TOTP codes for all your accounts with military-grade encryption and biometric security.
+• HMAC-SHA1 (standard)
+• HMAC-SHA256
+• HMAC-SHA512
+• Period: 30 or 60 seconds
+• Digits: 6, 7, or 8
 
 🚀 WORLD'S FIRST DECENTRALIZED 2FA BACKUP
 • Permissionless - No registration or approval needed
@@ -28,7 +33,7 @@ Seamless blockchain integration. Recover your 2FA keys with your wallet seed - n
 (Blockchain can broadcast 2FA code to trusted recipients via auto-destruct messaging)
 
 🎨 FEATURES
-• Multiple themes (Light, Orange, Velvet, Dark)
+• Multiple themes (Light, Orange, Velvet, Pink, Dark)
 • Future codes preview
 • Custom blockchain nodes
 • QR code scanning
@@ -41,5 +46,6 @@ Seamless blockchain integration. Recover your 2FA keys with your wallet seed - n
 4. Recover with your wallet seed
 
 Powered by the Conceal Network blockchain.
+(New to crypto? Visit conceal.network to get started.)
 
 ⚠️ IMPORTANT: Always backup your recovery seed. Self-custody means you're responsible for your keys.

@@ -35,7 +35,7 @@
     "prettier-plugin-tailwindcss": "^0.5.14",
     "react": "19.1.0",
     "react-native": "0.81.5",
-    "react-native-conceal-crypto": "https://github.com/concealnetwork/react-native-conceal-crypto/releases/download/v0.2.8/react-native-conceal-crypto-0.2.8.tgz",
+    "react-native-conceal-crypto": "https://github.com/concealnetwork/react-native-conceal-crypto/releases/download/v0.2.9/react-native-conceal-crypto-0.2.9.tgz",
     "react-native-dynamic-app-icon": "^1.1.0",
     "react-native-gesture-handler": "~2.28.0",
     "react-native-nitro-modules": "^0.30.2",
@@ -58,7 +58,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
-    "@biomejs/biome": "2.2.6",
+    "@biomejs/biome": "2.4.4",
     "@react-native-community/cli": "^20.0.1",
     "@react-native/metro-config": "^0.81.4",
     "@types/node": "^24.9.1",
@@ -96,7 +96,9 @@
       "expo-modules-core": "^3.0.25"
     },
     "js-yaml": "^4.1.1",
-    "glob": "^11.1.0"
+    "glob": "^11.1.0",
+    "fast-xml-parser": "^5.3.7",
+    "minimatch": "^10.2.3"
   },
   "postinstall": "patch-package",
   "private": true

@@ -131,7 +131,8 @@ export class SmartMessageParser {
 
   /**
    * Process 2FA module commands
-   * Commands: {2FA,c,name,issuer,sharedKey}, {2FA,u,hash,updateData}, {2FA,d,hash}
+   * Commands: {2FA,c,name,issuer,sharedKey[,algorithm,digits,period]}, {2FA,u,hash,updateData}, {2FA,d,hash}
+   * Optional after sharedKey: algorithm (SHA1|SHA256|SHA512), digits (6|7|8), period (30|60)
    */
   private static async process2FA(action: string, data: string[], wallet: any): Promise<SmartMessageResult> {
     try {
@@ -141,8 +142,8 @@ export class SmartMessageParser {
           if (data.length < 3) {
             return { success: false, message: 'Invalid 2FA create command' };
           }
-          const [name, issuer, sharedKey] = data;
-          return await SmartMessageParser.parse2FA('c', wallet, name, issuer, sharedKey);
+          const [name, issuer, sharedKey, algorithmStr, digitsStr, periodStr] = data;
+          return await SmartMessageParser.parse2FA('c', wallet, name, issuer, sharedKey, algorithmStr, digitsStr, periodStr);
         }
 
         case 'u': {
@@ -175,19 +176,29 @@ export class SmartMessageParser {
   /**
    * Encode 2FA command to send to blockchain
    * @param action - 'c' for create, 'd' for delete
-   * @param data - For create: [name, issuer, sharedKey], For delete: [hash]
+   * @param data - For create: [name, issuer, sharedKey, algorithm?, digits?, period?], For delete: [hash]
    */
   static async encode2FA(action: 'c' | 'd', ...data: string[]): Promise<SmartMessageResult> {
     try {
       if (action === 'c') {
-        // Create command: requires 3 fields
+        // Create command: requires 3 fields, optional 3 more (algorithm, digits, period)
         if (data.length < 3) {
           return { success: false, message: 'Create command requires name, issuer, and sharedKey' };
         }
-        const [name, issuer, sharedKey] = data;
-        console.log('2FA ENCODE CREATE:', { name, issuer, sharedKey: sharedKey.substring(0, 10) + '...' });
+        const [name, issuer, sharedKey, algorithm, digits, period] = data;
 
-        const encodedMessage = SmartMessageParser.encode('2FA', 'create', name, issuer, sharedKey);
+        // Always encode optional params when they are non-default, to preserve algorithm fidelity
+        const alg = (algorithm && algorithm.trim()) ? algorithm.trim() : 'SHA1';
+        const dig = (digits && digits.trim()) ? digits.trim() : '6';
+        const per = (period && period.trim()) ? period.trim() : '30';
+
+        // Include optional fields whenever they differ from defaults so the receiver can restore them
+        const parts: string[] = [name, issuer, sharedKey];
+        if (alg !== 'SHA1' || dig !== '6' || per !== '30') {
+          parts.push(alg, dig, per);
+        }
+
+        const encodedMessage = SmartMessageParser.encode('2FA', 'create', ...parts);
         return {
           success: true,
           message: `2FA create command encoded successfully`,
@@ -242,28 +253,43 @@ export class SmartMessageParser {
    * Parse 2FA command from blockchain
    * @param action - 'c' for create, 'd' for delete
    * @param wallet - Wallet instance for local storage operations
-   * @param data - For create: [name, issuer, sharedKey], For delete: [hash]
+   * @param data - For create: [name, issuer, sharedKey, algorithm?, digits?, period?], For delete: [hash]
    */
   private static async parse2FA(action: 'c' | 'd', wallet: any, ...data: string[]): Promise<SmartMessageResult> {
     try {
       if (action === 'c') {
-        // Create command: requires 3 fields
+        // Create command: requires 3 fields; optional 4th=algorithm, 5th=digits, 6th=period
         if (data.length < 3) {
           return { success: false, message: 'Create command requires name, issuer, and sharedKey' };
         }
-        const [name, issuer, sharedKey] = data;
-        console.log('2FA PARSE CREATE:', { name, issuer, sharedKey: sharedKey.substring(0, 10) + '...' });
+        const [name, issuer, sharedKey, algorithmStr, digitsStr, periodStr] = data;
 
-        // Blue-Print: Implement 2FA creation from smart message
-        // 1. Create SharedKey object from data
-        // 2. Add to local storage
-        // 3. Set isLocal: false, toBePush: false
-        // 4. Return success
+        // Optional algorithm: SHA1 (default), SHA256, SHA512
+        let algorithm: 'SHA1' | 'SHA256' | 'SHA512' = 'SHA1';
+        if (algorithmStr != null && algorithmStr.trim() !== '') {
+          const a = algorithmStr.trim().toUpperCase();
+          if (a === 'SHA1' || a === 'SHA256' || a === 'SHA512') algorithm = a;
+        }
+
+        // Optional digits: 6 (default), 7, 8
+        let digits: 6 | 7 | 8 = 6;
+        if (digitsStr != null && digitsStr.trim() !== '') {
+          const d = parseInt(digitsStr.trim(), 10);
+          if (d === 6 || d === 7 || d === 8) digits = d;
+        }
+
+        // Optional period: 30 (default), 60
+        let period: 30 | 60 = 30;
+        if (periodStr != null && periodStr.trim() !== '') {
+          const p = parseInt(periodStr.trim(), 10);
+          if (p === 60) period = 60;
+        }
+
 
         return {
           success: true,
           message: `2FA service ${name} imported successfully`,
-          data: { name, issuer, sharedKey },
+          data: { name, issuer, sharedKey, algorithm, digits, period },
         };
       }
       if (action === 'd') {
@@ -274,11 +300,8 @@ export class SmartMessageParser {
         const [hash] = data;
         console.log('2FA PARSE DELETE:', { hash });
 
-        // Blue-Print: Implement 2FA deletion from smart message
-        // 1. Find existing SharedKey by hash
-        // 2. Remove from local storage
-        // 3. Return success
-
+        // Storage operation is handled downstream by SmartMessageService.handle2FADelete
+        // which receives { hash } from result.data via TransactionsExplorer.processSmartMessage
         return {
           success: true,
           message: `2FA service deleted successfully`,

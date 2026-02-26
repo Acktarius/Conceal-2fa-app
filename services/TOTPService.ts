@@ -9,117 +9,133 @@
 import concealCrypto from 'react-native-conceal-crypto';
 import { CryptoService } from './CryptoService';
 
+export type TOTPAlgorithm = 'SHA1' | 'SHA256' | 'SHA512';
+export type TOTPDigits = 6 | 7 | 8;
+export type TOTPPeriod = 30 | 60;
+
+const DEFAULT_ALGORITHM: TOTPAlgorithm = 'SHA1';
+const DEFAULT_DIGITS: TOTPDigits = 6;
+const DEFAULT_PERIOD: TOTPPeriod = 30;
+
 export class TOTPService {
-  private static readonly PERIOD = 30; // 30 seconds
-  private static readonly DIGITS = 6;
+  /**
+   * Compute HMAC using the specified algorithm.
+   * All three variants attempt the native C++ implementation first,
+   * falling back to pure-JS if the native call throws.
+   */
+  private static async computeHMAC(
+    algorithm: TOTPAlgorithm,
+    secretBytes: Uint8Array,
+    counterBytes: Uint8Array,
+  ): Promise<Uint8Array> {
+    const toBuffer = (u8: Uint8Array): ArrayBuffer => {
+      const buf = new ArrayBuffer(u8.length);
+      new Uint8Array(buf).set(u8);
+      return buf;
+    };
 
-  static async generateTOTP(secret: string, timestamp?: number): Promise<string> {
+    switch (algorithm) {
+      case 'SHA1':
+        try {
+          return new Uint8Array(
+            concealCrypto.hmacSha1(toBuffer(secretBytes), toBuffer(counterBytes)),
+          );
+        } catch (error) {
+          console.warn('Native hmacSha1 failed, using JS fallback:', error);
+          return CryptoService.hmacSha1(secretBytes, counterBytes);
+        }
+
+      case 'SHA256':
+        try {
+          return new Uint8Array(
+            concealCrypto.hmacSha256(toBuffer(secretBytes), toBuffer(counterBytes)),
+          );
+        } catch (error) {
+          console.warn('Native hmacSha256 failed, using JS fallback:', error);
+          return CryptoService.hmacSha256(secretBytes, counterBytes);
+        }
+
+      case 'SHA512':
+        try {
+          return new Uint8Array(
+            concealCrypto.hmacSha512(toBuffer(secretBytes), toBuffer(counterBytes)),
+          );
+        } catch (error) {
+          console.warn('Native hmacSha512 failed, using JS fallback:', error);
+          return CryptoService.hmacSha512(secretBytes, counterBytes);
+        }
+    }
+  }
+
+  /** Build an 8-byte big-endian counter buffer from a counter value. */
+  private static counterBuffer(counter: number): Uint8Array {
+    const buf = new ArrayBuffer(8);
+    new DataView(buf).setBigUint64(0, BigInt(counter), false);
+    return new Uint8Array(buf);
+  }
+
+  /** Dynamic truncation + digit extraction (works for any HMAC length). */
+  private static truncate(hmac: Uint8Array, digits: TOTPDigits): string {
+    const offset = hmac[hmac.length - 1] & 0x0f;
+    const code =
+      ((hmac[offset] & 0x7f) << 24) |
+      ((hmac[offset + 1] & 0xff) << 16) |
+      ((hmac[offset + 2] & 0xff) << 8) |
+      (hmac[offset + 3] & 0xff);
+    return (code % 10 ** digits).toString().padStart(digits, '0');
+  }
+
+  static async generateTOTP(
+    secret: string,
+    timestamp?: number,
+    algorithm: TOTPAlgorithm = DEFAULT_ALGORITHM,
+    digits: TOTPDigits = DEFAULT_DIGITS,
+    period: TOTPPeriod = DEFAULT_PERIOD,
+  ): Promise<string> {
     try {
-      // Decode base32 secret
       const secretBytes = CryptoService.base32Decode(secret.replace(/\s/g, '').toUpperCase());
-
-      // Calculate time counter
-      const time = timestamp || Math.floor(Date.now() / 1000);
-      const counter = Math.floor(time / TOTPService.PERIOD);
-
-      // ✅ Optimized ArrayBuffer with DataView (faster than manual byte manipulation)
-      const counterBuffer = new ArrayBuffer(8);
-      const counterView = new DataView(counterBuffer);
-      counterView.setBigUint64(0, BigInt(counter), false); // false = big-endian
-
-      // Prepare secret as ArrayBuffer for native implementation
-      const secretBuffer = new ArrayBuffer(secretBytes.length);
-      const secretView = new Uint8Array(secretBuffer);
-      secretView.set(secretBytes);
-
-      // Generate HMAC-SHA1 using native C++ implementation
-      let hmac: Uint8Array;
-      try {
-        const concealCryptoResult = concealCrypto.hmacSha1(secretBuffer, counterBuffer);
-        hmac = new Uint8Array(concealCryptoResult);
-      } catch (error) {
-        // Fallback to JS implementation if native fails
-        console.warn('Native hmacSha1 failed, using fallback:', error);
-        const counterBytes = new Uint8Array(counterBuffer);
-        hmac = await CryptoService.hmacSha1(secretBytes, counterBytes);
-      }
-
-      // Dynamic truncation
-      const offset = hmac[hmac.length - 1] & 0x0f;
-      const code =
-        ((hmac[offset] & 0x7f) << 24) | ((hmac[offset + 1] & 0xff) << 16) | ((hmac[offset + 2] & 0xff) << 8) | (hmac[offset + 3] & 0xff);
-
-      // Generate final code
-      const otp = (code % 10 ** TOTPService.DIGITS).toString().padStart(TOTPService.DIGITS, '0');
-      return otp;
+      const time = timestamp ?? Math.floor(Date.now() / 1000);
+      const counter = Math.floor(time / period);
+      const hmac = await TOTPService.computeHMAC(algorithm, secretBytes, TOTPService.counterBuffer(counter));
+      return TOTPService.truncate(hmac, digits);
     } catch (error) {
       console.error('Error generating TOTP:', error);
-      return '000000';
+      return '0'.padStart(digits, '0');
     }
   }
 
-  static async generateTOTPForTimeStep(secret: string, timeStep: number): Promise<string> {
+  static async generateTOTPForTimeStep(
+    secret: string,
+    timeStep: number,
+    algorithm: TOTPAlgorithm = DEFAULT_ALGORITHM,
+    digits: TOTPDigits = DEFAULT_DIGITS,
+  ): Promise<string> {
     try {
-      // Decode base32 secret
       const secretBytes = CryptoService.base32Decode(secret.replace(/\s/g, '').toUpperCase());
-
-      // ✅ Optimized ArrayBuffer with DataView (faster than manual byte manipulation)
-      const counterBuffer = new ArrayBuffer(8);
-      const counterView = new DataView(counterBuffer);
-      counterView.setBigUint64(0, BigInt(timeStep), false); // false = big-endian
-
-      // Prepare secret as ArrayBuffer for native implementation
-      const secretBuffer = new ArrayBuffer(secretBytes.length);
-      const secretView = new Uint8Array(secretBuffer);
-      secretView.set(secretBytes);
-
-      // Generate HMAC-SHA1 using native C++ implementation
-      let hmac: Uint8Array;
-      try {
-        const concealCryptoResult = concealCrypto.hmacSha1(secretBuffer, counterBuffer);
-        hmac = new Uint8Array(concealCryptoResult);
-      } catch (error) {
-        // Fallback to JS implementation if native fails
-        console.warn('Native hmacSha1 failed, using fallback:', error);
-        const counterBytes = new Uint8Array(counterBuffer);
-        hmac = await CryptoService.hmacSha1(secretBytes, counterBytes);
-      }
-
-      // Dynamic truncation
-      const offset = hmac[hmac.length - 1] & 0x0f;
-      const code =
-        ((hmac[offset] & 0x7f) << 24) | ((hmac[offset + 1] & 0xff) << 16) | ((hmac[offset + 2] & 0xff) << 8) | (hmac[offset + 3] & 0xff);
-
-      // Generate final code
-      const otp = (code % 10 ** TOTPService.DIGITS).toString().padStart(TOTPService.DIGITS, '0');
-      return otp;
+      const hmac = await TOTPService.computeHMAC(algorithm, secretBytes, TOTPService.counterBuffer(timeStep));
+      return TOTPService.truncate(hmac, digits);
     } catch (error) {
       console.error('Error generating TOTP for time step:', error);
-      return '000000';
+      return '0'.padStart(digits, '0');
     }
   }
 
-  static getTimeRemaining(): number {
+  static getTimeRemaining(period: TOTPPeriod = DEFAULT_PERIOD): number {
     const now = Math.floor(Date.now() / 1000);
-    return TOTPService.PERIOD - (now % TOTPService.PERIOD);
+    return period - (now % period);
   }
 
-  static getCurrentPeriod(): number {
-    return Math.floor(Date.now() / 1000 / TOTPService.PERIOD);
+  static getCurrentPeriod(period: TOTPPeriod = DEFAULT_PERIOD): number {
+    return Math.floor(Date.now() / 1000 / period);
   }
 
   static validateSecret(secret: string): boolean {
     try {
-      // Remove spaces and convert to uppercase
       const cleanSecret = secret.replace(/\s/g, '').toUpperCase();
-
-      // Check if it's valid base32
       const base32Regex = /^[A-Z2-7]+=*$/;
       if (!base32Regex.test(cleanSecret)) {
         return false;
       }
-
-      // Try to decode it
       CryptoService.base32Decode(cleanSecret);
       return cleanSecret.length >= 16;
     } catch (error) {

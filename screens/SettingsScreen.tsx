@@ -3,12 +3,13 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Clipboard from 'expo-clipboard';
 import type React from 'react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, Dimensions, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import concealCrypto from 'react-native-conceal-crypto';
 import QRCode from 'react-native-qrcode-svg';
 import { CustomNodeModal } from '../components/CustomNodeModal';
 import { ExpandableSection } from '../components/ExpandableSection';
@@ -25,15 +26,14 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useWallet } from '../contexts/WalletContext';
 import { CnUtils } from '../model/Cn';
 import { CoinUri } from '../model/CoinUri';
-import { Mnemonic } from '../model/Mnemonic';
 import { WalletRepository } from '../model/WalletRepository';
 import packageJson from '../package.json';
 import { ExportService } from '../services/ExportService';
+import { getGlobalWorkletLogging } from '../services/interfaces/IWorkletLogging';
 import { StorageService } from '../services/StorageService';
 import { WalletService } from '../services/WalletService';
 import { WalletStorageManager } from '../services/WalletStorageManager';
-import { getGlobalWorkletLogging } from '../services/interfaces/IWorkletLogging';
-import concealCrypto from 'react-native-conceal-crypto';
+
 // verifyOldPassword function moved here to avoid circular dependencies
 
 type RootStackParamList = {
@@ -45,7 +45,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function SettingsScreen() {
   const [blockchainSync, setBlockchainSync] = useState(false);
-  const [autoShare, setAutoShare] = useState(false);
+  const [_autoShare, setAutoShare] = useState(false);
   const [biometricAuth, setBiometricAuth] = useState(false);
   const [showBlockchainSyncToggle, setShowBlockchainSyncToggle] = useState(false);
 
@@ -81,6 +81,7 @@ export default function SettingsScreen() {
     { id: 'light', label: 'Light', icon: 'sunny', color: '#FFD700' },
     { id: 'orange', label: 'Orange', icon: 'flame', color: '#FF8C00' },
     { id: 'velvet', label: 'Velvet', icon: 'flower', color: '#8852d2' },
+    { id: 'pink', label: 'Pink', icon: 'heart', color: '#E91E8C' },
     { id: 'dark', label: 'Dark', icon: 'moon', color: '#2C2C2C' },
   ];
 
@@ -190,16 +191,24 @@ export default function SettingsScreen() {
   const qrSize = Math.min(maxQRWidth, 250); // Cap at 250px for readability
 
   const { theme, setTheme, currentThemeId } = useTheme();
-  const { wallet, refreshWallet } = useWallet();
+  const { wallet, refreshWallet, balance, refreshCounter } = useWallet();
   const navigation = useNavigation<NavigationProp>();
 
-  // Load settings on mount
+  // Load settings on mount and when dependencies change
   useEffect(() => {
     loadSettings();
     checkBlockchainSyncVisibility();
     loadNodeInfo();
     loadRevokedKeys();
-  }, [wallet]);
+  }, [wallet, balance, refreshCounter]);
+
+  // Refresh revoked keys every time the screen comes into focus so a HomeScreen
+  // soft-delete is reflected immediately without waiting for a wallet/balance change.
+  useFocusEffect(
+    useCallback(() => {
+      loadRevokedKeys();
+    }, [])
+  );
 
   const loadNodeInfo = async () => {
     try {
@@ -436,7 +445,9 @@ export default function SettingsScreen() {
   const loadRevokedKeys = async () => {
     try {
       const sharedKeys = await StorageService.getSharedKeys();
-      const revoked = sharedKeys.filter((key) => key.timeStampSharedKeyRevoke > 0);
+      // Filter for revoked keys: has revoke timestamp but NOT in the process of being deleted
+      // Keys with revokeInQueue=true are being/has been deleted from blockchain, so don't show them
+      const revoked = sharedKeys.filter((key) => key.timeStampSharedKeyRevoke > 0 && !key.revokeInQueue);
       setRevokedKeys(revoked);
     } catch (error) {
       console.error('SettingsScreen: Error loading revoked keys:', error);
@@ -478,12 +489,16 @@ export default function SettingsScreen() {
         onPress: async () => {
           try {
             const sharedKeys = await StorageService.getSharedKeys();
-            const filteredKeys = sharedKeys.filter((key) => key.hash !== keyId);
+            const keyIndex = sharedKeys.findIndex((key) => key.hash === keyId);
 
-            await StorageService.saveSharedKeys(filteredKeys);
-            await loadRevokedKeys(); // Refresh the list
+            if (keyIndex !== -1) {
+              // Set revokeInQueue to true to signal CronBuddy to send {2FA,d,hash} to blockchain.
+              sharedKeys[keyIndex].revokeInQueue = true;
+              await StorageService.saveSharedKeys(sharedKeys);
+            }
 
-            Alert.alert('Success', 'Shared key deleted successfully');
+            await loadRevokedKeys();
+            Alert.alert('Success', 'Shared key queued for permanent deletion');
           } catch (error) {
             console.error('SettingsScreen: Error deleting key:', error);
             Alert.alert('Error', 'Failed to delete shared key');

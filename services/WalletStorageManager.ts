@@ -7,10 +7,10 @@
  * file LICENSE or https://opensource.org/licenses/BSD-3-Clause.
  */
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, Platform } from 'react-native';
 import type { Wallet } from '../model/Wallet';
 import { WalletRepository } from '../model/WalletRepository';
@@ -28,13 +28,72 @@ export class WalletStorageManager {
   // Temporary storage for current session's password key (cleared on app restart)
   private static currentSessionPasswordKey: string | null = null;
 
+  // Migration: Check if wallet exists in AsyncStorage and migrate to SecureStore
+  private static async migrateWalletFromAsyncStorage(): Promise<void> {
+    // Only run migration on native platforms (not web)
+    if (Platform.OS === 'web') return;
+
+    try {
+      // First check if we already have data in SecureStore
+      const existingData = await SecureStore.getItemAsync(WalletStorageManager.WALLET_KEY);
+      if (existingData && existingData.length > 0) {
+        // Already migrated - wallet data exists in SecureStore
+        return;
+      }
+
+      // Check for old wallet data in AsyncStorage
+      const oldData = await AsyncStorage.getItem(WalletStorageManager.WALLET_KEY);
+      if (oldData && oldData.length > 0) {
+        console.log('[MIGRATION] Found wallet data in AsyncStorage, migrating to SecureStore');
+        
+        // Migrate wallet data to SecureStore
+        await SecureStore.setItemAsync(WalletStorageManager.WALLET_KEY, oldData);
+        
+        // Also migrate related keys
+        const hasPassword = await AsyncStorage.getItem(WalletStorageManager.WALLET_HAS_PASSWORD_KEY);
+        if (hasPassword) {
+          await SecureStore.setItemAsync(WalletStorageManager.WALLET_HAS_PASSWORD_KEY, hasPassword);
+        }
+
+        const biometricSalt = await AsyncStorage.getItem(WalletStorageManager.BIOMETRIC_SALT_KEY);
+        if (biometricSalt) {
+          await SecureStore.setItemAsync(WalletStorageManager.BIOMETRIC_SALT_KEY, biometricSalt);
+        }
+
+        const passwordDerivedKey = await AsyncStorage.getItem(WalletStorageManager.PASSWORD_DERIVED_KEY);
+        if (passwordDerivedKey) {
+          await SecureStore.setItemAsync(WalletStorageManager.PASSWORD_DERIVED_KEY, passwordDerivedKey);
+        }
+
+        const passwordHash = await AsyncStorage.getItem(WalletStorageManager.PASSWORD_HASH_KEY);
+        if (passwordHash) {
+          await SecureStore.setItemAsync(WalletStorageManager.PASSWORD_HASH_KEY, passwordHash);
+        }
+        
+        // Delete old data from AsyncStorage
+        await AsyncStorage.removeItem(WalletStorageManager.WALLET_KEY);
+        await AsyncStorage.removeItem(WalletStorageManager.WALLET_HAS_PASSWORD_KEY);
+        await AsyncStorage.removeItem(WalletStorageManager.BIOMETRIC_SALT_KEY);
+        await AsyncStorage.removeItem(WalletStorageManager.PASSWORD_DERIVED_KEY);
+        await AsyncStorage.removeItem(WalletStorageManager.PASSWORD_HASH_KEY);
+        
+        console.log('[MIGRATION] Wallet migration complete - moved to SecureStore');
+      }
+    } catch (error) {
+      console.error('[MIGRATION] Error during wallet migration:', error);
+      // Don't throw - let the app try to continue
+    }
+  }
+
   static async saveEncryptedWalletData(encryptedData: any): Promise<void> {
     try {
       const data = JSON.stringify(encryptedData);
       if (Platform.OS === 'web') {
         localStorage.setItem(WalletStorageManager.WALLET_KEY, data);
       } else {
-        await AsyncStorage.setItem(WalletStorageManager.WALLET_KEY, data);
+        // Use SecureStore for better persistence (backed by Android Keystore)
+        // This is more secure AND more persistent than AsyncStorage
+        await SecureStore.setItemAsync(WalletStorageManager.WALLET_KEY, data);
       }
     } catch (error) {
       console.error('Error saving encrypted wallet:', error);
@@ -44,23 +103,26 @@ export class WalletStorageManager {
 
   static async getWallet(): Promise<Wallet | null> {
     try {
+      // Migration: Check if wallet exists in AsyncStorage and migrate to SecureStore
+      await WalletStorageManager.migrateWalletFromAsyncStorage();
+
       let data: string | null;
       if (Platform.OS === 'web') {
         data = localStorage.getItem(WalletStorageManager.WALLET_KEY);
       } else {
-        data = await AsyncStorage.getItem(WalletStorageManager.WALLET_KEY);
+        // Read from SecureStore (more persistent than AsyncStorage)
+        data = await SecureStore.getItemAsync(WalletStorageManager.WALLET_KEY);
       }
 
-      if (!data) return null;
+      if (!data) {
+        return null;
+      }
 
       const parsedData = JSON.parse(data);
 
       // Check if this is encrypted data (has 'data' and 'nonce' properties)
       if (parsedData.data && parsedData.nonce) {
-        console.log('WALLET STORAGE: Found encrypted wallet data, checking authentication mode...');
-
         const isBiometricEnabled = await BiometricService.isBiometricEnabled();
-        console.log('Authentication mode:', isBiometricEnabled ? 'BIOMETRIC' : 'PASSWORD');
 
         if (isBiometricEnabled) {
           // Biometric mode: authenticate with biometric and decrypt with biometric key
@@ -184,7 +246,8 @@ export class WalletStorageManager {
         localStorage.removeItem(WalletStorageManager.PASSWORD_DERIVED_KEY);
         localStorage.removeItem(WalletStorageManager.PASSWORD_HASH_KEY);
       } else {
-        await AsyncStorage.removeItem(WalletStorageManager.WALLET_KEY);
+        // Use SecureStore for wallet data (for consistency with save/load)
+        await SecureStore.deleteItemAsync(WalletStorageManager.WALLET_KEY);
         await SecureStore.deleteItemAsync(WalletStorageManager.ENCRYPTION_KEY);
         await SecureStore.deleteItemAsync(WalletStorageManager.WALLET_HAS_PASSWORD_KEY);
         await SecureStore.deleteItemAsync(WalletStorageManager.BIOMETRIC_SALT_KEY);
@@ -268,7 +331,8 @@ export class WalletStorageManager {
       if (Platform.OS === 'web') {
         data = localStorage.getItem(WalletStorageManager.WALLET_KEY);
       } else {
-        data = await AsyncStorage.getItem(WalletStorageManager.WALLET_KEY);
+        // Read from SecureStore for persistence
+        data = await SecureStore.getItemAsync(WalletStorageManager.WALLET_KEY);
       }
 
       if (!data) return null;
@@ -297,7 +361,8 @@ export class WalletStorageManager {
       if (Platform.OS === 'web') {
         data = localStorage.getItem(WalletStorageManager.WALLET_KEY);
       } else {
-        data = await AsyncStorage.getItem(WalletStorageManager.WALLET_KEY);
+        // Read from SecureStore for persistence
+        data = await SecureStore.getItemAsync(WalletStorageManager.WALLET_KEY);
       }
 
       if (!data) return null;
@@ -326,7 +391,8 @@ export class WalletStorageManager {
       if (Platform.OS === 'web') {
         data = localStorage.getItem(WalletStorageManager.WALLET_KEY);
       } else {
-        data = await AsyncStorage.getItem(WalletStorageManager.WALLET_KEY);
+        // Read from SecureStore for persistence
+        data = await SecureStore.getItemAsync(WalletStorageManager.WALLET_KEY);
       }
 
       if (!data) return null;
@@ -368,10 +434,11 @@ export class WalletStorageManager {
       if (Platform.OS === 'web') {
         data = localStorage.getItem(WalletStorageManager.WALLET_KEY);
       } else {
-        data = await AsyncStorage.getItem(WalletStorageManager.WALLET_KEY);
+        // Check SecureStore (more persistent than AsyncStorage)
+        data = await SecureStore.getItemAsync(WalletStorageManager.WALLET_KEY);
       }
 
-      // Return true if any data exists (encrypted or not)
+      // Return true if any data exists
       return data !== null;
     } catch (error) {
       console.error('Error checking for wallet data:', error);
@@ -479,9 +546,18 @@ export class WalletStorageManager {
   // New biometric salt methods
   static async generateAndStoreBiometricSalt(userPassword: string): Promise<void> {
     try {
+      // Check if salt already exists - if so, DON'T overwrite it!
+      // The salt should only change when user explicitly switches between biometric and password modes
+      const existingSalt = await SecureStore.getItemAsync(WalletStorageManager.BIOMETRIC_SALT_KEY);
+      if (existingSalt) {
+        console.log('BIOMETRIC SALT: Salt already exists, not overwriting');
+        return; // Exit early - don't regenerate the salt!
+      }
+
       // Generate a salt derived from the user password
       const salt = await WalletStorageManager.deriveSaltFromPassword(userPassword);
       await SecureStore.setItemAsync(WalletStorageManager.BIOMETRIC_SALT_KEY, salt);
+      console.log('BIOMETRIC SALT: New salt generated and stored');
     } catch (error) {
       console.error('Error generating biometric salt:', error);
       throw new Error('Failed to generate biometric salt');
@@ -505,24 +581,17 @@ export class WalletStorageManager {
 
   static async deriveBiometricKey(): Promise<string | null> {
     try {
-      console.log('BIOMETRIC KEY: Starting key derivation...');
       const salt = await WalletStorageManager.getBiometricSalt();
-      console.log('BIOMETRIC KEY: Salt available:', !!salt);
       if (!salt) {
-        console.log('BIOMETRIC KEY: No salt found');
         return null;
       }
 
       // Generate a consistent biometric identifier based on device capabilities
-      // This creates a unique key per device/user combination
       const biometricIdentifier = await WalletStorageManager.generateBiometricIdentifier();
-      console.log('BIOMETRIC KEY: Generated biometric identifier');
 
       // Derive key from biometric identifier + salt using expo-crypto
       const data = biometricIdentifier + salt;
-      const key = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, data);
-      console.log('BIOMETRIC KEY: Key derived successfully');
-      return key;
+      return await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, data);
     } catch (error) {
       console.error('BIOMETRIC KEY: Error deriving biometric key:', error);
       return null;
@@ -550,7 +619,6 @@ export class WalletStorageManager {
       return await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, identifierString);
     } catch (error) {
       console.error('Error generating biometric identifier:', error);
-      // Fallback to a simple identifier
       return 'fallback_biometric_identifier';
     }
   }
