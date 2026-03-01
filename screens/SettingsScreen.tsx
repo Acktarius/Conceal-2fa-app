@@ -47,6 +47,7 @@ export default function SettingsScreen() {
   const [blockchainSync, setBlockchainSync] = useState(false);
   const [_autoShare, setAutoShare] = useState(false);
   const [biometricAuth, setBiometricAuth] = useState(false);
+  const [extraSecurityEnabled, setExtraSecurityEnabled] = useState(false);
   const [showBlockchainSyncToggle, setShowBlockchainSyncToggle] = useState(false);
 
   // Trust Anchor (Payment ID Whitelist) state
@@ -263,6 +264,7 @@ export default function SettingsScreen() {
       setBroadcastAddress(settings.broadcastAddress || '');
       // Enable biometric auth by default since we're using it
       setBiometricAuth(settings.biometricAuth !== false); // Default to true unless explicitly set to false
+      setExtraSecurityEnabled(settings.extraSecurityEnabled || false);
       // Load payment ID whitelist
       setPaymentIdWhiteList(settings.paymentIdWhiteList || []);
     } catch (error) {
@@ -363,12 +365,28 @@ export default function SettingsScreen() {
     setShowCustomNodeModal(false);
   };
 
-  const handleShowSeed = () => {
+  // Handle extra security check - returns true if authentication is successful or not required
+  const handleExtraSecurity = async (): Promise<boolean> => {
+    if (extraSecurityEnabled) {
+      const authenticated = await WalletService.authenticateUser();
+      return authenticated;
+    }
+    return true;
+  };
+
+  const handleShowSeed = async () => {
     if (showRecoverySeed) {
       // Collapse the section
       setShowRecoverySeed(false);
       setRecoverySeed('');
     } else {
+      // Check extra security first
+      const authenticated = await handleExtraSecurity();
+      if (!authenticated) {
+        Alert.alert('Authentication Required', 'Please authenticate to view your recovery seed.');
+        return;
+      }
+
       // Expand and generate seed
       if (wallet?.keys?.priv?.spend) {
         try {
@@ -386,12 +404,19 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleExportWallet = () => {
+  const handleExportWallet = async () => {
     if (showExportQR) {
       // Collapse the section
       setShowExportQR(false);
       setExportQRData('');
     } else {
+      // Check extra security first
+      const authenticated = await handleExtraSecurity();
+      if (!authenticated) {
+        Alert.alert('Authentication Required', 'Please authenticate to export your wallet.');
+        return;
+      }
+
       // Expand and generate QR
       if (!wallet) {
         Alert.alert('Error', 'No wallet available for export');
@@ -1487,13 +1512,41 @@ export default function SettingsScreen() {
               </View>
             </View>
           )}
-
           {/* Security Settings */}
           <View className="mb-6">
             <Text className="text-base font-semibold mb-2 ml-1" style={{ color: theme.colors.text }}>
               Security
             </Text>
+            {/* Extra Security Settings */}
             <View className="rounded-2xl shadow-lg" style={{ backgroundColor: theme.colors.card }}>
+              <SettingItem
+                icon="lock-closed-outline"
+                title="Extra Security"
+                subtitle="Request identification to display sensitive information"
+                rightElement={
+                  <Switch
+                    value={extraSecurityEnabled}
+                    onValueChange={async (value) => {
+                      if (!value) {
+                        const authenticated = await WalletService.authenticateUser();
+                        if (!authenticated) return;
+                      }
+                      setExtraSecurityEnabled(value);
+                      await StorageService.saveSettings({
+                        ...(await StorageService.getSettings()),
+                        extraSecurityEnabled: value,
+                      });
+                    }}
+                    trackColor={{
+                      false: theme.colors.border,
+                      true: theme.colors.primary,
+                    }}
+                    thumbColor={theme.colors.background}
+                    ios_backgroundColor={theme.colors.border}
+                  />
+                }
+              />
+            {/* Biometric Authentication or Password */}
               <SettingItem
                 icon="finger-print-outline"
                 title="Biometric Authentication"

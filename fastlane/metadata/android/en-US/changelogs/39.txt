@@ -4,5 +4,6 @@
 - add new theme pink
 - blockchain synchronization more robust
 - fix future code partial display
+- add as an option, extra identification for sensitive data
 - ALWAYS MAKE SURE YOU BACKUP YOUR SEED PHRASE WITH CREATION HEIGHT or QR CODE, BEFORE UPGRADING
 - ANTICIPATE TO RESCAN WALLET AFTER UPGRADE
