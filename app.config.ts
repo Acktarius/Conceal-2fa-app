@@ -27,7 +27,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     buildNumber: process.env.IOS_BUILD_NUMBER || '2',
     infoPlist: {
       NSCameraUsageDescription: 'Allow SecureAuth to access your camera to scan QR codes.',
-      ITSAppUsesNonExemptEncryption: false,
+      ITSAppUsesNonExemptEncryption: true,
       NSLocationWhenInUseUsageDescription:
         'This app does not use your location. This message is required because a bundled library may reference location APIs; we do not collect or use location data.',
     },
