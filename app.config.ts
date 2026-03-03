@@ -28,6 +28,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     infoPlist: {
       NSCameraUsageDescription: 'Allow SecureAuth to access your camera to scan QR codes.',
       ITSAppUsesNonExemptEncryption: true,
+      ITSEncryptionExportComplianceCode: 'ea61fefa-6631-4c2d-b4c3-7009f296e61c',
       NSLocationWhenInUseUsageDescription:
         'This app does not use your location. This message is required because a bundled library may reference location APIs; we do not collect or use location data.',
     },
