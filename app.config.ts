@@ -17,7 +17,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   assetBundlePatterns: ['**/*'],
 
   ios: {
-    supportsTablet: true,
+    supportsTablet: false,
     icon: './assets/icon.png',
     splash: {
       image: './assets/splash-ios.png',
