@@ -42,6 +42,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     },
     versionCode: parseInt(process.env.ANDROID_VERSION_CODE || '2'),
     permissions: ['CAMERA', 'android.permission.CAMERA'],
+    blockedPermissions: ['android.permission.VIBRATE'],
     package: 'com.acktarius.concealauthenticator',
   },
 
