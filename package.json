@@ -1,6 +1,6 @@
 {
   "name": "conceal-authenticator",
-  "version": "1.1.3",
+  "version": "1.1.4",
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
     "android": "expo run:android",
@@ -19,7 +19,10 @@
     "test": "npm run test:unit && npm run test:integration",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
-    "test:integration": "jest --forceExit"
+    "test:integration": "jest --forceExit",
+    "ci:act": "scripts/act-ci.sh ci",
+    "ci:act:security": "scripts/act-ci.sh security",
+    "ci:act:all": "scripts/act-ci.sh all"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",

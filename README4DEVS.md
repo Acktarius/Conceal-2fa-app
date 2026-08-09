@@ -23,7 +23,7 @@ ANDROID_VERSION_CODE=39
 
 [`app.config.ts`](app.config.ts) reads these at prebuild time. Android signing secrets for **local** release builds go in [`.env_private`](.env_private) (see [hooks/android/3_signing.js](hooks/android/3_signing.js)).
 
-**Prerequisites:** Node 20+, npm, Java 17, Android SDK 35 (for native Android builds), [EAS CLI](https://docs.expo.dev/build/setup/) logged into the Expo account (`owner: acktarius` in `app.config.ts`).
+**Prerequisites:** Node 20+, npm, Java 17, Android SDK 35 (for native Android builds), [EAS CLI](https://docs.expo.dev/build/setup/) logged into the Expo account (`owner: acktarius` in `app.config.ts`). Optional: **Docker** + **[act](https://nektos.github.io/act/)** to replay GitHub Actions locally (see [Local GitHub Actions (act)](#local-github-actions-act)).
 
 ---
 
@@ -260,10 +260,130 @@ Apple Team ID is configured in [`eas.json`](eas.json) (`appleTeamId: U4D6B43275`
 
 ---
 
+## Local GitHub Actions (act)
+
+Replay [`.github/workflows/ci-check.yml`](.github/workflows/ci-check.yml) and [`.github/workflows/security-check.yml`](.github/workflows/security-check.yml) in Docker **before push**, without waiting on GitHub runners.
+
+| Tool | Role |
+|------|------|
+| **act** | Runs workflow YAML locally in Docker |
+| **`gh workflow run`** | Triggers workflows on GitHub (remote only) |
+| **`npm run lint` / `test:unit`** | Fastest day-to-day check; no Docker |
+
+### What maps to what
+
+| GitHub workflow | Jobs replayed locally | Command |
+|-----------------|----------------------|---------|
+| `ci-check.yml` | `check` — `npm ci`, lint, types, unit tests | `npm run ci:act` |
+| `security-check.yml` | `npm-audit` — `npm audit --audit-level=critical` | `npm run ci:act:security` |
+| `security-check.yml` | `secret-scan` — Gitleaks | `npm run ci:act:security` |
+| `security-check.yml` | `dependency-review` | **skipped** (PR-only on GitHub) |
+
+Repo files: [`.actrc`](.actrc) (runner image + arch), [`scripts/act-ci.sh`](scripts/act-ci.sh) (wrapper). Copy both to other Node projects and edit workflow paths in the script if needed.
+
+### One-time setup
+
+**1. Docker** — daemon running (`docker info` succeeds).
+
+**2. act** — install binary:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/nektos/act/master/install.sh | bash -s -- -b ~/.local/bin
+```
+
+**3. Shell** — append to `~/.bashrc`, then `source ~/.bashrc`:
+
+```bash
+# --- act: local GitHub Actions (nektos/act) ---
+export PATH="$HOME/.local/bin:$PATH"
+# Event act simulates (push | pull_request); scripts/act-ci.sh defaults to push
+export ACT_EVENT="${ACT_EVENT:-push}"
+# Optional: for security-check gitleaks job; use gh token if logged in:
+# export ACT_GITHUB_TOKEN="$(gh auth token 2>/dev/null)"
+```
+
+**4. First run** — pulls Docker image `catthehacker/ubuntu:act-latest` (~500MB once). Inside the container, `setup-node@v7` installs Node **24** (same as CI).
+
+### Commands
+
+```bash
+npm run ci:act              # ci-check.yml
+npm run ci:act:security     # security-check (npm-audit + gitleaks)
+npm run ci:act:all          # both
+
+scripts/act-ci.sh           # same as ci:act
+scripts/act-ci.sh dry-run   # list steps, no execution
+scripts/act-ci.sh list      # list jobs act would run
+scripts/act-ci.sh help
+```
+
+Pass extra args through to `act` (e.g. verbose):
+
+```bash
+scripts/act-ci.sh ci -v
+```
+
+Simulate a PR event (only matters for workflows with `pull_request` filters):
+
+```bash
+ACT_EVENT=pull_request scripts/act-ci.sh ci
+```
+
+### Faster check without Docker
+
+Use this for routine edits; use `act` before merge when you want parity with CI:
+
+```bash
+npm ci && npm run lint && npm run types && npm run test:unit
+npm audit --audit-level=critical
+```
+
+### Security (host isolation)
+
+`scripts/act-ci.sh` is configured to **avoid extra host exposure**:
+
+| Measure | What it does |
+|---------|----------------|
+| **No `--bind`** | Repo is **copied** into the container, not bind-mounted from your disk (container writes do not sync back to your tree). |
+| **No extra `-v` mounts** | Script rejects `--bind`, `-v`, `--volume`, `--mount` passthrough args. |
+| **No auto `.env` / `.secrets`** | `--env-file /dev/null` and `--secret-file /dev/null` so act does not inject local env files (including `.env_private` patterns). |
+| **No `--privileged`** | Standard unprivileged container. |
+| **`--rm`** | Container removed after the run. |
+| **Pinned image digest** | [`.actrc`](.actrc) pins `catthehacker/ubuntu:act-latest@sha256:…` for reproducible pulls. |
+
+**Still required (normal Docker/act behavior):**
+
+- Docker daemon socket access (act must talk to Docker).
+- Default **`network=host`** (act default) — job can reach services on `localhost`. For tighter isolation: `ACT_NETWORK=bridge npm run ci:act` (may affect action cache; try if you run local DBs on 127.0.0.1).
+- **`npm ci` postinstall scripts** run **inside** the container — same trust as CI; not host-as-root.
+
+**Do not** pass `scripts/act-ci.sh ci --bind` or custom volume flags. Use plain `npm run ci:act`.
+
+### Caveats
+
+- **`dependency-review`** needs GitHub’s PR API — not replayed by `act`.
+- **Gitleaks job** may warn without a token; set `ACT_GITHUB_TOKEN` (see bashrc) or use a dummy value for local scans.
+- **Runtime:** first `ci:act` ~1–2 min (`npm ci` in container); later runs use Docker/npm caches.
+- **`gh`** does not run workflows locally — only `act` or the npm commands above do.
+
+### Troubleshooting
+
+| Symptom | Fix |
+|---------|-----|
+| `act not found` | Install act; ensure `~/.local/bin` is on `PATH` |
+| `Docker is not running` | Start Docker Desktop / `sudo systemctl start docker` |
+| act prompts for image size | Repo [`.actrc`](.actrc) should prevent that; run from repo root |
+| Vitest `kill EACCES` in Cursor sandbox | Run `npm run test:unit` in your own terminal, not the agent sandbox |
+
+---
+
 ## Quick reference
 
 | Goal | Command |
 |------|---------|
+| CI workflow (act) | `npm run ci:act` |
+| Security workflow (act) | `npm run ci:act:security` |
+| CI + security (act) | `npm run ci:act:all` |
 | Lint / types | `npm run preflight` |
 | Unit tests | `npm run test:unit` |
 | Android debug run | `npm run android` |
