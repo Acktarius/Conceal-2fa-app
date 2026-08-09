@@ -54,23 +54,72 @@ npm run android            # expo run:android (debug dev client)
 npx expo start --dev-client
 ```
 
-**Option B — LAN dev (custom packager IP in `package.json` `dev` script):**
+**Option B — Android emulator (Metro + open app, cache reset):**
+
+Use when a **debug build is already installed** on the emulator (from Option A or after `./build-android.sh`):
+
+```bash
+npx expo start --android --reset-cache
+```
+
+Same idea as `build-android.sh` suggests for day-to-day debugging. Starts Metro, clears Metro cache, and opens the app on the running emulator.
+
+**Option C — Build and run debug on emulator (no separate Metro step):**
+
+```bash
+npm run android            # preferred: expo run:android
+# equivalent:
+npx react-native run-android
+```
+
+Requires `android/` present (`npx expo prebuild --platform android` or `./build-android.sh` once).
+
+**Option D — LAN dev (custom packager IP in `package.json` `dev` script):**
 
 ```bash
 npm run dev
 ```
 
-**Option C — iOS simulator / device (local Xcode toolchain):**
+**Option E — iOS simulator / device (local Xcode toolchain):**
 
 ```bash
 npm run ios                # expo run:ios
 ```
 
-**Option D — Web (limited; not all native features work):**
+**Option F — Web (limited; not all native features work):**
 
 ```bash
 npm run web
 ```
+
+#### Android deep clean (stuck native / release build)
+
+When Gradle or native caches misbehave **and `android/` already exists** — not a substitute for `./build-android.sh` (full prebuild + hooks):
+
+```bash
+cd android
+rm -rf app/build app/.cxx
+./gradlew clean
+```
+
+Release APK (Gradle runs JS bundling via `export:embed` — manual bundle usually **not** needed):
+
+```bash
+cd android
+./gradlew assembleRelease
+```
+
+If a release APK still serves **stale JS**, force a bundle then rebuild (matches commented step in [`build-android.sh`](build-android.sh)):
+
+```bash
+npx react-native bundle --platform android --dev false \
+  --entry-file node_modules/expo/AppEntry.js \
+  --bundle-output android/app/src/main/assets/index.android.bundle \
+  --assets-dest android/app/src/main/res/
+cd android && ./gradlew assembleRelease
+```
+
+For a full release tree (signing, Nitro hooks), use [Prepare build for Android](#prepare-build-for-android) and `./build-android.sh` instead.
 
 ### 4. Regenerate native projects only
 
