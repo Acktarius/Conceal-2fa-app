@@ -24,3 +24,17 @@ local-release-key.keystore
 collect-expo-deps.sh
 restore-expo-deps.sh
 fdroid-deps/
+
+# AI
+AGENTS.md
+.chat/
+.continue/
+.cursorrules
+.cursor/
+decisions.md
+docs/
+.forge/
+openspec/
+.repo-kit/
+security/
+scripts/hooks/

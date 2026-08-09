@@ -23,11 +23,7 @@ export class TOTPService {
    * All three variants attempt the native C++ implementation first,
    * falling back to pure-JS if the native call throws.
    */
-  private static async computeHMAC(
-    algorithm: TOTPAlgorithm,
-    secretBytes: Uint8Array,
-    counterBytes: Uint8Array,
-  ): Promise<Uint8Array> {
+  private static async computeHMAC(algorithm: TOTPAlgorithm, secretBytes: Uint8Array, counterBytes: Uint8Array): Promise<Uint8Array> {
     const toBuffer = (u8: Uint8Array): ArrayBuffer => {
       const buf = new ArrayBuffer(u8.length);
       new Uint8Array(buf).set(u8);
@@ -37,9 +33,7 @@ export class TOTPService {
     switch (algorithm) {
       case 'SHA1':
         try {
-          return new Uint8Array(
-            concealCrypto.hmacSha1(toBuffer(secretBytes), toBuffer(counterBytes)),
-          );
+          return new Uint8Array(concealCrypto.hmacSha1(toBuffer(secretBytes), toBuffer(counterBytes)));
         } catch (error) {
           console.warn('Native hmacSha1 failed, using JS fallback:', error);
           return CryptoService.hmacSha1(secretBytes, counterBytes);
@@ -47,9 +41,7 @@ export class TOTPService {
 
       case 'SHA256':
         try {
-          return new Uint8Array(
-            concealCrypto.hmacSha256(toBuffer(secretBytes), toBuffer(counterBytes)),
-          );
+          return new Uint8Array(concealCrypto.hmacSha256(toBuffer(secretBytes), toBuffer(counterBytes)));
         } catch (error) {
           console.warn('Native hmacSha256 failed, using JS fallback:', error);
           return CryptoService.hmacSha256(secretBytes, counterBytes);
@@ -57,9 +49,7 @@ export class TOTPService {
 
       case 'SHA512':
         try {
-          return new Uint8Array(
-            concealCrypto.hmacSha512(toBuffer(secretBytes), toBuffer(counterBytes)),
-          );
+          return new Uint8Array(concealCrypto.hmacSha512(toBuffer(secretBytes), toBuffer(counterBytes)));
         } catch (error) {
           console.warn('Native hmacSha512 failed, using JS fallback:', error);
           return CryptoService.hmacSha512(secretBytes, counterBytes);
@@ -78,10 +68,7 @@ export class TOTPService {
   private static truncate(hmac: Uint8Array, digits: TOTPDigits): string {
     const offset = hmac[hmac.length - 1] & 0x0f;
     const code =
-      ((hmac[offset] & 0x7f) << 24) |
-      ((hmac[offset + 1] & 0xff) << 16) |
-      ((hmac[offset + 2] & 0xff) << 8) |
-      (hmac[offset + 3] & 0xff);
+      ((hmac[offset] & 0x7f) << 24) | ((hmac[offset + 1] & 0xff) << 16) | ((hmac[offset + 2] & 0xff) << 8) | (hmac[offset + 3] & 0xff);
     return (code % 10 ** digits).toString().padStart(digits, '0');
   }
 
@@ -90,7 +77,7 @@ export class TOTPService {
     timestamp?: number,
     algorithm: TOTPAlgorithm = DEFAULT_ALGORITHM,
     digits: TOTPDigits = DEFAULT_DIGITS,
-    period: TOTPPeriod = DEFAULT_PERIOD,
+    period: TOTPPeriod = DEFAULT_PERIOD
   ): Promise<string> {
     try {
       const secretBytes = CryptoService.base32Decode(secret.replace(/\s/g, '').toUpperCase());
@@ -108,7 +95,7 @@ export class TOTPService {
     secret: string,
     timeStep: number,
     algorithm: TOTPAlgorithm = DEFAULT_ALGORITHM,
-    digits: TOTPDigits = DEFAULT_DIGITS,
+    digits: TOTPDigits = DEFAULT_DIGITS
   ): Promise<string> {
     try {
       const secretBytes = CryptoService.base32Decode(secret.replace(/\s/g, '').toUpperCase());

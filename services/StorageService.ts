@@ -114,11 +114,11 @@ export class StorageService implements IStorageService {
       const oldData = await AsyncStorage.getItem(StorageService.SHARED_KEYS_KEY);
       if (oldData && oldData.length > 0) {
         console.log('StorageService: Migrating shared keys from AsyncStorage to SecureStore');
-        
+
         // Try to migrate - first verify if it's encrypted or plain JSON
         try {
           // Try to decrypt as encrypted data
-          const decrypted = await StorageService.decryptData(oldData);
+          await StorageService.decryptData(oldData);
           // It's encrypted - migrate directly
           await SecureStore.setItemAsync(StorageService.SHARED_KEYS_KEY, oldData);
         } catch {
@@ -126,10 +126,10 @@ export class StorageService implements IStorageService {
           const encryptedData = await StorageService.encryptData(oldData);
           await SecureStore.setItemAsync(StorageService.SHARED_KEYS_KEY, encryptedData);
         }
-        
+
         // Delete from AsyncStorage after successful migration
         await AsyncStorage.removeItem(StorageService.SHARED_KEYS_KEY);
-        
+
         console.log('StorageService: Migration complete - shared keys moved to SecureStore');
       }
     } catch (error) {

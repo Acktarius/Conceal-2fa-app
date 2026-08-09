@@ -1,7 +1,7 @@
+import { setAppIcon } from '@g9k/expo-dynamic-app-icon';
 import type React from 'react';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useColorScheme } from 'react-native';
-import { setAppIcon } from '@g9k/expo-dynamic-app-icon';
 import { StorageService } from '../services/StorageService';
 
 export interface Theme {
@@ -168,30 +168,30 @@ const pinkTheme: Theme = {
   isDark: true,
   themeId: 'pink',
   colors: {
-    background: '#FFF0F5',   // Lavender blush
-    surface: '#FFFFFF',      // White — Hello
-    card: '#FFF5F9',         // Blush white card
-    text: '#B5006A',         // Deep rose — readable on light backgrounds
+    background: '#FFF0F5', // Lavender blush
+    surface: '#FFFFFF', // White — Hello
+    card: '#FFF5F9', // Blush white card
+    text: '#B5006A', // Deep rose — readable on light backgrounds
     textSecondary: '#E91E8C', // hot pink
-    primary: '#E91E8C',      // Signature bow pink
+    primary: '#E91E8C', // Signature bow pink
     primaryLight: '#FCE4EC', // Petal pink highlight
-    accent: '#FF4081',       // Vivid pink accent
-    success: '#66BB6A',      // Soft green
-    warning: '#CC0000',      // red bow — used for trashcan/danger
-    status: '#34D399',       // Mint status
-    error: '#CC0000',        // Red bow
-    border: '#F8BBD9',       // Soft pink border
-    tabBar: '#FFFFFF',       // White tab bar
+    accent: '#FF4081', // Vivid pink accent
+    success: '#66BB6A', // Soft green
+    warning: '#CC0000', // red bow — used for trashcan/danger
+    status: '#34D399', // Mint status
+    error: '#CC0000', // Red bow
+    border: '#F8BBD9', // Soft pink border
+    tabBar: '#FFFFFF', // White tab bar
     tabBarActive: '#E91E8C', // Hot pink active tab
     tabBarInactive: '#F48FB1', // Pale pink inactive
-    switchTrack: '#F8BBD9',  // Petal pink track
-    switchThumb: '#FFFFFF',  // White thumb
+    switchTrack: '#F8BBD9', // Petal pink track
+    switchThumb: '#FFFFFF', // White thumb
     switchTrackTrue: '#E91E8C', // Hot pink when ON
     switchTrackFalse: '#F8BBD9', // Petal pink when OFF
     switchThumbColor: '#FFFFFF',
-    pulseColor: '#E91E8C',   // Hot pink pulse
-    buttonText: '#FFFFFF',   // White text on pink buttons
-    bannerBkg: 'rgba(204, 0, 0, 0.07)',   // Red bow warning background
+    pulseColor: '#E91E8C', // Hot pink pulse
+    buttonText: '#FFFFFF', // White text on pink buttons
+    bannerBkg: 'rgba(204, 0, 0, 0.07)', // Red bow warning background
     bannerBorder: 'rgba(204, 0, 0, 0.15)', // Red bow warning border
   },
 };

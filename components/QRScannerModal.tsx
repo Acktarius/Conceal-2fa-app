@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Camera, useCameraDevice, useCameraPermission, useFrameProcessor, runAtTargetFps, type Frame } from 'react-native-vision-camera';
-import { zxing } from 'vision-camera-zxing';
-import { Worklets } from 'react-native-worklets-core';
 import { useSharedValue } from 'react-native-reanimated';
+import { Camera, type Frame, runAtTargetFps, useCameraDevice, useCameraPermission, useFrameProcessor } from 'react-native-vision-camera';
+import { Worklets } from 'react-native-worklets-core';
+import { zxing } from 'vision-camera-zxing';
 
 export interface QRScannerContentProps {
   onClose: () => void;

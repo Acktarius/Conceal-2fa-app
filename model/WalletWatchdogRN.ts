@@ -30,14 +30,13 @@
  *     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-import { createWorkletRuntime, scheduleOnRuntime } from 'react-native-worklets';
+import { scheduleOnRuntime } from 'react-native-worklets';
 import { config } from '../config';
 import { CronBuddy } from '../services/CronBuddy';
 import { dependencyContainer } from '../services/DependencyContainer';
-import { IWalletOperations } from '../services/interfaces/IWalletOperations';
 import { getGlobalWorkletLogging } from '../services/interfaces/IWorkletLogging';
 import type { BlockchainExplorer, RawDaemon_Transaction } from './blockchain/BlockchainExplorer';
-import { Deposit, Transaction, TransactionData } from './Transaction';
+import { TransactionData } from './Transaction';
 import { TransactionsExplorer } from './TransactionsExplorer';
 import type { Wallet } from './Wallet';
 
@@ -61,7 +60,7 @@ try {
   } else {
     console.log('WalletWatchdogRN: react-native-multithreading detected but not functional - using single-threaded fallback');
   }
-} catch (error) {
+} catch {
   console.log('WalletWatchdogRN: react-native-multithreading not available - using single-threaded fallback');
 }
 

@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Dimensions } from 'react-native';
 import type React from 'react';
-import { Switch, Text, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 
 export interface ToggleOption {
@@ -151,7 +150,12 @@ export const ExpSectionToggle: React.FC<ExpSectionToggleProps> = ({
                     activeOpacity={0.7}
                   >
                     {option.icon && (
-                      <Ionicons name={option.icon as any} size={optionIconSize} color={theme.colors.textSecondary} style={{ marginRight: 4 }} />
+                      <Ionicons
+                        name={option.icon as any}
+                        size={optionIconSize}
+                        color={theme.colors.textSecondary}
+                        style={{ marginRight: 4 }}
+                      />
                     )}
                     <Text
                       className="font-poppins-medium"

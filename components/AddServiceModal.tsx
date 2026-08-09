@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Alert, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 import { StorageService } from '../services/StorageService';
@@ -120,52 +120,50 @@ export default function AddServiceModal({ visible, onClose, onAdd }: AddServiceM
         if (!secretKey) {
           Alert.alert('Error', 'Invalid QR code: No secret key found.');
           return;
-        }  
-          // Raw values from query with string defaults
-          const algorithmParam = (url.searchParams.get('algorithm') || 'SHA1').toUpperCase(); // e.g. "SHA1", "SHA256", "SHA512"
-          const digitsParam = url.searchParams.get('digits') || '6';
-          const periodParam = url.searchParams.get('period') || '30';
+        }
+        // Raw values from query with string defaults
+        const algorithmParam = (url.searchParams.get('algorithm') || 'SHA1').toUpperCase(); // e.g. "SHA1", "SHA256", "SHA512"
+        const digitsParam = url.searchParams.get('digits') || '6';
+        const periodParam = url.searchParams.get('period') || '30';
 
-          // Normalize / validate algorithm
-          let algorithm: 'SHA1' | 'SHA256' | 'SHA512';
-          if (algorithmParam === 'SHA1' || algorithmParam === 'SHA256' || algorithmParam === 'SHA512') {
-            algorithm = algorithmParam;
-          } else {
-            Alert.alert('Error', `Unsupported TOTP algorithm: ${algorithmParam}`);
-            return;
-          }
+        // Normalize / validate algorithm
+        let algorithm: 'SHA1' | 'SHA256' | 'SHA512';
+        if (algorithmParam === 'SHA1' || algorithmParam === 'SHA256' || algorithmParam === 'SHA512') {
+          algorithm = algorithmParam;
+        } else {
+          Alert.alert('Error', `Unsupported TOTP algorithm: ${algorithmParam}`);
+          return;
+        }
 
-          // Normalize / validate digits (default 6)
-          const digitsNum = parseInt(digitsParam, 10);
-          if (Number.isNaN(digitsNum) || digitsNum < 6 || digitsNum > 8) {
-            Alert.alert('Error', `Unsupported TOTP digits value: ${digitsParam}`);
-            return;
-          }
-          const digits = digitsNum as TOTPDigits;
+        // Normalize / validate digits (default 6)
+        const digitsNum = parseInt(digitsParam, 10);
+        if (Number.isNaN(digitsNum) || digitsNum < 6 || digitsNum > 8) {
+          Alert.alert('Error', `Unsupported TOTP digits value: ${digitsParam}`);
+          return;
+        }
+        const digits = digitsNum as TOTPDigits;
 
-          // Normalize / validate period (default 30)
-          const periodNum = parseInt(periodParam, 10);
-          if (Number.isNaN(periodNum) || periodNum <= 0) {
-            Alert.alert('Error', `Invalid TOTP period: ${periodParam}`);
-            return;
-          }
-          const period = (periodNum === 60 ? 60 : 30) as TOTPPeriod;
+        // Normalize / validate period (default 30)
+        const periodNum = parseInt(periodParam, 10);
+        if (Number.isNaN(periodNum) || periodNum <= 0) {
+          Alert.alert('Error', `Invalid TOTP period: ${periodParam}`);
+          return;
+        }
+        const period = (periodNum === 60 ? 60 : 30) as TOTPPeriod;
 
-          // then store everything
-          setAlgorithm(algorithm);
-          setDigits(digits);
-          setPeriod(period);
+        // then store everything
+        setAlgorithm(algorithm);
+        setDigits(digits);
+        setPeriod(period);
 
-
-          setName(decodeURIComponent(serviceName));
-          setIssuer(decodeURIComponent(issuerName));
-          setSecret(secretKey);
-          setScannerOpen(false);
-
+        setName(decodeURIComponent(serviceName));
+        setIssuer(decodeURIComponent(issuerName));
+        setSecret(secretKey);
+        setScannerOpen(false);
       } else {
         Alert.alert('Error', 'Invalid QR code format. Please scan a valid 2FA QR code.');
       }
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to parse QR code. Please try again.');
     }
   };
@@ -173,11 +171,7 @@ export default function AddServiceModal({ visible, onClose, onAdd }: AddServiceM
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={handleClose}>
       {scannerOpen ? (
-        <QRScannerContent
-          onClose={() => setScannerOpen(false)}
-          onScan={handleQRScan}
-          isActive={true}
-        />
+        <QRScannerContent onClose={() => setScannerOpen(false)} onScan={handleQRScan} isActive={true} />
       ) : (
         <View className="flex-1" style={{ backgroundColor: theme.colors.background }}>
           <View
@@ -192,7 +186,12 @@ export default function AddServiceModal({ visible, onClose, onAdd }: AddServiceM
             </Text>
           </View>
 
-          <ScrollView className="flex-1 p-5" showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
+          <ScrollView
+            className="flex-1 p-5"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ flexGrow: 1 }}
+            keyboardShouldPersistTaps="handled"
+          >
             <TouchableOpacity
               className="flex-row items-center justify-center rounded-2xl p-5 mb-6"
               style={{ backgroundColor: theme.colors.primaryLight }}
@@ -361,11 +360,7 @@ export default function AddServiceModal({ visible, onClose, onAdd }: AddServiceM
           activeOpacity={1}
           onPress={() => setDropdownOpen(null)}
         >
-          <View
-            className="rounded-t-2xl p-4 pb-8"
-            style={{ backgroundColor: theme.colors.surface }}
-            onStartShouldSetResponder={() => true}
-          >
+          <View className="rounded-t-2xl p-4 pb-8" style={{ backgroundColor: theme.colors.surface }} onStartShouldSetResponder={() => true}>
             {dropdownOpen === 'algorithm' &&
               ALGORITHM_OPTIONS.map((opt) => (
                 <TouchableOpacity

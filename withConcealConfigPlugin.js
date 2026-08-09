@@ -1,4 +1,4 @@
-const { withAppBuildGradle, withAndroidManifest, withGradleProperties } = require('@expo/config-plugins');
+const { withAppBuildGradle, withAndroidManifest } = require('@expo/config-plugins');
 
 function withConcealConfigPlugin(config) {
   // Android build.gradle modifications

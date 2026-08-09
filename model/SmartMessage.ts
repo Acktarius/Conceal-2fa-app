@@ -188,9 +188,9 @@ export class SmartMessageParser {
         const [name, issuer, sharedKey, algorithm, digits, period] = data;
 
         // Always encode optional params when they are non-default, to preserve algorithm fidelity
-        const alg = (algorithm && algorithm.trim()) ? algorithm.trim() : 'SHA1';
-        const dig = (digits && digits.trim()) ? digits.trim() : '6';
-        const per = (period && period.trim()) ? period.trim() : '30';
+        const alg = algorithm && algorithm.trim() ? algorithm.trim() : 'SHA1';
+        const dig = digits && digits.trim() ? digits.trim() : '6';
+        const per = period && period.trim() ? period.trim() : '30';
 
         // Include optional fields whenever they differ from defaults so the receiver can restore them
         const parts: string[] = [name, issuer, sharedKey];
@@ -284,7 +284,6 @@ export class SmartMessageParser {
           const p = parseInt(periodStr.trim(), 10);
           if (p === 60) period = 60;
         }
-
 
         return {
           success: true,

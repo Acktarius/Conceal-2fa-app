@@ -63,20 +63,20 @@ declare var config: {
   [key: string]: any;
 };
 
-import type { Wallet } from './Wallet';
-import { MathUtil } from './MathUtil';
-import { JSChaCha8 } from './ChaCha8';
-import { Cn, CnNativeBride, CnRandom, CnTransactions, CnUtils } from './Cn';
-import type { RawDaemon_Transaction, RawDaemon_Out } from './blockchain/BlockchainExplorer';
-import { Transaction, TransactionData, Deposit, TransactionIn, TransactionOut } from './Transaction';
-import { InterestCalculator } from './Interest';
-import { Currency } from './Currency';
-import { decode as varintDecode } from './Varint';
-import { logDebugMsg } from '../config';
-import { SmartMessageParser } from './SmartMessage';
-import { SmartMessageService } from '../services/SmartMessageService';
-import { getGlobalWorkletLogging } from '../services/interfaces/IWorkletLogging';
 import concealCrypto from 'react-native-conceal-crypto';
+import { logDebugMsg } from '../config';
+import { getGlobalWorkletLogging } from '../services/interfaces/IWorkletLogging';
+import { SmartMessageService } from '../services/SmartMessageService';
+import type { RawDaemon_Out, RawDaemon_Transaction } from './blockchain/BlockchainExplorer';
+import { JSChaCha8 } from './ChaCha8';
+import { Cn, CnNativeBride, CnTransactions, CnUtils } from './Cn';
+import { Currency } from './Currency';
+import { InterestCalculator } from './Interest';
+import { MathUtil } from './MathUtil';
+import { SmartMessageParser } from './SmartMessage';
+import { Deposit, Transaction, TransactionData, TransactionIn, TransactionOut } from './Transaction';
+import { decode as varintDecode } from './Varint';
+import type { Wallet } from './Wallet';
 
 export const TX_EXTRA_PADDING_MAX_COUNT = 255;
 export const TX_EXTRA_NONCE_MAX_COUNT = 255;
@@ -180,7 +180,7 @@ export class TransactionsExplorer {
 
     try {
       return rawTransaction.vout[0].amount !== 0;
-    } catch (err) {
+    } catch {
       return false;
     }
   }
@@ -381,7 +381,6 @@ export class TransactionsExplorer {
 
     // Try ChaCha12 first (for smart messages), then fall back to ChaCha8 (regular messages)
     let _buf: Uint8Array;
-    let usedCipher = '';
 
     try {
       // Try ChaCha12 first (smart messages should use ChaCha12)
@@ -394,7 +393,6 @@ export class TransactionsExplorer {
       // Check if it's a valid smart message with ChaCha12
       if (SmartMessageParser.isSmartMessage(testMessage12Stripped)) {
         _buf = testBuf12;
-        usedCipher = 'chacha12';
         // console.log('decryptMessage: Successfully decrypted with ChaCha12 (smart message)');
       } else {
         // Not a smart message with ChaCha12, try ChaCha8
@@ -407,12 +405,10 @@ export class TransactionsExplorer {
         // Check if it's a smart message with ChaCha8 (temporary dev feature)
         if (SmartMessageParser.isSmartMessage(testMessage8Stripped)) {
           _buf = testBuf8;
-          usedCipher = 'chacha8';
           console.warn('⚠️ smartmessage has been retrieve with chacha8, temporary dev feature');
         } else {
           // Regular message with ChaCha8
           _buf = testBuf8;
-          usedCipher = 'chacha8';
           // console.log('decryptMessage: Decrypted with ChaCha8 (regular message)');
         }
       }
@@ -423,7 +419,6 @@ export class TransactionsExplorer {
       nonceBuf12.set(new Uint8Array(nonceBuffer));
       const cha = new JSChaCha8(hashBuf, nonceBuf12);
       _buf = cha.decrypt(rawMessArr);
-      usedCipher = 'chacha8-js';
     }
 
     // console.log('decryptMessage: Decryption result length:', _buf.length, 'cipher:', usedCipher);
@@ -486,7 +481,6 @@ export class TransactionsExplorer {
 
     tx_pub_key = CnUtils.bintohex(tx_pub_key);
     let encryptedPaymentId: string | null = null;
-    let extraIndex: number = 0;
     let messageExtraIndex: number = -1; // Initialize to -1, will be set to 0 at first message found
     // let messageCount: number = 0; Count of messages found for future multi-message support
     // First pass: Find and extract all extras, storing message position for decryption
@@ -536,7 +530,6 @@ export class TransactionsExplorer {
         let uint8Array = CnUtils.hextobin(ttlStr);
         ttl = varintDecode(uint8Array);
       }
-      extraIndex++;
     }
 
     // messageExtraIndex is already set when message was found

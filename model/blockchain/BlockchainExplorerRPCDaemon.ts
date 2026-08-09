@@ -21,13 +21,7 @@ import { getGlobalWorkletLogging } from '../../services/interfaces/IWorkletLoggi
 import { WalletStorageManager } from '../../services/WalletStorageManager';
 import type { Wallet } from '../Wallet';
 import { WalletWatchdog } from '../WalletWatchdog';
-import {
-  type BlockchainExplorer,
-  NetworkInfo,
-  type RawDaemon_Out,
-  type RawDaemon_Transaction,
-  type RemoteNodeInformation,
-} from './BlockchainExplorer';
+import { type BlockchainExplorer, type RawDaemon_Out, type RawDaemon_Transaction, type RemoteNodeInformation } from './BlockchainExplorer';
 
 export type NodeInfo = {
   url: string;

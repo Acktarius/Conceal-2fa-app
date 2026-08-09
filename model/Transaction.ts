@@ -429,9 +429,9 @@ export class SharedKey extends Transaction {
   name: string = '';
   issuer: string = '';
   secret: string = '';
-  algorithm: 'SHA1' | 'SHA256' | 'SHA512' = 'SHA1';  // SHA1 (default), SHA256, SHA512
-  digits: 6 | 7 | 8 = 6;  // 6 digits (default), 7, 8
-  period: 30 | 60 = 30;  // 30 seconds (default), 60 seconds
+  algorithm: 'SHA1' | 'SHA256' | 'SHA512' = 'SHA1'; // SHA1 (default), SHA256, SHA512
+  digits: 6 | 7 | 8 = 6; // 6 digits (default), 7, 8
+  period: 30 | 60 = 30; // 30 seconds (default), 60 seconds
   code: string = '';
   futureCode: string = '';
   timeRemaining: number = 0;

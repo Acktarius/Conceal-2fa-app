@@ -25,7 +25,6 @@ const gradlePath = path.resolve(__dirname, '../../android/app/build.gradle');
 let gradleText = fs.readFileSync(gradlePath, 'utf8');
 
 // Inject rename logic just before the final closing `}` of the first android block
-const androidBlockRegex = /android\s*{([\s\S]*?)(^\})/m;
 if (gradleText.includes('android {')) {
   // Find where to inject: just before the final closing brace of the block
   gradleText = gradleText.replace(

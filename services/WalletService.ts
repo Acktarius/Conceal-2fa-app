@@ -18,7 +18,7 @@ import { KeysRepository } from '../model/KeysRepository';
 import { SmartMessageParser } from '../model/SmartMessage';
 import { SharedKey } from '../model/Transaction';
 import { TransactionsExplorer } from '../model/TransactionsExplorer';
-import { RawWallet, Wallet } from '../model/Wallet';
+import { Wallet } from '../model/Wallet';
 import { WalletRepository } from '../model/WalletRepository';
 import { WalletWatchdogRN } from '../model/WalletWatchdogRN';
 import { BiometricService } from './BiometricService';
@@ -520,7 +520,7 @@ export class WalletService implements IWalletOperations {
                 if (height && height > 0) {
                   return height;
                 }
-              } catch (error: any) {
+              } catch {
                 // Continue to retry - errors are expected during initialization
               }
               attempt++;
@@ -1202,7 +1202,7 @@ export class WalletService implements IWalletOperations {
           if (settings.paymentIdWhiteList && settings.paymentIdWhiteList.length > 0) {
             finalPaymentId = settings.paymentIdWhiteList[0];
           }
-        } catch (error) {
+        } catch {
           getGlobalWorkletLogging().logging1string('WalletService: Could not get payment ID whitelist, using empty payment ID');
           //console.log('WalletService: Could not get payment ID whitelist, using empty payment ID');
         }
@@ -1253,21 +1253,6 @@ export class WalletService implements IWalletOperations {
       };
     } catch (error) {
       console.error('WalletService: Error sending smart message:', error);
-
-      // Provide user-friendly error messages
-      let errorMessage = 'Failed to send smart message';
-
-      if (error.message.includes('balance_too_low')) {
-        errorMessage = 'Insufficient balance for smart message';
-      } else if (error.message.includes('invalid')) {
-        errorMessage = error.message;
-      } else if (error.message.includes('Address')) {
-        errorMessage = error.message;
-      } else if (error.message.includes('Amount')) {
-        errorMessage = error.message;
-      } else {
-        errorMessage = `Smart message failed: ${error.message}`;
-      }
 
       return {
         success: false,

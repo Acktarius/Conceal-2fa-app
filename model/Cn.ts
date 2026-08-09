@@ -47,10 +47,8 @@ if (typeof Module === 'undefined') {
   Module = (global as any).Module;
 }
 
-const HASH_STATE_BYTES = 200;
 const HASH_SIZE = 32;
 const ADDRESS_CHECKSUM_SIZE = 4;
-const TX_EXTRA_MESSAGE_CHECKSUM_SIZE = 4;
 const INTEGRATED_ID_SIZE = 8;
 const ENCRYPTED_PAYMENT_ID_TAIL = 141;
 let CRYPTONOTE_PUBLIC_ADDRESS_BASE58_PREFIX = config.addressPrefix;
@@ -1484,10 +1482,6 @@ export namespace CnNativeBride {
                 // Get Y = c*D + r*A
                 Module.ccall('ge_tobytes', 'void', ['number', 'number'], [YBuf, tmp2_rA]);
 
-                const X = CnUtils.bintohex(Module.HEAPU8.subarray(XBuf, XBuf + KEY_SIZE));
-                const Y = CnUtils.bintohex(Module.HEAPU8.subarray(YBuf, YBuf + KEY_SIZE));
-                //console.log('Computed points:', { X, Y });
-
                 // Create buffer for hash input
                 const buf = Module._malloc(HASH_SIZE + KEY_SIZE + KEY_SIZE + KEY_SIZE);
                 if (!buf) {
@@ -1809,7 +1803,6 @@ export namespace CnTransactions {
     // logDebugMsg('ecdh_info',ecdh_info);
     // mask = ecdh_info.mask;
     const amount = ecdh_info.amount;
-    const C = rv.outPk[i].mask;
 
     // logDebugMsg('amount', amount);
     // logDebugMsg('C', C);

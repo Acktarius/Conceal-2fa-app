@@ -308,10 +308,16 @@ const ServiceCard = React.forwardRef<any, ServiceCardProps>(
               {/* 2FA Code - No box, tap to copy */}
               <TouchableOpacity className="flex-row items-center flex-1 mr-1" onPress={onCopy} activeOpacity={0.8}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text className="font-bold font-mono" style={{ color: '#3B82F6', opacity: codeOpacity, fontSize: codeFontSize, letterSpacing: 1 }}>
+                  <Text
+                    className="font-bold font-mono"
+                    style={{ color: '#3B82F6', opacity: codeOpacity, fontSize: codeFontSize, letterSpacing: 1 }}
+                  >
                     {sharedKey.code.slice(0, 3)}
                   </Text>
-                  <Text className="font-bold font-mono" style={{ color: '#3B82F6', opacity: codeOpacity, fontSize: codeFontSize, letterSpacing: 1, marginHorizontal: 1 }}>
+                  <Text
+                    className="font-bold font-mono"
+                    style={{ color: '#3B82F6', opacity: codeOpacity, fontSize: codeFontSize, letterSpacing: 1, marginHorizontal: 1 }}
+                  >
                     {sharedKey.code.slice(3)}
                   </Text>
                 </View>
@@ -319,10 +325,16 @@ const ServiceCard = React.forwardRef<any, ServiceCardProps>(
                 {/* Future Code Display */}
                 {showFutureCode && cachedFutureCode && cachedFutureCode.length >= 6 && (
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 2 }}>
-                    <Text className="font-mono italic" style={{ color: theme.colors.textSecondary, opacity: 0.7, fontSize: futureCodeFontSize }}>
+                    <Text
+                      className="font-mono italic"
+                      style={{ color: theme.colors.textSecondary, opacity: 0.7, fontSize: futureCodeFontSize }}
+                    >
                       {cachedFutureCode.slice(0, 3)}
                     </Text>
-                    <Text className="font-mono italic" style={{ color: theme.colors.textSecondary, opacity: 0.7, fontSize: futureCodeFontSize, marginHorizontal: 1 }}>
+                    <Text
+                      className="font-mono italic"
+                      style={{ color: theme.colors.textSecondary, opacity: 0.7, fontSize: futureCodeFontSize, marginHorizontal: 1 }}
+                    >
                       {cachedFutureCode.slice(3)}
                     </Text>
                   </View>

@@ -60,7 +60,9 @@ export class SmartMessageService {
    */
   private static async handle2FADelete(hash: string, transactionHash?: string): Promise<void> {
     let releaseLock!: () => void;
-    const acquired = new Promise<void>((resolve) => { releaseLock = resolve; });
+    const acquired = new Promise<void>((resolve) => {
+      releaseLock = resolve;
+    });
     const prev = SmartMessageService.createLock;
     SmartMessageService.createLock = acquired;
     await prev;
@@ -102,12 +104,21 @@ export class SmartMessageService {
    * a batch of transactions overwriting each other (last-write-wins race condition).
    */
   private static async handle2FACreate(
-    data: { name: string; issuer: string; sharedKey: string; algorithm?: 'SHA1' | 'SHA256' | 'SHA512'; digits?: 6 | 7 | 8; period?: 30 | 60 },
+    data: {
+      name: string;
+      issuer: string;
+      sharedKey: string;
+      algorithm?: 'SHA1' | 'SHA256' | 'SHA512';
+      digits?: 6 | 7 | 8;
+      period?: 30 | 60;
+    },
     transactionHash?: string,
     unknownSource?: boolean
   ): Promise<void> {
     let releaseLock!: () => void;
-    const acquired = new Promise<void>((resolve) => { releaseLock = resolve; });
+    const acquired = new Promise<void>((resolve) => {
+      releaseLock = resolve;
+    });
     const prev = SmartMessageService.createLock;
     SmartMessageService.createLock = acquired;
     await prev;

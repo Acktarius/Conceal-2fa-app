@@ -8,7 +8,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Clipboard from 'expo-clipboard';
 import type React from 'react';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Dimensions, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Dimensions, ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import concealCrypto from 'react-native-conceal-crypto';
 import QRCode from 'react-native-qrcode-svg';
 import { CustomNodeModal } from '../components/CustomNodeModal';
@@ -1546,7 +1546,7 @@ export default function SettingsScreen() {
                   />
                 }
               />
-            {/* Biometric Authentication or Password */}
+              {/* Biometric Authentication or Password */}
               <SettingItem
                 icon="finger-print-outline"
                 title="Biometric Authentication"

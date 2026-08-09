@@ -17,8 +17,8 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useWallet } from '../contexts/WalletContext';
 import { JSBigInt } from '../lib/biginteger';
 import { CoinUri } from '../model/CoinUri';
-import { WalletService } from '../services/WalletService';
 import { getGlobalWorkletLogging } from '../services/interfaces/IWorkletLogging';
+import { WalletService } from '../services/WalletService';
 
 export default function WalletScreen() {
   const { wallet, balance, maxKeys, isLoading, refreshBalance, refreshWallet, refreshCounter } = useWallet();
@@ -168,7 +168,6 @@ export default function WalletScreen() {
   };
 
   const handleQRScan = (data: string) => {
-    let parsed = false;
     try {
       const txDetails = CoinUri.decodeTx(data);
       if (txDetails !== null) {
@@ -176,14 +175,12 @@ export default function WalletScreen() {
         if (typeof txDetails.amount !== 'undefined') {
           setSendAmount(txDetails.amount);
         }
-        parsed = true;
       }
     } catch (e) {
       // If CoinUri parsing fails, try basic validation
       getGlobalWorkletLogging().logging2string('WalletScreen: Error decoding QR data:', String(e));
       if (data.startsWith('ccx') && data.length > 97) {
         setSendAddress(data);
-        parsed = true;
       } else {
         setSendAddress(''); // Invalid address
       }

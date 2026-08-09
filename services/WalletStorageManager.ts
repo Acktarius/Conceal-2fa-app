@@ -7,10 +7,10 @@
  * file LICENSE or https://opensource.org/licenses/BSD-3-Clause.
  */
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, Platform } from 'react-native';
 import type { Wallet } from '../model/Wallet';
 import { WalletRepository } from '../model/WalletRepository';
@@ -45,10 +45,10 @@ export class WalletStorageManager {
       const oldData = await AsyncStorage.getItem(WalletStorageManager.WALLET_KEY);
       if (oldData && oldData.length > 0) {
         console.log('[MIGRATION] Found wallet data in AsyncStorage, migrating to SecureStore');
-        
+
         // Migrate wallet data to SecureStore
         await SecureStore.setItemAsync(WalletStorageManager.WALLET_KEY, oldData);
-        
+
         // Also migrate related keys
         const hasPassword = await AsyncStorage.getItem(WalletStorageManager.WALLET_HAS_PASSWORD_KEY);
         if (hasPassword) {
@@ -69,14 +69,14 @@ export class WalletStorageManager {
         if (passwordHash) {
           await SecureStore.setItemAsync(WalletStorageManager.PASSWORD_HASH_KEY, passwordHash);
         }
-        
+
         // Delete old data from AsyncStorage
         await AsyncStorage.removeItem(WalletStorageManager.WALLET_KEY);
         await AsyncStorage.removeItem(WalletStorageManager.WALLET_HAS_PASSWORD_KEY);
         await AsyncStorage.removeItem(WalletStorageManager.BIOMETRIC_SALT_KEY);
         await AsyncStorage.removeItem(WalletStorageManager.PASSWORD_DERIVED_KEY);
         await AsyncStorage.removeItem(WalletStorageManager.PASSWORD_HASH_KEY);
-        
+
         console.log('[MIGRATION] Wallet migration complete - moved to SecureStore');
       }
     } catch (error) {
