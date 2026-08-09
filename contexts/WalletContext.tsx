@@ -1,6 +1,7 @@
 import type React from 'react';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
+import { CustomAlert } from '../components/CustomAlert';
 import { config } from '../config';
 import type { Wallet } from '../model/Wallet';
 import { CronBuddy } from '../services/CronBuddy';
@@ -23,6 +24,10 @@ interface WalletContextType {
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
+/** Grace period before showing the blockchain sync prompt at launch. */
+const SYNC_PROMPT_COOLDOWN_MS = 12000;
+const SYNC_PROMPT_DELAY_MS = 45000;
+
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [balance, setBalance] = useState(new JSBigInt(0));
@@ -30,40 +35,33 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [refreshCounter, setRefreshCounter] = useState(0);
   const [alreadyAsked, setAlreadyAsked] = useState(false);
+  const [showSyncPrompt, setShowSyncPrompt] = useState(false);
   const KEY_STORAGE_COST = config.messageTxAmount.add(config.coinFee).add(config.remoteNodeFee);
 
   const maxKeys = balance.divide(KEY_STORAGE_COST);
 
   const promptUserForSynchronization = () => {
-    Alert.alert(
-      'Wallet Synchronization',
-      'Wallet synchronization is about to start. This will sync your wallet with the blockchain and may temporarily slow down the app.',
-      [
-        {
-          text: 'Delay 45s',
-          onPress: () => {
-            getGlobalWorkletLogging().logging1string('User delayed synchronization by 45 seconds');
-            setTimeout(() => {
-              promptUserForSynchronization();
-            }, 45000);
-          },
-        },
-        {
-          text: 'OK',
-          onPress: async () => {
-            try {
-              getGlobalWorkletLogging().logging1string('User approved synchronization, starting now...');
-              await WalletService.startWalletSynchronization();
-              getGlobalWorkletLogging().logging1string('Wallet synchronization started successfully');
-            } catch (error) {
-              console.error('Error starting wallet synchronization:', error);
-              Alert.alert('Error', 'Failed to start wallet synchronization. Please try again.');
-            }
-          },
-        },
-      ],
-      { cancelable: false }
-    );
+    setShowSyncPrompt(true);
+  };
+
+  const handleSyncPromptDelay = () => {
+    setShowSyncPrompt(false);
+    getGlobalWorkletLogging().logging1string('User delayed synchronization by 45 seconds');
+    setTimeout(() => {
+      promptUserForSynchronization();
+    }, SYNC_PROMPT_DELAY_MS);
+  };
+
+  const handleSyncPromptConfirm = async () => {
+    setShowSyncPrompt(false);
+    try {
+      getGlobalWorkletLogging().logging1string('User approved synchronization, starting now...');
+      await WalletService.startWalletSynchronization();
+      getGlobalWorkletLogging().logging1string('Wallet synchronization started successfully');
+    } catch (error) {
+      console.error('Error starting wallet synchronization:', error);
+      Alert.alert('Error', 'Failed to start wallet synchronization. Please try again.');
+    }
   };
 
   useEffect(() => {
@@ -216,11 +214,13 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           try {
             if (!alreadyAsked) {
               // First time - show prompt after 5 seconds
-              getGlobalWorkletLogging().logging1string('Wallet is blockchain-enabled, scheduling synchronization prompt in 5 seconds...');
+              getGlobalWorkletLogging().logging1string(
+                `Wallet is blockchain-enabled, scheduling synchronization prompt in ${SYNC_PROMPT_COOLDOWN_MS / 1000} seconds...`
+              );
               setAlreadyAsked(true);
               setTimeout(() => {
                 promptUserForSynchronization();
-              }, 5000);
+              }, SYNC_PROMPT_COOLDOWN_MS);
             } else {
               // Already asked - start sync directly
               await WalletService.startWalletSynchronization();
@@ -289,6 +289,16 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       }}
     >
       {children}
+      <CustomAlert
+        visible={showSyncPrompt}
+        title="Wallet Synchronization"
+        message="Wallet synchronization is about to start. This will sync your wallet with the blockchain and may temporarily slow down the app."
+        cancelText="Delay 45s"
+        confirmText="OK"
+        cancelable={false}
+        onCancel={handleSyncPromptDelay}
+        onConfirm={handleSyncPromptConfirm}
+      />
     </WalletContext.Provider>
   );
 }

@@ -11,6 +11,7 @@ export interface CustomAlertProps {
   onConfirm: (data?: any) => void;
   cancelText?: string;
   confirmText?: string;
+  cancelable?: boolean;
   children?: React.ReactNode;
 }
 
@@ -22,10 +23,11 @@ export const CustomAlert: React.FC<CustomAlertProps> = ({
   onConfirm,
   cancelText = 'Cancel',
   confirmText = 'Confirm',
+  cancelable = true,
   children,
 }) => {
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={cancelable ? onCancel : () => {}}>
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={styles.blurContainer}>
           <View style={styles.alertContainer}>
