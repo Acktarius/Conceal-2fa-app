@@ -11,8 +11,8 @@ import { SmartMessageParser } from '../model/SmartMessage';
 import { SharedKey } from '../model/Transaction';
 import type { RawWallet, Wallet } from '../model/Wallet';
 import { dependencyContainer } from './DependencyContainer';
-import { getGlobalWorkletLogging } from './interfaces/IWorkletLogging';
 import { REPLAY_CHUNK_SIZE, yieldToUi } from './importProgressUtils';
+import { getGlobalWorkletLogging } from './interfaces/IWorkletLogging';
 import { collectSmartMessageReplayEntries } from './SmartMessageReplay';
 
 export type ReplayProgressCallback = (processed: number, total: number) => void;

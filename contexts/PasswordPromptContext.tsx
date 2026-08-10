@@ -53,11 +53,7 @@ export function PasswordPromptProvider({ children }: { children: React.ReactNode
     });
   };
 
-  const showPasswordCreationAlert = (
-    title: string,
-    message: string,
-    options?: PasswordCreationOptions
-  ): Promise<string | null> => {
+  const showPasswordCreationAlert = (title: string, message: string, options?: PasswordCreationOptions): Promise<string | null> => {
     console.log('PASSWORD CREATION CONTEXT: showPasswordCreationAlert called with:', title, message);
     return new Promise((resolve) => {
       console.log('PASSWORD CREATION CONTEXT: Setting state...');

@@ -52,9 +52,7 @@ export function ImportProgressProvider({ children }: { children: React.ReactNode
   }, [showImportProgress, updateImportProgress, hideImportProgress, runWithImportProgress]);
 
   return (
-    <ImportProgressContext.Provider
-      value={{ showImportProgress, updateImportProgress, hideImportProgress, runWithImportProgress }}
-    >
+    <ImportProgressContext.Provider value={{ showImportProgress, updateImportProgress, hideImportProgress, runWithImportProgress }}>
       {children}
       {message !== null && (
         <View style={styles.host} pointerEvents="auto">

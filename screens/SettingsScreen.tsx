@@ -32,11 +32,7 @@ import packageJson from '../package.json';
 import { ExportService } from '../services/ExportService';
 import { getGlobalWorkletLogging } from '../services/interfaces/IWorkletLogging';
 import { StorageService } from '../services/StorageService';
-import {
-  requestWalletExportDirectory,
-  saveWalletExportFile,
-  WALLET_EXPORT_CANCELLED,
-} from '../services/WalletFileIO';
+import { requestWalletExportDirectory, saveWalletExportFile, WALLET_EXPORT_CANCELLED } from '../services/WalletFileIO';
 import { WALLET_FILE_EXPORT_NOTE, WalletFileService } from '../services/WalletFileService';
 import { WalletService } from '../services/WalletService';
 import { WalletStorageManager } from '../services/WalletStorageManager';

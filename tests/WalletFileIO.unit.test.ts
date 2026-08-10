@@ -123,11 +123,7 @@ describe('WalletFileIO saveWalletExportFile (Android)', () => {
 
     expect(mockGetUriForDirectoryInRoot).toHaveBeenCalledWith('Download');
     expect(mockRequestDirectoryPermissionsAsync).toHaveBeenCalledWith('content://tree/Download');
-    expect(mockCreateFileAsync).toHaveBeenCalledWith(
-      'content://tree/downloads',
-      '2fa-wallet-2026-08-09-133412.json',
-      'application/json'
-    );
+    expect(mockCreateFileAsync).toHaveBeenCalledWith('content://tree/downloads', '2fa-wallet-2026-08-09-133412.json', 'application/json');
     expect(mockWriteAsStringAsync).toHaveBeenCalledWith('content://file/wallet.json', '{"data":[1]}', {
       encoding: 'utf8',
     });
@@ -141,11 +137,7 @@ describe('WalletFileIO saveWalletExportFile (Android)', () => {
     await saveWalletExportFile('{"data":[1]}', '2fa-wallet-2026-08-09-133412.json', 'content://tree/downloads');
 
     expect(mockRequestDirectoryPermissionsAsync).not.toHaveBeenCalled();
-    expect(mockCreateFileAsync).toHaveBeenCalledWith(
-      'content://tree/downloads',
-      '2fa-wallet-2026-08-09-133412.json',
-      'application/json'
-    );
+    expect(mockCreateFileAsync).toHaveBeenCalledWith('content://tree/downloads', '2fa-wallet-2026-08-09-133412.json', 'application/json');
     expect(mockWriteAsStringAsync).toHaveBeenCalledWith('content://file/wallet.json', '{"data":[1]}', {
       encoding: 'utf8',
     });

@@ -1,12 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockSaveEncryptedWallet = vi.fn();
-const mockOpenEncryptedWallet = vi.fn();
+const mockDecryptEnvelopeToRaw = vi.fn();
+const mockLoadFromRaw = vi.fn();
 
 vi.mock('../services/WalletEnvelopeCodec', () => ({
   WalletEnvelopeCodec: {
     saveEncryptedWallet: (...args: unknown[]) => mockSaveEncryptedWallet(...args),
-    openEncryptedWallet: (...args: unknown[]) => mockOpenEncryptedWallet(...args),
+    decryptEnvelopeToRaw: (...args: unknown[]) => mockDecryptEnvelopeToRaw(...args),
+  },
+}));
+
+vi.mock('../model/Wallet', () => ({
+  Wallet: {
+    loadFromRaw: (...args: unknown[]) => mockLoadFromRaw(...args),
   },
 }));
 
@@ -31,12 +38,13 @@ describe('WalletFileService', () => {
 
   beforeEach(() => {
     mockSaveEncryptedWallet.mockReset();
-    mockOpenEncryptedWallet.mockReset();
+    mockDecryptEnvelopeToRaw.mockReset();
+    mockLoadFromRaw.mockReset();
     mockSaveEncryptedWallet.mockReturnValue({
       data: [1, 2, 3],
       nonce: 'AAAAAAAAAAAAAAAAAAAAAA==',
     });
-    mockOpenEncryptedWallet.mockImplementation((_envelope, password) =>
+    mockDecryptEnvelopeToRaw.mockImplementation((_envelope, password) =>
       password === 'correct-password'
         ? ({
             keys: { priv: { spend: 'spend-key', view: 'view-key' } },
@@ -45,6 +53,9 @@ describe('WalletFileService', () => {
           } as never)
         : null
     );
+    mockLoadFromRaw.mockImplementation((raw: { keys: { priv: { spend: string } } }) => ({
+      keys: raw.keys,
+    }));
   });
 
   it('builds dated export filename with time suffix', () => {
@@ -69,7 +80,8 @@ describe('WalletFileService', () => {
     const parsed = WalletFileService.parseEncryptedWalletFile(content);
     const decrypted = WalletFileService.decryptWalletFromFile(parsed, 'correct-password');
 
-    expect(mockOpenEncryptedWallet).toHaveBeenCalledWith(envelope, 'correct-password');
+    expect(mockDecryptEnvelopeToRaw).toHaveBeenCalledWith(envelope, 'correct-password');
+    expect(mockLoadFromRaw).toHaveBeenCalled();
     expect(decrypted?.keys.priv.spend).toBe('spend-key');
   });
 

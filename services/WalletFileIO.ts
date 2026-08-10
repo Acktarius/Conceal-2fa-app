@@ -8,12 +8,7 @@
  */
 
 import * as DocumentPicker from 'expo-document-picker';
-import {
-  cacheDirectory,
-  readAsStringAsync,
-  StorageAccessFramework,
-  writeAsStringAsync,
-} from 'expo-file-system/legacy';
+import { cacheDirectory, readAsStringAsync, StorageAccessFramework, writeAsStringAsync } from 'expo-file-system/legacy';
 import { Platform, Share } from 'react-native';
 
 /** @see openspec/changes/export-wallet-as-file/design.md — iOS share fallback, no expo-sharing in v1 */
@@ -48,11 +43,7 @@ async function requestWalletExportDirectoryAndroid(): Promise<string> {
   return permissions.directoryUri;
 }
 
-async function writeWalletExportToDirectoryAndroid(
-  content: string,
-  filename: string,
-  directoryUri: string
-): Promise<void> {
+async function writeWalletExportToDirectoryAndroid(content: string, filename: string, directoryUri: string): Promise<void> {
   try {
     const fileUri = await StorageAccessFramework.createFileAsync(directoryUri, filename, 'application/json');
     await writeAsStringAsync(fileUri, content, { encoding: 'utf8' });
@@ -122,11 +113,7 @@ export async function pickWalletImportFile(): Promise<string> {
 }
 
 /** Save encrypted wallet JSON; Android uses SAF (optionally pre-selected folder), iOS uses RN Share. */
-export async function saveWalletExportFile(
-  content: string,
-  filename: string,
-  directoryUri?: string | null
-): Promise<void> {
+export async function saveWalletExportFile(content: string, filename: string, directoryUri?: string | null): Promise<void> {
   if (Platform.OS === 'android') {
     if (directoryUri) {
       await writeWalletExportToDirectoryAndroid(content, filename, directoryUri);
