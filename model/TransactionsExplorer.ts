@@ -390,8 +390,8 @@ export class TransactionsExplorer {
       // Strip checksum before checking if it's a smart message
       const testMessage12Stripped = testMessage12.slice(0, -TX_EXTRA_MESSAGE_CHECKSUM_SIZE);
 
-      // Check if it's a valid smart message with ChaCha12
-      if (SmartMessageParser.isSmartMessage(testMessage12Stripped)) {
+      // Check if it's a 2FA or other smart message with ChaCha12
+      if (SmartMessageParser.is2FASmartMessage(testMessage12Stripped) || SmartMessageParser.isSmartMessage(testMessage12Stripped)) {
         _buf = testBuf12;
         // console.log('decryptMessage: Successfully decrypted with ChaCha12 (smart message)');
       } else {
@@ -402,14 +402,11 @@ export class TransactionsExplorer {
         // Strip checksum before checking if it's a smart message
         const testMessage8Stripped = testMessage8.slice(0, -TX_EXTRA_MESSAGE_CHECKSUM_SIZE);
 
-        // Check if it's a smart message with ChaCha8 (temporary dev feature)
-        if (SmartMessageParser.isSmartMessage(testMessage8Stripped)) {
+        // ChaCha8 smart / 2FA (legacy test wallets) or regular message
+        if (SmartMessageParser.is2FASmartMessage(testMessage8Stripped) || SmartMessageParser.isSmartMessage(testMessage8Stripped)) {
           _buf = testBuf8;
-          console.warn('⚠️ smartmessage has been retrieve with chacha8, temporary dev feature');
         } else {
-          // Regular message with ChaCha8
           _buf = testBuf8;
-          // console.log('decryptMessage: Decrypted with ChaCha8 (regular message)');
         }
       }
     } catch (error) {
@@ -654,10 +651,6 @@ export class TransactionsExplorer {
           let walletOuts = wallet.getAllOuts();
 
           for (let ut of walletOuts) {
-            if (wasAdded) {
-              console.log(ut.keyImage, '=', vin.value.k_image);
-            }
-
             if (ut.keyImage == vin.value.k_image) {
               let transactionIn = new TransactionIn();
               transactionIn.amount = ut.amount;
@@ -1411,33 +1404,6 @@ export class TransactionsExplorer {
    * Process smart message from transaction
    */
   static processSmartMessage(message: string, wallet: Wallet, transactionHash?: string, paymentId?: string): void {
-    try {
-      if (!SmartMessageParser.isSmartMessage(message)) {
-        return; // Not a smart message
-      }
-      const smartMessage = SmartMessageParser.parse(message);
-      if (!smartMessage) {
-        console.error('TransactionsExplorer: Failed to parse smart message');
-        return;
-      }
-
-      // Process the smart message
-      SmartMessageParser.process(smartMessage, wallet)
-        .then((result) => {
-          if (result.success) {
-            // Handle the result data based on the smart message type
-            if (result.data) {
-              SmartMessageService.handleSmartMessageResult(result.data, smartMessage, transactionHash, paymentId);
-            }
-          } else {
-            console.error('TransactionsExplorer: Smart message processing failed:', result.message);
-          }
-        })
-        .catch((error) => {
-          console.error('TransactionsExplorer: Error processing smart message:', error);
-        });
-    } catch (error) {
-      console.error('TransactionsExplorer: Error in processSmartMessage:', error);
-    }
+    void SmartMessageService.processSmartMessageAsync(message, wallet, transactionHash, paymentId);
   }
 }

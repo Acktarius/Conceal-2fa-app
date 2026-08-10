@@ -165,8 +165,7 @@ export class CoinUri {
     try {
       CoinUri.decodeWallet(str);
       return true;
-    } catch (e) {
-      console.warn('Wallet decode failed, using null fallback:', e);
+    } catch {
       return false;
     }
   }

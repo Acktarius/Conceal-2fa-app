@@ -37,6 +37,20 @@ export class SmartMessageParser {
     return trimmed.startsWith(SmartMessageParser.SMART_MESSAGE_PREFIX) && trimmed.endsWith(SmartMessageParser.SMART_MESSAGE_SUFFIX);
   }
 
+  /** `{2FA,c,...}` / `{2Fa,d,...}` — module and action are case-insensitive. */
+  static is2FASmartMessage(message: string): boolean {
+    if (!SmartMessageParser.isSmartMessage(message)) {
+      return false;
+    }
+    const parts = message.trim().slice(1, -1).split(',');
+    if (parts.length < 2) {
+      return false;
+    }
+    const module = parts[0].trim().toLowerCase();
+    const action = parts[1].trim().toLowerCase();
+    return module === '2fa' && (action === 'c' || action === 'd' || action === 'u');
+  }
+
   /**
    * Parse a smart message from string
    */
@@ -98,10 +112,11 @@ export class SmartMessageParser {
       const action = parts[1].trim();
       const data = parts.slice(2);
 
-      switch (module) {
-        case '2FA':
-          return await SmartMessageParser.process2FA(action, data, wallet);
+      if (module.toLowerCase() === '2fa') {
+        return await SmartMessageParser.process2FA(action, data, wallet);
+      }
 
+      switch (module) {
         case 'vault':
           return await SmartMessageParser.processVault(action, data, wallet);
 
@@ -136,7 +151,7 @@ export class SmartMessageParser {
    */
   private static async process2FA(action: string, data: string[], wallet: any): Promise<SmartMessageResult> {
     try {
-      switch (action) {
+      switch (action.trim().toLowerCase()) {
         case 'c': {
           // create
           if (data.length < 3) {

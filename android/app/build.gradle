@@ -94,8 +94,8 @@ android {
         applicationId 'com.acktarius.concealauthenticator'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 39
-        versionName "1.1.3"
+        versionCode 40
+        versionName "1.1.4"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }
@@ -143,7 +143,7 @@ android {
 
     applicationVariants.all { variant ->
         variant.outputs.each { output ->
-            def newName = "ConcealAuthenticator-1.1.3-39.apk"
+            def newName = "ConcealAuthenticator-1.1.4-40.apk"
             if (output.outputFileName != null) {
                 output.outputFileName = newName
             } else if (outputFileName != null) {

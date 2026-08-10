@@ -1,0 +1,3 @@
+- add feature : import/export encrypted wallet backupt file
+- uniformize dialog and harmonize with theme colour
+- update dependancies

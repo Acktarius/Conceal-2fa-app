@@ -11,6 +11,7 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
 import { Alert, BackHandler, Platform } from 'react-native';
 import { config, logDebugMsg } from '../config';
+import { getAppAlertContext } from '../contexts/AppAlertContext';
 import { JSBigInt } from '../lib/biginteger';
 import { BlockchainExplorerRpcDaemon } from '../model/blockchain/BlockchainExplorerRPCDaemon';
 import { Cn, CnNativeBride, CnRandom } from '../model/Cn';
@@ -22,6 +23,7 @@ import { Wallet } from '../model/Wallet';
 import { WalletRepository } from '../model/WalletRepository';
 import { WalletWatchdogRN } from '../model/WalletWatchdogRN';
 import { BiometricService } from './BiometricService';
+import { CronBuddy } from './CronBuddy';
 import { dependencyContainer } from './DependencyContainer';
 import { ImportService } from './ImportService';
 import type { IWalletOperations } from './interfaces/IWalletOperations';
@@ -110,6 +112,10 @@ export class WalletService implements IWalletOperations {
 
   static getCachedWallet(): Wallet | null {
     return WalletService.wallet;
+  }
+
+  static setCachedWallet(wallet: Wallet | null): void {
+    WalletService.wallet = wallet;
   }
 
   // Pragmatic approach: Register a callback for balance refresh
@@ -278,6 +284,18 @@ export class WalletService implements IWalletOperations {
     }
   }
 
+  private static async pickUpgradeChoice(message: string, dismissLabel: string): Promise<'create' | 'import' | 'cancel'> {
+    const choice = await getAppAlertContext().showChoiceAlert('Upgrade Wallet', message, [
+      { label: 'Create 2FA Wallet', value: 'create', variant: 'primary' },
+      { label: 'Import Existing', value: 'import' },
+      { label: dismissLabel, value: 'cancel', variant: 'cancel' },
+    ]);
+    if (choice === 'create' || choice === 'import') {
+      return choice;
+    }
+    return 'cancel';
+  }
+
   static async getOrCreateWallet(callerScreen?: 'home' | 'wallet'): Promise<Wallet> {
     try {
       // Load upgrade prompt flags from storage
@@ -328,28 +346,10 @@ export class WalletService implements IWalletOperations {
       if (wallet && wallet.isLocal()) {
         // Only show prompt if not prompted before on this tab
         if (!WalletService.flag_prompt_main_tab || !WalletService.flag_prompt_wallet_tab) {
-          const result = await new Promise<'create' | 'import' | 'cancel'>((resolve) => {
-            Alert.alert(
-              'Upgrade Wallet',
-              'Your wallet is currently local-only. Would you like to upgrade it to blockchain-compatible or import an existing one?',
-              [
-                {
-                  text: 'Upgrade to Blockchain',
-                  onPress: () => resolve('create'),
-                },
-                {
-                  text: 'Import Existing',
-                  onPress: () => resolve('import'),
-                },
-                {
-                  text: 'Stay Local',
-                  onPress: () => resolve('cancel'),
-                  style: 'cancel',
-                },
-              ],
-              { cancelable: true }
-            );
-          });
+          const result = await WalletService.pickUpgradeChoice(
+            'Your wallet is currently local-only. Would you like to upgrade it to blockchain-compatible or import an existing one?',
+            'Stay Local'
+          );
 
           // Set flag based on calling screen and save to storage
           if (callerScreen === 'home') {
@@ -369,9 +369,9 @@ export class WalletService implements IWalletOperations {
           }
 
           if (result === 'import') {
-            wallet = await ImportService.importWallet();
-            // Update cached instance with the imported wallet
-            WalletService.wallet = wallet;
+            wallet = await ImportService.importWallet(wallet);
+            WalletService.setCachedWallet(wallet);
+            await WalletService.reinitializeBlockchainExplorer();
           } else {
             wallet = await WalletService.upgradeToBlockchainWallet();
             // Update cached instance with the upgraded wallet
@@ -427,7 +427,7 @@ export class WalletService implements IWalletOperations {
         if (!password) {
           throw new Error('Password required to create local wallet');
         }
-        await WalletStorageManager.saveEncryptedWallet(wallet, password);
+        await WalletStorageManager.saveEncryptedWalletWithPersistentKey(wallet, password);
 
         // Generate biometric salt from user password (for future biometric enablement)
         await WalletStorageManager.generateAndStoreBiometricSalt(password);
@@ -695,21 +695,26 @@ export class WalletService implements IWalletOperations {
    */
   static async forceClearAll(): Promise<void> {
     try {
-      // Stop wallet synchronization
       WalletService.stopWalletSynchronization();
+      CronBuddy.stop();
 
-      // Clear blockchain connections
       if (WalletService.blockchainExplorer) {
         WalletService.blockchainExplorer.cleanupSession();
         WalletService.blockchainExplorer = null;
       }
 
-      // Clear wallet instance
+      if (WalletService.walletWatchdog) {
+        WalletService.walletWatchdog.stop();
+        WalletService.walletWatchdog = null;
+      }
+
       WalletService.wallet = null;
 
-      // Clear all storage using StorageService
       const storageService = dependencyContainer.getStorageService();
       await storageService.clearAll();
+      await WalletStorageManager.clearCustomNode();
+
+      WalletService.triggerSharedKeysRefresh();
     } catch (error) {
       console.error('Error in force clear all:', error);
       throw error;
@@ -801,6 +806,10 @@ export class WalletService implements IWalletOperations {
    */
   static async startWalletSynchronization(): Promise<void> {
     try {
+      if (WalletService.isWalletSynchronizationRunning()) {
+        return;
+      }
+
       // Load wallet from storage if cached instance is null
       if (!WalletService.wallet) {
         WalletService.wallet = await WalletStorageManager.getWallet();
@@ -835,6 +844,10 @@ export class WalletService implements IWalletOperations {
       WalletService.walletWatchdog.stop();
       WalletService.walletWatchdog = null;
     }
+  }
+
+  static isWalletSynchronizationRunning(): boolean {
+    return WalletService.walletWatchdog?.isRunning() ?? false;
   }
 
   /**
@@ -918,36 +931,15 @@ export class WalletService implements IWalletOperations {
    */
   static async triggerWalletUpgrade(): Promise<Wallet> {
     try {
-      const result = await new Promise<'create' | 'import' | 'cancel'>((resolve) => {
-        Alert.alert(
-          'Upgrade Wallet',
-          'Choose how you would like to upgrade your wallet:',
-          [
-            {
-              text: 'Upgrade to Blockchain',
-              onPress: () => resolve('create'),
-            },
-            {
-              text: 'Import Existing',
-              onPress: () => resolve('import'),
-            },
-            {
-              text: 'Cancel',
-              onPress: () => resolve('cancel'),
-              style: 'cancel',
-            },
-          ],
-          { cancelable: true }
-        );
-      });
+      const result = await WalletService.pickUpgradeChoice('Choose how you would like to upgrade your wallet:', 'Cancel');
 
       if (result === 'cancel') {
         return WalletService.wallet!; // Return current wallet without changes
       }
       if (result === 'import') {
-        const importedWallet = await ImportService.importWallet();
-        // Update cached instance with the imported wallet
-        WalletService.wallet = importedWallet;
+        const importedWallet = await ImportService.importWallet(WalletService.wallet);
+        WalletService.setCachedWallet(importedWallet);
+        await WalletService.reinitializeBlockchainExplorer();
         return importedWallet;
       }
       return await WalletService.upgradeToBlockchainWallet();
@@ -966,6 +958,39 @@ export class WalletService implements IWalletOperations {
     } catch (error) {
       console.error('WalletService: Error signaling wallet update:', error);
     }
+  }
+
+  /**
+   * Clear wallet history and restart blockchain sync from `rescanHeight`.
+   * Uses the cached wallet instance (same object the watchdog must scan).
+   */
+  static async rescanWalletFromHeight(rescanHeight: number, reason: string): Promise<void> {
+    let wallet = WalletService.wallet;
+    if (!wallet) {
+      wallet = await WalletStorageManager.getWallet();
+    }
+    if (!wallet) {
+      throw new Error('No wallet available for rescan');
+    }
+    if (wallet.isLocal()) {
+      throw new Error('Cannot rescan a local-only wallet');
+    }
+
+    wallet.clearTransactions();
+    wallet.lastHeight = Math.max(0, Math.round(rescanHeight));
+    wallet.signalChanged();
+    WalletService.wallet = wallet;
+
+    await WalletService.saveWallet(reason);
+
+    if (!WalletService.blockchainExplorer) {
+      WalletService.blockchainExplorer = new BlockchainExplorerRpcDaemon();
+      await WalletService.blockchainExplorer.initialize();
+    }
+
+    WalletService.stopWalletSynchronization();
+    WalletService.walletWatchdog = new WalletWatchdogRN(wallet, WalletService.blockchainExplorer);
+    WalletService.walletWatchdog.start();
   }
 
   /**

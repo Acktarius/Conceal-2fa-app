@@ -203,8 +203,8 @@ export class Mnemonic {
         if (mnemonic_decoded !== null) {
           return lang.name;
         }
-      } catch (e) {
-        console.warn('Mnemonic decode failed, using null fallback:', e);
+      } catch {
+        // try next wordlist
       }
     }
     return null;

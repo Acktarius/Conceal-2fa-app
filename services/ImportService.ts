@@ -6,21 +6,97 @@
  * Distributed under the BSD 3-Clause License, see the accompanying
  * file LICENSE or https://opensource.org/licenses/BSD-3-Clause.
  */
-import { Alert } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
+import { getAppAlertContext } from '../contexts/AppAlertContext';
+import { getImportProgress } from '../contexts/ImportProgressContext';
 import { BlockchainExplorerRpcDaemon } from '../model/blockchain/BlockchainExplorerRPCDaemon';
 import { Cn, CnUtils } from '../model/Cn';
 import { CoinUri } from '../model/CoinUri';
 import { KeysRepository } from '../model/KeysRepository';
 import { Mnemonic } from '../model/Mnemonic';
 import type { Wallet } from '../model/Wallet';
+import { WalletRepository } from '../model/WalletRepository';
 import { BiometricService } from './BiometricService';
+import { dependencyContainer } from './DependencyContainer';
+import { getGlobalWorkletLogging } from './interfaces/IWorkletLogging';
+import { SmartMessageService } from './SmartMessageService';
+import { StorageService } from './StorageService';
+import { pickWalletImportFile, WALLET_EXPORT_CANCELLED } from './WalletFileIO';
+import { WALLET_FILE_IMPORT_NOTE, WalletFileService } from './WalletFileService';
 import { WalletStorageManager } from './WalletStorageManager';
 // Removed WalletService import to break require cycle
 
 export class ImportService {
   private static blockchainExplorer: BlockchainExplorerRpcDaemon | null = null;
 
-  static async importWallet(): Promise<Wallet> {
+  private static logFailure(context: string): void {
+    try {
+      getGlobalWorkletLogging().logging1string(`ImportService: ${context}`);
+    } catch {
+      // worklet logging unavailable
+    }
+  }
+
+  private static async showImportSuccessAlert(message: string): Promise<void> {
+    await getAppAlertContext().showMessageAlert('Wallet Imported', message);
+  }
+
+  private static async showImportErrorAlert(message: string): Promise<void> {
+    await getAppAlertContext().showMessageAlert('Import Error', message);
+  }
+
+  /** Optional trusted payment ID before 2FA replay/scan so tiles are not marked unknown. */
+  private static async promptImportPaymentIdIfNeeded(): Promise<void> {
+    const settings = await StorageService.getSettings();
+    const existing = settings.paymentIdWhiteList;
+    if (Array.isArray(existing) && existing.length > 0) {
+      return;
+    }
+
+    const paymentId = await getAppAlertContext().showTextInputAlert(
+      'Trusted Payment ID',
+      'Add a payment ID you use for 2FA smart messages. Services from this source will not show the unknown-source warning.',
+      {
+        placeholder: '64-character hex payment ID',
+        confirmLabel: 'Add',
+        skipLabel: 'Skip',
+        validate: (value) => {
+          if (!value) {
+            return 'Please enter a payment ID';
+          }
+          if (!CnUtils.validatePaymentId(value)) {
+            return 'Payment ID must be exactly 64 hexadecimal characters';
+          }
+          return null;
+        },
+      }
+    );
+
+    if (!paymentId) {
+      return;
+    }
+
+    await StorageService.saveSettings({
+      ...settings,
+      paymentIdWhiteList: [paymentId],
+    });
+  }
+
+  private static async pickImportMethod(): Promise<'mnemonic' | 'qr' | 'file' | 'cancel'> {
+    const choice = await getAppAlertContext().showChoiceAlert('Import Method', 'How would you like to import your wallet?', [
+      { label: 'From File', value: 'file', variant: 'primary' },
+      { label: 'Seed Phrase', value: 'mnemonic' },
+      { label: 'QR Code', value: 'qr' },
+      { label: 'Cancel', value: 'cancel', variant: 'cancel' },
+    ]);
+    if (choice === 'file' || choice === 'mnemonic' || choice === 'qr') {
+      return choice;
+    }
+    return 'cancel';
+  }
+
+  static async importWallet(cachedWallet?: Wallet | null): Promise<Wallet> {
     try {
       // First, initialize blockchain explorer if needed
       if (!ImportService.blockchainExplorer) {
@@ -32,55 +108,50 @@ export class ImportService {
         // Loop to allow returning to method selection on cancel
         try {
           // Let user choose import method
-          const importMethod = await new Promise<'mnemonic' | 'qr' | 'cancel'>((resolve) => {
-            Alert.alert(
-              'Import Method',
-              'How would you like to import your wallet?',
-              [
-                {
-                  text: 'Cancel',
-                  onPress: () => resolve('cancel'),
-                  style: 'cancel',
-                },
-                {
-                  text: 'Seed Phrase',
-                  onPress: () => resolve('mnemonic'),
-                },
-                {
-                  text: 'QR Code',
-                  onPress: () => resolve('qr'),
-                },
-              ],
-              { cancelable: true, onDismiss: () => resolve('cancel') }
-            );
-          });
+          const importMethod = await ImportService.pickImportMethod();
 
           if (importMethod === 'cancel') {
             throw new Error('USER_CANCELLED');
           }
 
           if (importMethod === 'mnemonic') {
-            return await ImportService.importFromMnemonic();
+            return await ImportService.importFromMnemonic(cachedWallet);
           }
-          return await ImportService.importFromQR();
+          if (importMethod === 'file') {
+            return await ImportService.importFromFile(cachedWallet);
+          }
+          return await ImportService.importFromQR(cachedWallet);
         } catch (error) {
           if (error instanceof Error && error.message === 'USER_CANCELLED') {
             throw error; // Propagate cancel up to wallet creation
           }
-          // For other errors, show error and loop back to method selection
-          Alert.alert('Import Error', error instanceof Error ? error.message : 'Failed to import wallet', [{ text: 'OK' }]);
+          const message = error instanceof Error ? error.message : 'Failed to import wallet';
+          await ImportService.showImportErrorAlert(message);
         }
       }
     } catch (error) {
       if (error instanceof Error && error.message === 'USER_CANCELLED') {
         throw error; // Propagate cancel up to wallet creation
       }
-      console.error('Error in importWallet:', error);
+      ImportService.logFailure('wallet import failed');
       throw new Error('Failed to import wallet');
     }
   }
 
-  private static async importFromMnemonic(): Promise<Wallet> {
+  private static async resolveExistingWallet(cachedWallet?: Wallet | null): Promise<Wallet> {
+    if (cachedWallet) {
+      return cachedWallet;
+    }
+
+    const existingWallet = await WalletStorageManager.getWallet();
+    if (!existingWallet) {
+      throw new Error('No existing wallet found to upgrade');
+    }
+
+    return existingWallet;
+  }
+
+  private static async importFromMnemonic(cachedWallet?: Wallet | null): Promise<Wallet> {
     try {
       // Get current blockchain height
       const currentHeight = await ImportService.blockchainExplorer!.getHeight();
@@ -102,27 +173,10 @@ export class ImportService {
       // Create keys from mnemonic
       const keys = Cn.create_address(mnemonic_decoded);
 
-      // Get the existing local wallet to upgrade
-      const existingWallet = await WalletStorageManager.getWallet();
-      if (!existingWallet) {
-        throw new Error('No existing wallet found to upgrade');
-      }
+      const existingWallet = await ImportService.resolveExistingWallet(cachedWallet);
 
       // Upgrade the existing wallet with blockchain keys
       existingWallet.keys = KeysRepository.fromPriv(keys.spend.sec, keys.view.sec);
-
-      console.log('QR IMPORT: Wallet keys after upgrade:', {
-        spendKey: existingWallet.keys.priv.spend,
-        viewKey: existingWallet.keys.priv.view,
-      });
-
-      console.log('QR IMPORT: Wallet keys structure:', {
-        hasKeys: !!existingWallet.keys,
-        hasSpendKey: !!existingWallet.keys?.priv?.spend,
-        hasViewKey: !!existingWallet.keys?.priv?.view,
-        spendKeyLength: existingWallet.keys?.priv?.spend?.length || 0,
-        viewKeyLength: existingWallet.keys?.priv?.view?.length || 0,
-      });
 
       // Calculate creation height based on user input
       let creationHeight = 0;
@@ -140,21 +194,127 @@ export class ImportService {
       existingWallet.creationHeight = creationHeight;
       existingWallet.lastHeight = creationHeight;
 
-      // Update the cached wallet instance with imported data (no re-authentication needed)
-      // Note: WalletService will handle this via the returned wallet
-      console.log('IMPORT: Wallet ready for caching with imported data');
-
-      // Encrypt and save the upgraded wallet based on current authentication mode
+      await ImportService.promptImportPaymentIdIfNeeded();
       await ImportService.saveImportedWallet(existingWallet);
 
       return existingWallet;
-    } catch (error) {
-      console.error('Error importing from mnemonic:', error);
-      throw error;
+    } catch {
+      ImportService.logFailure('mnemonic import failed');
+      throw new Error('Failed to import wallet from mnemonic');
     }
   }
 
-  private static async importFromQR(): Promise<Wallet> {
+  private static async restoreNodePreferenceFromImportedWallet(wallet: Wallet): Promise<void> {
+    const options = wallet.options;
+    if (options?.customNode && options.nodeUrl?.trim()) {
+      await WalletStorageManager.setCustomNode(options.nodeUrl.trim());
+      return;
+    }
+    await WalletStorageManager.clearCustomNode();
+  }
+
+  private static async importFromFile(_cachedWallet?: Wallet | null): Promise<Wallet> {
+    try {
+      const appAuthenticated = await WalletStorageManager.authenticateForSensitiveAction();
+      if (!appAuthenticated) {
+        throw new Error('USER_CANCELLED');
+      }
+
+      const fileContent = await ImportService.getWalletFileContentFromUser();
+      const envelope = WalletFileService.parseEncryptedWalletFile(fileContent);
+
+      const passwordPromptContext = (global as any).passwordPromptContext;
+      if (!passwordPromptContext) {
+        throw new Error('Password prompt context not available');
+      }
+
+      let filePassword = await passwordPromptContext.showPasswordPromptAlert(
+        'Wallet File Password',
+        'Enter the password used to encrypt this wallet backup file (not your app unlock password):'
+      );
+      if (!filePassword) {
+        throw new Error('USER_CANCELLED');
+      }
+
+      let importResult: ReturnType<typeof WalletFileService.decryptWalletImport> = null;
+      const importProgress = getImportProgress();
+      try {
+        importProgress.showImportProgress('Decrypting backup…');
+        try {
+          importResult = WalletFileService.decryptWalletImport(envelope, filePassword);
+        } finally {
+          filePassword = '';
+        }
+      } finally {
+        importProgress.hideImportProgress();
+      }
+
+      if (importResult === null) {
+        throw new Error('Invalid password or corrupted wallet file');
+      }
+
+      const { wallet: importedWallet, raw: importedRaw } = importResult;
+
+      if (importedWallet.isLocal()) {
+        throw new Error('Backup file does not contain a blockchain wallet');
+      }
+
+      await ImportService.promptImportPaymentIdIfNeeded();
+
+      let replayResult: Awaited<ReturnType<typeof SmartMessageService.replaySharedKeysFromWallet>>;
+      try {
+        importProgress.showImportProgress('Restoring 2FA services…');
+        replayResult = await SmartMessageService.replaySharedKeysFromWallet(importedWallet, importedRaw, (processed, total) => {
+          if (total > 0) {
+            importProgress.updateImportProgress(`Restoring 2FA services (${processed}/${total})…`);
+          }
+        });
+        await ImportService.restoreNodePreferenceFromImportedWallet(importedWallet);
+      } finally {
+        importProgress.hideImportProgress();
+      }
+
+      dependencyContainer.getWalletOperations().triggerSharedKeysRefresh();
+
+      await ImportService.saveImportedWallet(importedWallet);
+
+      const importNote =
+        replayResult.servicesRestored > 0
+          ? `Wallet restored from backup. Restored ${replayResult.servicesRestored} 2FA service(s) from transaction history.`
+          : replayResult.messagesProcessed > 0
+            ? 'Wallet restored from backup. On-chain 2FA messages were processed; no active services remain (all may have been deleted).'
+            : WALLET_FILE_IMPORT_NOTE;
+      await ImportService.showImportSuccessAlert(importNote);
+      return importedWallet;
+    } catch (error) {
+      if (error instanceof Error && (error.message === 'USER_CANCELLED' || error.message === WALLET_EXPORT_CANCELLED)) {
+        throw new Error('USER_CANCELLED');
+      }
+      ImportService.logFailure('file import failed');
+      throw error instanceof Error ? error : new Error('Failed to import wallet from file');
+    }
+  }
+
+  private static async getWalletFileContentFromUser(): Promise<string> {
+    if (Platform.OS !== 'web') {
+      return pickWalletImportFile();
+    }
+
+    return new Promise((resolve, reject) => {
+      const walletFileInputContext = (global as any).walletFileInputContext;
+      if (!walletFileInputContext) {
+        reject(new Error('Wallet file input context not available. App must be properly initialized.'));
+        return;
+      }
+
+      walletFileInputContext.showWalletFileInputModal(
+        (fileContent: string) => resolve(fileContent),
+        () => reject(new Error('USER_CANCELLED'))
+      );
+    });
+  }
+
+  private static async importFromQR(cachedWallet?: Wallet | null): Promise<Wallet> {
     try {
       // Get current blockchain height
       const currentHeight = await ImportService.blockchainExplorer!.getHeight();
@@ -171,29 +331,13 @@ export class ImportService {
       let keys;
 
       if (txDetails.spendKey) {
-        // Spend key is present - this is the primary case
-        // console.log('QR IMPORT: Spend key provided:', txDetails.spendKey);
-
         let viewkey = txDetails.viewKey || '';
         if (viewkey === '') {
-          // Generate view key from spend key (same as web wallet)
-          console.log('QR IMPORT: No view key provided, generating from spend key');
           viewkey = Cn.generate_keys(CnUtils.cn_fast_hash(txDetails.spendKey)).sec;
-          // console.log('QR IMPORT: Generated view key:', viewkey);
-        } else {
-          console.log('QR IMPORT: View key provided:', txDetails.viewKey);
         }
 
-        // Use KeysRepository to create proper key structure
         keys = KeysRepository.fromPriv(txDetails.spendKey, viewkey);
-
-        console.log('QR IMPORT: Keys after KeysRepository.fromPriv:', {
-          spendKey: keys.priv.spend,
-          viewKey: keys.priv.view,
-        });
       } else if (txDetails.viewKey && txDetails.address) {
-        // View key only case (if public address is provided)
-        console.log('QR IMPORT: View key only case with public address');
         const decodedPublic = Cn.decode_address(txDetails.address);
         keys = {
           priv: {
@@ -205,25 +349,14 @@ export class ImportService {
             view: decodedPublic.view,
           },
         };
-        console.log('QR IMPORT: Keys for view-only case:', keys);
       } else {
         throw new Error('Invalid QR code data - spend key is required');
       }
 
-      // Get the existing local wallet to upgrade
-      const existingWallet = await WalletStorageManager.getWallet();
-      if (!existingWallet) {
-        throw new Error('No existing wallet found to upgrade');
-      }
+      const existingWallet = await ImportService.resolveExistingWallet(cachedWallet);
 
       // Upgrade the existing wallet with blockchain keys
       existingWallet.keys = keys;
-      console.log('QR IMPORT: Set wallet keys:', {
-        hasKeys: !!existingWallet.keys,
-        hasSpendKey: !!existingWallet.keys?.priv?.spend,
-        spendKeyLength: existingWallet.keys?.priv?.spend?.length || 0,
-        isLocal: existingWallet.isLocal(),
-      });
 
       // Use provided height or default to current height - 10
       const height = txDetails.height ? parseInt(txDetails.height.toString()) : Math.max(0, currentHeight - 10);
@@ -242,6 +375,7 @@ export class ImportService {
       console.log('IMPORT: Wallet ready for caching with imported data');
 
       // Encrypt and save the upgraded wallet based on current authentication mode
+      await ImportService.promptImportPaymentIdIfNeeded();
       await ImportService.saveImportedWallet(existingWallet);
 
       return existingWallet;
@@ -272,48 +406,66 @@ export class ImportService {
     });
   }
 
+  private static async resolvePasswordEncryptionKey(password: string): Promise<string> {
+    const verifiedKey = await WalletStorageManager.verifyPasswordAndGetKey(password);
+    if (verifiedKey) {
+      WalletStorageManager.setCurrentSessionPasswordKey(verifiedKey);
+      return verifiedKey;
+    }
+
+    const derivedKey = await WalletStorageManager.derivePasswordKey(password);
+    const decrypted = await WalletStorageManager.getDecryptedWalletWithDerivedKey(derivedKey);
+    if (!decrypted) {
+      throw new Error('Incorrect wallet password');
+    }
+
+    await WalletStorageManager.storePersistentPasswordKey(password);
+    WalletStorageManager.setCurrentSessionPasswordKey(derivedKey);
+    return derivedKey;
+  }
+
   private static async saveImportedWallet(wallet: Wallet): Promise<void> {
     try {
+      let encryptionKey: string | null = null;
+
       if (await BiometricService.isBiometricChecked()) {
-        // Biometric mode: Encrypt with biometric key
-        console.log('IMPORT: Encrypting imported wallet with biometric key');
-
-        // Use existing biometric salt (should already exist from wallet creation)
-        const existingSalt = await WalletStorageManager.getBiometricSalt();
-        if (!existingSalt) {
-          throw new Error('Biometric salt not found. Wallet must be properly initialized first.');
+        const authenticated = await BiometricService.authenticateWithBiometric();
+        if (!authenticated) {
+          throw new Error('Biometric authentication required to secure imported wallet');
         }
-
-        // Derive biometric key and encrypt
-        const biometricKey = await WalletStorageManager.deriveBiometricKey();
-        if (!biometricKey) {
-          throw new Error('Failed to generate biometric key for imported wallet encryption');
+        encryptionKey = await WalletStorageManager.deriveBiometricKey();
+        if (!encryptionKey) {
+          throw new Error('Failed to derive biometric key for imported wallet encryption');
         }
-        await WalletStorageManager.saveEncryptedWallet(wallet, biometricKey);
       } else {
-        // Password mode: Prompt for password to encrypt imported wallet
-        console.log('IMPORT: Password mode - requesting password for imported wallet');
-        const passwordPromptContext = (global as any).passwordPromptContext;
-        if (!passwordPromptContext) {
-          throw new Error('Password prompt context not available');
+        encryptionKey = await WalletStorageManager.getAvailablePasswordEncryptionKey();
+        if (!encryptionKey) {
+          const passwordPromptContext = (global as any).passwordPromptContext;
+          if (!passwordPromptContext) {
+            throw new Error('Password prompt context not available');
+          }
+
+          const password = await passwordPromptContext.showPasswordPromptAlert(
+            'Wallet Password Required',
+            'Enter your wallet password to save the imported wallet:'
+          );
+
+          if (!password) {
+            throw new Error('Password required to secure imported wallet');
+          }
+
+          encryptionKey = await ImportService.resolvePasswordEncryptionKey(password);
         }
+      }
 
-        const password = await passwordPromptContext.showPasswordPromptAlert(
-          'Secure Imported Wallet',
-          'Enter a password to secure your imported wallet:'
-        );
+      const encryptedWallet = WalletRepository.save(wallet, encryptionKey);
+      await WalletStorageManager.saveEncryptedWalletData(encryptedWallet);
 
-        if (!password) {
-          throw new Error('Password required to secure imported wallet');
-        }
-
-        await WalletStorageManager.saveEncryptedWallet(wallet, password);
-
-        // Generate biometric salt from user password (for future biometric enablement)
-        await WalletStorageManager.generateAndStoreBiometricSalt(password);
+      if (!(await BiometricService.isBiometricChecked())) {
+        await SecureStore.setItemAsync('wallet_has_password', 'true');
       }
     } catch (error) {
-      console.error('Error saving imported wallet:', error);
+      ImportService.logFailure('save imported wallet failed');
       throw error;
     }
   }

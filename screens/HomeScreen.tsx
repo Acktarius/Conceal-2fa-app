@@ -89,9 +89,10 @@ export default function HomeScreen() {
     }
   };
 
-  // Reload settings whenever this screen comes into focus (e.g. returning from SettingsScreen)
+  // Reload tiles and settings when this tab gains focus (e.g. after Clear All Data in Settings)
   useFocusEffect(
     useCallback(() => {
+      loadSharedKeys();
       loadSettings();
     }, [])
   );

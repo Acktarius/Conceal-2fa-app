@@ -215,13 +215,39 @@ export class StorageService implements IStorageService {
     }
   }
 
+  /** Remove legacy AsyncStorage copies so migration cannot restore cleared data. */
+  private static async clearLegacyAsyncStorage(): Promise<void> {
+    if (Platform.OS === 'web') return;
+
+    const legacyKeys = [
+      StorageService.SHARED_KEYS_KEY,
+      StorageService.SETTINGS_KEY,
+      StorageService.WALLET_KEY,
+      'shared_keys',
+      'app_settings',
+      'wallet_data',
+      'wallet_encryption_key',
+      'wallet_has_password',
+      'biometric_salt',
+      'password_derived_key',
+      'password_hash',
+      'custom_node_url',
+    ];
+
+    await Promise.all(legacyKeys.map((key) => AsyncStorage.removeItem(key)));
+  }
+
+  private static async deleteSecureStoreKey(key: string): Promise<void> {
+    try {
+      await SecureStore.deleteItemAsync(key);
+    } catch {
+      // Missing keys are fine during wipe
+    }
+  }
+
   static async clearAll(): Promise<void> {
     try {
-      console.log('Starting clearAll...');
-
       if (Platform.OS === 'web') {
-        console.log('Clearing web storage...');
-        // Clear all known keys
         localStorage.removeItem(StorageService.SHARED_KEYS_KEY);
         localStorage.removeItem(StorageService.SETTINGS_KEY);
         localStorage.removeItem('shared_keys');
@@ -229,24 +255,27 @@ export class StorageService implements IStorageService {
         localStorage.removeItem('wallet_data');
         localStorage.removeItem('wallet_encryption_key');
         localStorage.removeItem('wallet_has_password');
-        // Clear any other possible keys
         localStorage.clear();
       } else {
-        console.log('Clearing native storage...');
-        // Clear all known keys from SecureStore
-        await SecureStore.deleteItemAsync(StorageService.SHARED_KEYS_KEY);
-        await SecureStore.deleteItemAsync(StorageService.SETTINGS_KEY);
-        await SecureStore.deleteItemAsync('shared_keys');
-        await SecureStore.deleteItemAsync('app_settings');
-        await SecureStore.deleteItemAsync('wallet_data');
-        await SecureStore.deleteItemAsync('wallet_encryption_key');
-        await SecureStore.deleteItemAsync('wallet_has_password');
+        await StorageService.clearLegacyAsyncStorage();
+
+        const secureKeys = [
+          StorageService.SHARED_KEYS_KEY,
+          StorageService.SETTINGS_KEY,
+          'shared_keys',
+          'app_settings',
+          'wallet_data',
+          'wallet_encryption_key',
+          'wallet_has_password',
+          'biometric_salt',
+          'password_derived_key',
+          'password_hash',
+          'custom_node_url',
+        ];
+        await Promise.all(secureKeys.map((key) => StorageService.deleteSecureStoreKey(key)));
       }
 
-      // Clear wallet data
       await WalletStorageManager.clearWallet();
-
-      console.log('ClearAll completed successfully');
     } catch (error) {
       console.error('Error clearing storage:', error);
       throw new Error('Failed to clear storage');

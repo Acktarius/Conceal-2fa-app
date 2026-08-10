@@ -35,16 +35,12 @@ export class WalletRepository {
       privKey = privKey.slice(-32);
     }
 
-    //console.log('open wallet with nonce', rawWallet.nonce);
-    // Decode the base64 nonce back to bytes
-    let nonceBytes;
+    // On-device storage: base64-decode 24-byte secretbox nonce (32-char string).
+    let nonceBytes: Uint8Array;
     try {
-      // Try to decode base64 to get the original 24-byte nonce
       nonceBytes = Uint8Array.from(atob(rawWallet.nonce), (c) => c.charCodeAt(0));
-    } catch (e) {
-      // Fallback to the old method if base64 decode fails
-      console.warn('Base64 decode failed, using utf8 encode fallback:', e);
-      nonceBytes = new (<any>TextEncoder)('utf8').encode(rawWallet.nonce);
+    } catch {
+      nonceBytes = new TextEncoder().encode(rawWallet.nonce);
     }
     const nonce = nonceBytes;
 
@@ -90,9 +86,12 @@ export class WalletRepository {
 
         const result = concealCrypto.secretboxOpen(encryptedBuffer, nonceBuffer, keyBuffer);
         decrypted = result ? new Uint8Array(result) : null;
-      } catch (error) {
-        console.warn('Native secretboxOpen failed, using nacl fallback:', error);
-        decrypted = nacl.secretbox.open(encrypted, nonce, privKey);
+      } catch {
+        try {
+          decrypted = nacl.secretbox.open(encrypted, nonce, privKey);
+        } catch {
+          return null;
+        }
       }
 
       if (decrypted === null) return null;
@@ -142,9 +141,12 @@ export class WalletRepository {
 
         const result = concealCrypto.secretboxOpen(encryptedBuffer, nonceBuffer, keyBuffer);
         decrypted = result ? new Uint8Array(result) : null;
-      } catch (error) {
-        console.warn('Native secretboxOpen failed (old format), using nacl fallback:', error);
-        decrypted = nacl.secretbox.open(encrypted, nonce, privKey);
+      } catch {
+        try {
+          decrypted = nacl.secretbox.open(encrypted, nonce, privKey);
+        } catch {
+          return null;
+        }
       }
 
       if (decrypted === null) return null;
@@ -166,27 +168,6 @@ export class WalletRepository {
 
       const wallet = Wallet.loadFromRaw(decodedRawWallet);
 
-      console.log('WALLET REPO: Loaded wallet keys:', {
-        hasKeys: !!wallet.keys,
-        hasSpendKey: !!wallet.keys?.priv?.spend,
-        hasViewKey: !!wallet.keys?.priv?.view,
-        spendKeyLength: wallet.keys?.priv?.spend?.length || 0,
-        viewKeyLength: wallet.keys?.priv?.view?.length || 0,
-        address: wallet.getPublicAddress(),
-        isLocal: wallet.isLocal(),
-        creationHeight: wallet.creationHeight,
-        lastHeight: wallet.lastHeight,
-      });
-
-      // Debug actual key values loaded
-      /*
-			if (wallet.keys?.priv?.spend) {
-				console.log('WALLET REPO: Spend key value after load:', wallet.keys.priv.spend);
-			}
-			if (wallet.keys?.priv?.view) {
-				console.log('WALLET REPO: View key value after load:', wallet.keys.priv.view);
-			}
-			*/
       if (wallet.coinAddressPrefix !== config.addressPrefix) return null;
       return wallet;
     }
@@ -207,19 +188,6 @@ export class WalletRepository {
   }
 
   static save(wallet: Wallet, password: string): RawFullyEncryptedWallet {
-    // Debug wallet keys before saving
-    /*
-		console.log('WALLET REPO: Wallet keys before save:', {
-			hasKeys: !!wallet.keys,
-			hasSpendKey: !!wallet.keys?.priv?.spend,
-			hasViewKey: !!wallet.keys?.priv?.view,
-			spendKeyLength: wallet.keys?.priv?.spend?.length || 0,
-			viewKeyLength: wallet.keys?.priv?.view?.length || 0,
-			address: wallet.getPublicAddress(),
-			isLocal: wallet.isLocal()
-		});
-		*/
-
     return WalletRepository.getEncrypted(wallet, password);
   }
 
@@ -243,18 +211,15 @@ export class WalletRepository {
     getGlobalWorkletLogging().logging1string1number('WALLET REPO: privKey normalized to length:', privKey.length);
     //console.log('WALLET REPO: privKey normalized to length:', privKey.length);
 
-    // Use Web Crypto API for secure random nonce (117x faster than nacl.randomBytes)
+    // On-device storage nonce (distinct from SDK file-export nonce in WalletEnvelopeCodec).
     const nonce = new Uint8Array(24);
     crypto.getRandomValues(nonce);
 
-    // Base64 encode nonce: Use JS for small data (faster), native as fallback
     let rawNonce: string;
     if (nacl.util && nacl.util.encodeBase64) {
       rawNonce = nacl.util.encodeBase64(nonce);
     } else {
-      // Fallback to native libsodium (better than deprecated btoa)
-      const nonceBuffer = nonce.buffer as ArrayBuffer;
-      rawNonce = concealCrypto.bin2base64(nonceBuffer);
+      rawNonce = concealCrypto.bin2base64(nonce.buffer as ArrayBuffer);
     }
 
     const rawWallet = wallet.exportToRaw();

@@ -798,6 +798,8 @@ export class WalletWatchdogRN {
     this.stopped = true;
   };
 
+  isRunning = (): boolean => !this.stopped;
+
   start = () => {
     // Init the mempool
     this.initMempool();

@@ -33,8 +33,7 @@ export const SeedInputModal: React.FC<SeedInputModalProps> = ({ visible, onCance
       if (clipboardContent) {
         setSeedPhrase(clipboardContent.trim());
       }
-    } catch (error) {
-      console.error('Error pasting from clipboard:', error);
+    } catch {
       Alert.alert('Error', 'Failed to paste from clipboard');
     }
   };
