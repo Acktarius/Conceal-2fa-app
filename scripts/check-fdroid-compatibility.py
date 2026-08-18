@@ -31,11 +31,37 @@ PROPRIETARY_LICENSES = [
     "Commercial", "Proprietary", "UNLICENSED", "SEE LICENSE IN"
 ]
 
-# Known problematic packages
+# npm names that imply Google Play / analytics / crash reporting
 PROBLEMATIC_PACKAGES = [
     "firebase", "google-analytics", "google-play-services", "gms",
-    "crashlytics", "fabric"
+    "crashlytics", "fabric", "mlkit", "play-services", "google-services",
 ]
+
+# Gradle GMS/MLKit that fix-for-fdroid.py already strips. Anything else is a new issue.
+# @see scripts/fix-for-fdroid.py
+KNOWN_FDROID_STRIPPED_PACKAGES = {
+    "react-native-vision-camera",
+    "react-native-camera",
+    "expo-camera",
+}
+
+# Deleted by build-android.sh before F-Droid assemble (dev-client GMS must not ship).
+KNOWN_REMOVED_BEFORE_FDROID = {
+    "expo-dev-client",
+    "expo-dev-menu",
+    "expo-dev-launcher",
+}
+
+GMS_GRADLE_MARKERS = (
+    "com.google.android.gms",
+    "com.google.mlkit",
+    "com.google.firebase",
+)
+
+GRADLE_DEP_PREFIXES = (
+    "implementation", "api", "compileonly",
+    "runtimeonly", "compile", "kapt", "ksp", "annotationprocessor",
+)
 
 
 def is_foss_license(license_str: str) -> bool:
@@ -82,6 +108,74 @@ def is_problematic_package(package_name: str) -> bool:
     """Check if package name contains problematic patterns"""
     package_lower = package_name.lower()
     return any(problematic in package_lower for problematic in PROBLEMATIC_PACKAGES)
+
+
+def _gradle_package_name(gradle_path: Path, node_modules_path: Path) -> str:
+    """Best-effort npm package name from a node_modules/.../android/*.gradle path."""
+    try:
+        rel = gradle_path.resolve().relative_to(node_modules_path.resolve())
+    except ValueError:
+        return gradle_path.parent.name
+    parts = rel.parts
+    if not parts:
+        return gradle_path.parent.name
+    if parts[0].startswith("@"):
+        return f"{parts[0]}/{parts[1]}" if len(parts) > 1 else parts[0]
+    return parts[0]
+
+
+def scan_gradle_google_deps(project_root: Path) -> Tuple[List[str], List[str], int]:
+    """Scan Gradle files for GMS/MLKit/Firebase dependency lines (skip build caches)."""
+    issues: List[str] = []
+    warnings: List[str] = []
+    hit_count = 0
+    node_modules_path = project_root / "node_modules"
+    skip_parts = {"build", ".cxx", "intermediates", "lint-cache"}
+
+    gradle_roots = [project_root / "android", node_modules_path]
+    gradle_files = []
+    for root in gradle_roots:
+        if not root.exists():
+            continue
+        for path in root.rglob("*"):
+            if not path.is_file():
+                continue
+            if path.suffix not in {".gradle", ".kts"}:
+                continue
+            if any(part in skip_parts for part in path.parts):
+                continue
+            gradle_files.append(path)
+
+    for gradle_path in gradle_files:
+        try:
+            text = gradle_path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        pkg = _gradle_package_name(gradle_path, node_modules_path)
+        rel = gradle_path.relative_to(project_root)
+        for raw in text.splitlines():
+            line = raw.strip()
+            if not line or line.startswith("//") or line.startswith("*"):
+                continue
+            lowered = line.lower().replace(" ", "")
+            if not any(lowered.startswith(p) for p in GRADLE_DEP_PREFIXES):
+                continue
+            if not any(marker in line for marker in GMS_GRADLE_MARKERS):
+                continue
+            hit_count += 1
+            msg = f"{pkg}: Google Play/MLKit/Firebase Gradle dep in {rel}: {line[:120]}"
+            if pkg in KNOWN_REMOVED_BEFORE_FDROID:
+                warnings.append(
+                    msg + " (removed by build-android.sh before F-Droid assemble)"
+                )
+            elif pkg in KNOWN_FDROID_STRIPPED_PACKAGES:
+                warnings.append(
+                    msg + " (stripped by scripts/fix-for-fdroid.py before F-Droid assemble)"
+                )
+            else:
+                issues.append(msg)
+
+    return issues, warnings, hit_count
 
 
 def extract_license(pkg_data: dict) -> str:
@@ -179,10 +273,26 @@ def is_test_fixture(pkg_name: str, pkg_path: Path) -> bool:
     
     # Check if package is in a test directory
     path_str = str(pkg_path)
-    test_dirs = ["/test/", "/tests/", "/__tests__/", "/fixtures/", "/test-fixtures/"]
+    test_dirs = ["/test/", "/tests/", "/__tests__/", "/fixtures/", "/test-fixtures/", "/example/", "/Example/"]
     if any(test_dir in path_str for test_dir in test_dirs):
         return True
     
+    return False
+
+
+def is_npm_package_root(pkg_json: Path, node_modules_path: Path) -> bool:
+    """Only scan the real package.json, not nested src/Example stubs."""
+    try:
+        rel = pkg_json.resolve().relative_to(node_modules_path.resolve())
+    except ValueError:
+        return False
+    parts = rel.parts
+    if parts[-1] != "package.json":
+        return False
+    if parts[0].startswith("@") and len(parts) == 3:
+        return True
+    if not parts[0].startswith("@") and len(parts) == 2:
+        return True
     return False
 
 
@@ -221,7 +331,9 @@ def scan_packages(node_modules_path: Path, project_root: Path) -> Tuple[List[str
             continue
         
         if "package.json" in files:
-            package_files.append(Path(root) / "package.json")
+            cand = Path(root) / "package.json"
+            if is_npm_package_root(cand, node_modules_path):
+                package_files.append(cand)
     
     for pkg_json in package_files:
         # Get package name from directory
@@ -314,6 +426,13 @@ def main():
     
     # Scan packages
     issues, warnings, stats = scan_packages(node_modules_path, project_root)
+
+    print(f"{Colors.BLUE}Scanning Gradle files for Google Play / MLKit / Firebase...{Colors.NC}")
+    gradle_issues, gradle_warnings, gradle_hits = scan_gradle_google_deps(project_root)
+    issues.extend(gradle_issues)
+    warnings.extend(gradle_warnings)
+    stats["problematic_deps"] += len(gradle_issues)
+    print(f"  Found {gradle_hits} matching Gradle dependency line(s)\n")
     
     # Print summary
     print(f"{Colors.BLUE}{'=' * 50}{Colors.NC}")

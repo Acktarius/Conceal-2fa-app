@@ -203,7 +203,7 @@ F-Droid builds are triggered by a git tag matching `*-f-droid` (see [`.github/wo
   - [ ] [`fastlane/metadata/android/en-US/title.txt`](fastlane/metadata/android/en-US/title.txt)
   - [ ] [`fastlane/metadata/android/en-US/short_description.txt`](fastlane/metadata/android/en-US/short_description.txt)
   - [ ] [`fastlane/metadata/android/en-US/full_description.txt`](fastlane/metadata/android/en-US/full_description.txt)
-- [ ] Run FOSS compatibility scan (optional sanity check):
+- [ ] Run FOSS + Google Play/MLKit scan (npm licenses and Gradle GMS lines):
 
 ```bash
 python3 scripts/check-fdroid-compatibility.py
