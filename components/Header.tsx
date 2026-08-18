@@ -98,6 +98,9 @@ export default function Header({
                   backgroundColor: theme.colors.background,
                   borderColor: theme.colors.border,
                   borderWidth: 1,
+                  paddingVertical: 0,
+                  textAlignVertical: 'center',
+                  includeFontPadding: false,
                 }}
                 value={searchQuery}
                 onChangeText={onSearchQueryChange}
