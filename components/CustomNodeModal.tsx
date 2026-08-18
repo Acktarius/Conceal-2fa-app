@@ -91,7 +91,7 @@ export const CustomNodeModal: React.FC<CustomNodeModalProps> = ({ visible, curre
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleCancel}>
+    <Modal visible={visible} transparent animationType="fade" presentationStyle="overFullScreen" onRequestClose={handleCancel}>
       <KeyboardAvoidingView className="flex-1 justify-center items-center" behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View className="flex-1 w-full justify-center items-center" style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
           <View

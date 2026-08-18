@@ -20,7 +20,7 @@ export const TermsModal: React.FC<TermsModalProps> = ({ visible, onClose }) => {
   const { theme } = useTheme();
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="slide" presentationStyle="overFullScreen" onRequestClose={onClose}>
       <View style={styles.container}>
         <View style={[styles.modalContent, { backgroundColor: theme.colors.card }]}>
           {/* Header */}

@@ -32,6 +32,7 @@ type TextInputRequest = {
   placeholder?: string;
   confirmLabel?: string;
   skipLabel?: string;
+  initialValue?: string;
   validate?: (value: string) => string | null;
   resolve: (value: string | null) => void;
 };
@@ -54,6 +55,7 @@ interface AppAlertContextType {
       placeholder?: string;
       confirmLabel?: string;
       skipLabel?: string;
+      initialValue?: string;
       validate?: (value: string) => string | null;
     }
   ) => Promise<string | null>;
@@ -112,6 +114,7 @@ export function AppAlertProvider({ children }: { children: React.ReactNode }) {
         placeholder?: string;
         confirmLabel?: string;
         skipLabel?: string;
+        initialValue?: string;
         validate?: (value: string) => string | null;
       }
     ) => {
@@ -123,6 +126,7 @@ export function AppAlertProvider({ children }: { children: React.ReactNode }) {
           placeholder: config?.placeholder,
           confirmLabel: config?.confirmLabel,
           skipLabel: config?.skipLabel,
+          initialValue: config?.initialValue,
           validate: config?.validate,
           resolve: (value: string | null) => {
             promiseResolve(value);
@@ -203,6 +207,7 @@ export function AppAlertProvider({ children }: { children: React.ReactNode }) {
           placeholder={pending.placeholder}
           confirmText={pending.confirmLabel ?? 'Add'}
           cancelText={pending.skipLabel ?? 'Skip'}
+          initialValue={pending.initialValue}
           validate={pending.validate}
           onCancel={() => pending.resolve(null)}
           onConfirm={(value) => pending.resolve(value)}

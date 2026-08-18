@@ -6,12 +6,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import AddServiceModal from '../components/AddServiceModal';
 import FundingBanner from '../components/FundingBanner';
 import GestureNavigator from '../components/GestureNavigator';
 import Header from '../components/Header';
 import ServiceCard from '../components/ServiceCard';
+import { useAppAlert } from '../contexts/AppAlertContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useWallet } from '../contexts/WalletContext';
 import { SharedKey } from '../model/Transaction';
@@ -20,6 +21,7 @@ import { getGlobalWorkletLogging } from '../services/interfaces/IWorkletLogging'
 import { StorageService } from '../services/StorageService';
 import { TOTPService } from '../services/TOTPService';
 import { WalletService } from '../services/WalletService';
+import { filterSharedKeysByIssuer } from '../utils/filterSharedKeys';
 
 type SortMode = 'creationDate' | 'issuerName';
 
@@ -30,8 +32,11 @@ export default function HomeScreen() {
   const [blockchainSyncEnabled, setBlockchainSyncEnabled] = useState(false);
   const [futureDisplaySetting, setFutureDisplaySetting] = useState<string>('off');
   const [sortMode, setSortMode] = useState<SortMode>('creationDate');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const { balance, maxKeys, isAuthenticated, wallet } = useWallet();
   const { theme } = useTheme();
+  const { showMessageAlert } = useAppAlert();
   const serviceCardRefs = React.useRef<{ [key: string]: any }>({});
 
   useEffect(() => {
@@ -224,7 +229,7 @@ export default function HomeScreen() {
       setShowAddModal(false);
 
       if (newSharedKey.toBePush) {
-        Alert.alert('Success', 'Service added! It will be automatically saved to blockchain.');
+        await showMessageAlert('Success', 'Service added! It will be automatically saved to blockchain.');
 
         // Force CronBuddy to check immediately for the new key
         try {
@@ -234,11 +239,14 @@ export default function HomeScreen() {
           getGlobalWorkletLogging().logging2string('DEBUG: Error triggering CronBuddy for new service:', String(error));
         }
       } else {
-        Alert.alert('Success', 'Service added locally! Enable blockchain sync or use individual save buttons to sync to blockchain.');
+        await showMessageAlert(
+          'Success',
+          'Service added locally! Enable blockchain sync or use individual save buttons to sync to blockchain.'
+        );
       }
     } catch (error) {
       getGlobalWorkletLogging().logging2string('Error adding service:', String(error));
-      Alert.alert('Error', 'Failed to add service. Please try again.');
+      await showMessageAlert('Error', 'Failed to add service. Please try again.');
     }
   };
 
@@ -252,7 +260,7 @@ export default function HomeScreen() {
       const broadcastAddress = settings.broadcastAddress || wallet?.getPublicAddress();
 
       if (!broadcastAddress) {
-        Alert.alert('Error', 'No broadcast address configured. Please set one in Settings.');
+        await showMessageAlert('Error', 'No broadcast address configured. Please set one in Settings.');
         return;
       }
 
@@ -274,7 +282,7 @@ export default function HomeScreen() {
       }
     } catch (error) {
       console.error('HomeScreen: Error broadcasting code:', error);
-      Alert.alert('Error', 'Failed to broadcast code.');
+      await showMessageAlert('Error', 'Failed to broadcast code.');
     }
   };
 
@@ -285,13 +293,13 @@ export default function HomeScreen() {
     try {
       // Check if wallet is blockchain-enabled
       if (!wallet || wallet.isLocal()) {
-        Alert.alert('Error', 'Blockchain features require a blockchain wallet. Please upgrade your wallet first.');
+        await showMessageAlert('Error', 'Blockchain features require a blockchain wallet. Please upgrade your wallet first.');
         return;
       }
 
       // Check if shared key is already on blockchain
       if (!sharedKey.isLocal) {
-        Alert.alert('Info', 'This service is already saved on the blockchain.');
+        await showMessageAlert('Info', 'This service is already saved on the blockchain.');
         return;
       }
 
@@ -308,7 +316,10 @@ export default function HomeScreen() {
         CronBuddy.start();
       }
 
-      Alert.alert('Success', 'Service will be saved to blockchain automatically. Operation will be processed in the background.');
+      await showMessageAlert(
+        'Success',
+        'Service will be saved to blockchain automatically. Operation will be processed in the background.'
+      );
 
       try {
         await CronBuddy.forceCheck();
@@ -317,17 +328,17 @@ export default function HomeScreen() {
       }
     } catch (error) {
       getGlobalWorkletLogging().logging2string('Error saving to blockchain:', String(error));
-      Alert.alert('Error', 'Failed to save key to blockchain.');
+      await showMessageAlert('Error', 'Failed to save key to blockchain.');
     }
   };
 
   const handleCopyCode = async (code: string, sharedKeyName: string) => {
     try {
       await Clipboard.setStringAsync(code);
-      Alert.alert('Copied', `${sharedKeyName} code copied to clipboard!`);
+      await showMessageAlert('Copied', `${sharedKeyName} code copied to clipboard!`);
     } catch (error) {
       console.error('HomeScreen: Error copying code to clipboard:', error);
-      Alert.alert('Error', 'Failed to copy code to clipboard.');
+      await showMessageAlert('Error', 'Failed to copy code to clipboard.');
     }
   };
 
@@ -423,6 +434,9 @@ export default function HomeScreen() {
   // Styles are now handled by Tailwind CSS classes
 
   const renderContent = () => {
+    const visibleKeys = sharedKeys.filter(shouldDisplaySharedKey);
+    const filteredKeys = sortSharedKeys(filterSharedKeysByIssuer(visibleKeys, searchQuery));
+
     return (
       <>
         <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false}>
@@ -453,9 +467,19 @@ export default function HomeScreen() {
                   Tap the + button to add your first 2FA service
                 </Text>
               </View>
+            ) : filteredKeys.length === 0 && visibleKeys.length > 0 ? (
+              <View className="flex-1 items-center justify-center py-20">
+                <Ionicons name="search-outline" size={64} color={theme.colors.textSecondary} />
+                <Text className="text-xl font-semibold mt-4 mb-2" style={{ color: theme.colors.text }}>
+                  No matching providers
+                </Text>
+                <Text className="text-base text-center leading-6 px-8" style={{ color: theme.colors.textSecondary }}>
+                  Try a different provider name
+                </Text>
+              </View>
             ) : (
               <View className="flex-row flex-wrap justify-between">
-                {sortSharedKeys(sharedKeys.filter(shouldDisplaySharedKey)).map((sharedKey) => {
+                {filteredKeys.map((sharedKey) => {
                   const sharedKeyId = sharedKey.hash || sharedKey.name + '_' + sharedKey.timeStampSharedKeyCreate;
                   return (
                     <ServiceCard
@@ -506,7 +530,19 @@ export default function HomeScreen() {
   return (
     <GestureNavigator>
       <View className="flex-1" style={{ backgroundColor: theme.colors.background }}>
-        <Header title="Authenticator" onTitleDoubleTap={handleHeaderDoubleTap} />
+        <Header
+          title="Authenticator"
+          onTitleDoubleTap={handleHeaderDoubleTap}
+          searchEnabled
+          searchOpen={searchOpen}
+          searchQuery={searchQuery}
+          onSearchOpen={() => setSearchOpen(true)}
+          onSearchQueryChange={setSearchQuery}
+          onSearchClose={() => {
+            setSearchQuery('');
+            setSearchOpen(false);
+          }}
+        />
         {renderContent()}
       </View>
     </GestureNavigator>

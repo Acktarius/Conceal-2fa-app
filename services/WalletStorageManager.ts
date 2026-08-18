@@ -11,7 +11,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
-import { Alert, Platform } from 'react-native';
+import { Platform } from 'react-native';
 import type { Wallet } from '../model/Wallet';
 import { WalletRepository } from '../model/WalletRepository';
 import { BiometricService } from './BiometricService';
@@ -526,34 +526,18 @@ export class WalletStorageManager {
         // Biometric failed, fallback to password
       }
 
-      // Require password authentication
-      return new Promise((resolve) => {
-        Alert.prompt(
-          'Wallet Password',
-          'Enter your wallet password:',
-          [
-            {
-              text: 'Cancel',
-              onPress: () => resolve(null),
-              style: 'cancel',
-            },
-            {
-              text: 'Unlock',
-              onPress: async (password) => {
-                if (!password) {
-                  Alert.alert('Error', 'Password is required');
-                  resolve(null);
-                  return;
-                }
+      const passwordPromptContext = (global as any).passwordPromptContext;
+      if (!passwordPromptContext) {
+        WalletStorageManager.logFailure('wallet unlock failed');
+        return null;
+      }
 
-                const wallet = await WalletStorageManager.getEncryptedWallet(password);
-                resolve(wallet);
-              },
-            },
-          ],
-          'secure-text'
-        );
-      });
+      const password = await passwordPromptContext.showPasswordPromptAlert('Wallet Password', 'Enter your wallet password:');
+      if (!password) {
+        return null;
+      }
+
+      return await WalletStorageManager.getEncryptedWallet(password);
     } catch {
       WalletStorageManager.logFailure('wallet unlock failed');
       return null;
@@ -638,30 +622,13 @@ export class WalletStorageManager {
   }
 
   private static async promptForPassword(message: string): Promise<string | null> {
-    return new Promise((resolve) => {
-      Alert.prompt(
-        'Wallet Password Required',
-        message,
-        [
-          {
-            text: 'Cancel',
-            onPress: () => resolve(null),
-            style: 'cancel',
-          },
-          {
-            text: 'Unlock',
-            onPress: (password) => {
-              if (!password) {
-                resolve(null);
-              } else {
-                resolve(password);
-              }
-            },
-          },
-        ],
-        'secure-text'
-      );
-    });
+    const passwordPromptContext = (global as any).passwordPromptContext;
+    if (!passwordPromptContext) {
+      WalletStorageManager.logFailure('wallet unlock failed');
+      return null;
+    }
+    const password = await passwordPromptContext.showPasswordPromptAlert('Wallet Password Required', message);
+    return password || null;
   }
 
   // Custom Node Management Methods

@@ -1,6 +1,5 @@
 import type React from 'react';
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { Alert } from 'react-native';
 import { CustomAlert } from '../components/CustomAlert';
 import { config } from '../config';
 import type { Wallet } from '../model/Wallet';
@@ -8,6 +7,7 @@ import { CronBuddy } from '../services/CronBuddy';
 import { getGlobalWorkletLogging } from '../services/interfaces/IWorkletLogging';
 import { WalletService } from '../services/WalletService';
 import { WalletStorageManager } from '../services/WalletStorageManager';
+import { getAppAlertContext } from './AppAlertContext';
 
 interface WalletContextType {
   wallet: Wallet | null;
@@ -101,7 +101,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       getGlobalWorkletLogging().logging1string('Wallet synchronization started successfully');
     } catch (error) {
       console.error('Error starting wallet synchronization:', error);
-      Alert.alert('Error', 'Failed to start wallet synchronization. Please try again.');
+      await getAppAlertContext().showMessageAlert('Error', 'Failed to start wallet synchronization. Please try again.');
     }
   };
 

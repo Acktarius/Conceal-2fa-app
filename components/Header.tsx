@@ -1,10 +1,17 @@
+import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { Image, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface HeaderProps {
   title: string;
   onTitleDoubleTap?: () => void;
+  searchEnabled?: boolean;
+  searchOpen?: boolean;
+  searchQuery?: string;
+  onSearchOpen?: () => void;
+  onSearchQueryChange?: (query: string) => void;
+  onSearchClose?: () => void;
 }
 
 const THEME_ICONS: Record<string, any> = {
@@ -14,11 +21,21 @@ const THEME_ICONS: Record<string, any> = {
   dark: require('../assets/icon-dark-192.png'),
 };
 
-export default function Header({ title, onTitleDoubleTap }: HeaderProps) {
+const SEARCH_INPUT_WIDTH = 160;
+
+export default function Header({
+  title,
+  onTitleDoubleTap,
+  searchEnabled = false,
+  searchOpen = false,
+  searchQuery = '',
+  onSearchOpen,
+  onSearchQueryChange,
+  onSearchClose,
+}: HeaderProps) {
   const { theme, currentThemeId } = useTheme();
   const iconSource = THEME_ICONS[currentThemeId] || THEME_ICONS.light;
 
-  // Double tap detection
   const lastTapRef = React.useRef<number>(0);
   const DOUBLE_TAP_DELAY = 300;
 
@@ -29,24 +46,32 @@ export default function Header({ title, onTitleDoubleTap }: HeaderProps) {
     const timeSinceLastTap = now - lastTapRef.current;
 
     if (timeSinceLastTap < DOUBLE_TAP_DELAY) {
-      // Double tap detected
       onTitleDoubleTap();
-      lastTapRef.current = 0; // Reset to prevent triple-tap
+      lastTapRef.current = 0;
     } else {
       lastTapRef.current = now;
     }
   };
 
-  const TitleComponent = onTitleDoubleTap ? (
-    <TouchableOpacity onPress={handleTitlePress} activeOpacity={1}>
-      <Text className="text-2xl font-semibold font-poppins-medium tracking-wider" style={{ color: theme.colors.text }}>
-        {title}
-      </Text>
-    </TouchableOpacity>
-  ) : (
-    <Text className="text-2xl font-semibold font-poppins-medium tracking-wider" style={{ color: theme.colors.text }}>
+  const titleText = (
+    <Text
+      className="text-2xl font-semibold font-poppins-medium tracking-wider"
+      style={{ color: theme.colors.text }}
+      numberOfLines={1}
+      ellipsizeMode="tail"
+    >
       {title}
     </Text>
+  );
+
+  const TitleComponent = onTitleDoubleTap ? (
+    <TouchableOpacity onPress={handleTitlePress} activeOpacity={1} className="flex-1 min-w-0 mr-2" style={{ flexShrink: 1 }}>
+      {titleText}
+    </TouchableOpacity>
+  ) : (
+    <View className="flex-1 min-w-0 mr-2" style={{ flexShrink: 1 }}>
+      {titleText}
+    </View>
   );
 
   return (
@@ -57,19 +82,55 @@ export default function Header({ title, onTitleDoubleTap }: HeaderProps) {
         borderBottomColor: theme.colors.border,
       }}
     >
-      {/* Icon with themed background */}
-      <View className="mr-3">
-        <View
-          className="w-10 h-10 rounded-full absolute"
-          style={{
-            backgroundColor: theme.colors.primary,
-            opacity: 0.15,
-          }}
-        />
-        <Image source={iconSource} className="w-10 h-10" resizeMode="contain" />
-      </View>
+      <Image source={iconSource} className="w-10 h-10 mr-3" style={{ flexShrink: 0 }} resizeMode="contain" />
 
       {TitleComponent}
+
+      {searchEnabled ? (
+        <View className="flex-row items-center" style={{ flexShrink: 0 }}>
+          {searchOpen ? (
+            <>
+              <TextInput
+                className="h-9 px-3 rounded-lg mr-2 text-sm"
+                style={{
+                  width: SEARCH_INPUT_WIDTH,
+                  color: theme.colors.text,
+                  backgroundColor: theme.colors.background,
+                  borderColor: theme.colors.border,
+                  borderWidth: 1,
+                  paddingVertical: 0,
+                  textAlignVertical: 'center',
+                  includeFontPadding: false,
+                }}
+                value={searchQuery}
+                onChangeText={onSearchQueryChange}
+                placeholder="Filter by provider"
+                placeholderTextColor={theme.colors.textSecondary}
+                autoFocus
+                autoCorrect={false}
+                autoCapitalize="none"
+                returnKeyType="search"
+                accessibilityLabel="Filter by provider"
+              />
+              <TouchableOpacity
+                onPress={onSearchClose}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel="Clear search"
+              >
+                <Ionicons name="close" size={22} color={theme.colors.text} />
+              </TouchableOpacity>
+            </>
+          ) : (
+            <TouchableOpacity
+              onPress={onSearchOpen}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Search providers"
+            >
+              <Ionicons name="search" size={22} color={theme.colors.text} />
+            </TouchableOpacity>
+          )}
+        </View>
+      ) : null}
     </View>
   );
 }

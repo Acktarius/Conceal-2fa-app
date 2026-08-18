@@ -3,6 +3,7 @@ import React from 'react';
 import { Alert, Animated, Dimensions, Text, TouchableOpacity, View } from 'react-native';
 import { scheduleOnRN } from 'react-native-worklets';
 
+import { useAppAlert } from '../contexts/AppAlertContext';
 import { useTheme } from '../contexts/ThemeContext';
 import type { SharedKey } from '../model/Transaction';
 import { dependencyContainer } from '../services/DependencyContainer';
@@ -55,6 +56,7 @@ const ServiceCard = React.forwardRef<any, ServiceCardProps>(
     ref
   ) => {
     const { theme } = useTheme();
+    const { showMessageAlert } = useAppAlert();
     const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
     const [cachedFutureCode, setCachedFutureCode] = React.useState<string>('');
     const [isPulsing, setIsPulsing] = React.useState(false);
@@ -176,10 +178,10 @@ const ServiceCard = React.forwardRef<any, ServiceCardProps>(
                 const walletOperations = dependencyContainer.getWalletOperations();
                 walletOperations.triggerSharedKeysRefresh();
 
-                Alert.alert('Success', 'Service is now trusted');
+                await showMessageAlert('Success', 'Service is now trusted');
               } catch (error) {
                 console.error('Error trusting unknown source:', error);
-                Alert.alert('Error', 'Failed to trust the service. Please try again.');
+                await showMessageAlert('Error', 'Failed to trust the service. Please try again.');
               }
             },
           },
