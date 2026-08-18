@@ -21,6 +21,7 @@ import { getGlobalWorkletLogging } from '../services/interfaces/IWorkletLogging'
 import { StorageService } from '../services/StorageService';
 import { TOTPService } from '../services/TOTPService';
 import { WalletService } from '../services/WalletService';
+import { filterSharedKeysByIssuer } from '../utils/filterSharedKeys';
 
 type SortMode = 'creationDate' | 'issuerName';
 
@@ -31,6 +32,8 @@ export default function HomeScreen() {
   const [blockchainSyncEnabled, setBlockchainSyncEnabled] = useState(false);
   const [futureDisplaySetting, setFutureDisplaySetting] = useState<string>('off');
   const [sortMode, setSortMode] = useState<SortMode>('creationDate');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const { balance, maxKeys, isAuthenticated, wallet } = useWallet();
   const { theme } = useTheme();
   const { showMessageAlert } = useAppAlert();
@@ -431,6 +434,9 @@ export default function HomeScreen() {
   // Styles are now handled by Tailwind CSS classes
 
   const renderContent = () => {
+    const visibleKeys = sharedKeys.filter(shouldDisplaySharedKey);
+    const filteredKeys = sortSharedKeys(filterSharedKeysByIssuer(visibleKeys, searchQuery));
+
     return (
       <>
         <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false}>
@@ -461,9 +467,19 @@ export default function HomeScreen() {
                   Tap the + button to add your first 2FA service
                 </Text>
               </View>
+            ) : filteredKeys.length === 0 && visibleKeys.length > 0 ? (
+              <View className="flex-1 items-center justify-center py-20">
+                <Ionicons name="search-outline" size={64} color={theme.colors.textSecondary} />
+                <Text className="text-xl font-semibold mt-4 mb-2" style={{ color: theme.colors.text }}>
+                  No matching providers
+                </Text>
+                <Text className="text-base text-center leading-6 px-8" style={{ color: theme.colors.textSecondary }}>
+                  Try a different provider name
+                </Text>
+              </View>
             ) : (
               <View className="flex-row flex-wrap justify-between">
-                {sortSharedKeys(sharedKeys.filter(shouldDisplaySharedKey)).map((sharedKey) => {
+                {filteredKeys.map((sharedKey) => {
                   const sharedKeyId = sharedKey.hash || sharedKey.name + '_' + sharedKey.timeStampSharedKeyCreate;
                   return (
                     <ServiceCard
@@ -514,7 +530,19 @@ export default function HomeScreen() {
   return (
     <GestureNavigator>
       <View className="flex-1" style={{ backgroundColor: theme.colors.background }}>
-        <Header title="Authenticator" onTitleDoubleTap={handleHeaderDoubleTap} />
+        <Header
+          title="Authenticator"
+          onTitleDoubleTap={handleHeaderDoubleTap}
+          searchEnabled
+          searchOpen={searchOpen}
+          searchQuery={searchQuery}
+          onSearchOpen={() => setSearchOpen(true)}
+          onSearchQueryChange={setSearchQuery}
+          onSearchClose={() => {
+            setSearchQuery('');
+            setSearchOpen(false);
+          }}
+        />
         {renderContent()}
       </View>
     </GestureNavigator>
