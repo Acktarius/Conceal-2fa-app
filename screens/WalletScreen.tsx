@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Keyboard, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Keyboard, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { ExpandableSection } from '../components/ExpandableSection';
 import GestureNavigator from '../components/GestureNavigator';
@@ -14,6 +14,7 @@ import Header from '../components/Header';
 import QRScannerModal from '../components/QRScannerModal';
 import { SpinningSyncIcon } from '../components/SpinningSyncIcon';
 import { config } from '../config';
+import { useAppAlert } from '../contexts/AppAlertContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useWallet } from '../contexts/WalletContext';
 import { JSBigInt } from '../lib/biginteger';
@@ -24,6 +25,7 @@ import { WalletService } from '../services/WalletService';
 export default function WalletScreen() {
   const { wallet, balance, maxKeys, isLoading, refreshBalance, refreshWallet, refreshCounter } = useWallet();
   const { theme } = useTheme();
+  const { showMessageAlert } = useAppAlert();
   const KEY_STORAGE_COST = config.messageTxAmount.add(config.coinFee).add(config.remoteNodeFee);
   const [syncStatus, setSyncStatus] = useState<any>(null);
   const [lastTap, setLastTap] = useState<number>(0);
@@ -160,10 +162,10 @@ export default function WalletScreen() {
     if (wallet?.getPublicAddress()) {
       try {
         await Clipboard.setStringAsync(wallet.getPublicAddress());
-        Alert.alert('Copied', 'Wallet address copied to clipboard!');
+        await showMessageAlert('Copied', 'Wallet address copied to clipboard!');
       } catch (error) {
         console.error('WalletScreen: Error copying address to clipboard:', error);
-        Alert.alert('Error', 'Failed to copy address.');
+        await showMessageAlert('Error', 'Failed to copy address.');
       }
     }
   };
@@ -198,13 +200,13 @@ export default function WalletScreen() {
 
   const handleSendCCX = async () => {
     if (!sendAddress.trim() || !sendAmount.trim()) {
-      Alert.alert('Error', 'Please enter both address and amount.');
+      await showMessageAlert('Error', 'Please enter both address and amount.');
       return;
     }
 
     // Validate recipient address
     if (!sendAddress.startsWith('ccx7') || sendAddress.length !== 98) {
-      Alert.alert('Error', 'Invalid recipient address. Address must start with "ccx7" and be 98 characters long.');
+      await showMessageAlert('Error', 'Invalid recipient address. Address must start with "ccx7" and be 98 characters long.');
       return;
     }
 
@@ -213,12 +215,12 @@ export default function WalletScreen() {
     const maxAmount = balance.subtract(SEND_COST);
 
     if (amount <= 0) {
-      Alert.alert('Error', 'Amount must be greater than 0.');
+      await showMessageAlert('Error', 'Amount must be greater than 0.');
       return;
     }
 
     if (amount > parseFloat(maxAmount.toHuman())) {
-      Alert.alert('Error', 'Insufficient balance. Amount exceeds available balance minus fees.');
+      await showMessageAlert('Error', 'Insufficient balance. Amount exceeds available balance minus fees.');
       return;
     }
 
@@ -251,7 +253,7 @@ export default function WalletScreen() {
       setIsProcessingTransaction(false);
 
       // Success
-      Alert.alert(
+      await showMessageAlert(
         'Transaction Sent',
         `Successfully sent ${amount} CCX to ${sendAddress.substring(0, 10)}...\n\nTransaction Hash: ${txHash.substring(0, 16)}...`
       );
@@ -262,7 +264,7 @@ export default function WalletScreen() {
       // Hide spinner on error
       setIsProcessingTransaction(false);
       console.error('Send transaction error:', error);
-      Alert.alert('Error', `Failed to send transaction: ${error.message}`);
+      await showMessageAlert('Error', `Failed to send transaction: ${error.message}`);
     }
   };
 
@@ -287,10 +289,10 @@ export default function WalletScreen() {
       try {
         console.log('WALLET SCREEN: Double tap detected - triggering manual save');
         await WalletService.triggerManualSave();
-        Alert.alert('Success', 'Wallet saved successfully!');
+        await showMessageAlert('Success', 'Wallet saved successfully!');
       } catch (error) {
         console.error('WALLET SCREEN: Error during manual save:', error);
-        Alert.alert('Error', 'Failed to save wallet. Please try again.');
+        await showMessageAlert('Error', 'Failed to save wallet. Please try again.');
       }
     } else {
       setLastTap(now);

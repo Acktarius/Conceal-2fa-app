@@ -167,7 +167,8 @@ export default function SettingsScreen() {
       await saveBroadcastAddress(address);
       setIsBroadcastExpanded(false);
     } else {
-      Alert.alert('Invalid Address', 'Address must start with "ccx7" and be 98 characters long.');
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      await showMessageAlert('Invalid Address', 'Address must start with "ccx7" and be 98 characters long.');
     }
   };
 
@@ -195,7 +196,7 @@ export default function SettingsScreen() {
   const qrSize = Math.min(maxQRWidth, 250); // Cap at 250px for readability
 
   const { theme, setTheme, currentThemeId } = useTheme();
-  const { showMessageAlert } = useAppAlert();
+  const { showMessageAlert, showTextInputAlert } = useAppAlert();
   const { wallet, refreshWallet, balance, refreshCounter } = useWallet();
   const navigation = useNavigation<NavigationProp>();
 
@@ -392,7 +393,7 @@ export default function SettingsScreen() {
       // Check extra security first
       const authenticated = await handleExtraSecurity();
       if (!authenticated) {
-        Alert.alert('Authentication Required', 'Please authenticate to view your recovery seed.');
+        await showMessageAlert('Authentication Required', 'Please authenticate to view your recovery seed.');
         return;
       }
 
@@ -405,10 +406,10 @@ export default function SettingsScreen() {
           setShowRecoverySeed(true);
         } catch {
           getGlobalWorkletLogging().logging1string('SettingsScreen: recovery seed generation failed');
-          Alert.alert('Error', 'Failed to generate recovery seed from wallet keys.');
+          await showMessageAlert('Error', 'Failed to generate recovery seed from wallet keys.');
         }
       } else {
-        Alert.alert('Error', 'No wallet keys available to generate seed.');
+        await showMessageAlert('Error', 'No wallet keys available to generate seed.');
       }
     }
   };
@@ -488,18 +489,18 @@ export default function SettingsScreen() {
       // Check extra security first
       const authenticated = await handleExtraSecurity();
       if (!authenticated) {
-        Alert.alert('Authentication Required', 'Please authenticate to export your wallet.');
+        await showMessageAlert('Authentication Required', 'Please authenticate to export your wallet.');
         return;
       }
 
       // Expand and generate QR
       if (!wallet) {
-        Alert.alert('Error', 'No wallet available for export');
+        await showMessageAlert('Error', 'No wallet available for export');
         return;
       }
 
       if (wallet.isLocal()) {
-        Alert.alert('Error', 'Cannot export local-only wallet. Please upgrade to blockchain wallet first.');
+        await showMessageAlert('Error', 'Cannot export local-only wallet. Please upgrade to blockchain wallet first.');
         return;
       }
 
@@ -509,7 +510,7 @@ export default function SettingsScreen() {
         setShowExportQR(true);
       } catch (error) {
         console.error('SettingsScreen: Error exporting wallet as QR:', error);
-        Alert.alert('Error', 'Failed to export wallet QR code. Please try again.');
+        await showMessageAlert('Error', 'Failed to export wallet QR code. Please try again.');
       }
     }
   };
@@ -517,20 +518,20 @@ export default function SettingsScreen() {
   const handleCopySeed = async () => {
     try {
       await Clipboard.setStringAsync(recoverySeed);
-      Alert.alert('Copied', 'Recovery seed copied to clipboard!');
+      await showMessageAlert('Copied', 'Recovery seed copied to clipboard!');
     } catch {
       getGlobalWorkletLogging().logging1string('SettingsScreen: recovery seed copy failed');
-      Alert.alert('Error', 'Failed to copy seed.');
+      await showMessageAlert('Error', 'Failed to copy seed.');
     }
   };
 
   const handleCopyQRData = async () => {
     try {
       await Clipboard.setStringAsync(exportQRData);
-      Alert.alert('Copied', 'QR code data copied to clipboard!');
+      await showMessageAlert('Copied', 'QR code data copied to clipboard!');
     } catch (error) {
       console.error('SettingsScreen: Error copying QR data to clipboard:', error);
-      Alert.alert('Error', 'Failed to copy QR data.');
+      await showMessageAlert('Error', 'Failed to copy QR data.');
     }
   };
 
@@ -572,11 +573,11 @@ export default function SettingsScreen() {
         // Trigger HomeScreen refresh to show resuscitated key
         WalletService.triggerSharedKeysRefresh();
 
-        Alert.alert('Success', 'Shared key resuscitated successfully');
+        await showMessageAlert('Success', 'Shared key resuscitated successfully');
       }
     } catch (error) {
       console.error('SettingsScreen: Error resuscitating key:', error);
-      Alert.alert('Error', 'Failed to resuscitate shared key');
+      await showMessageAlert('Error', 'Failed to resuscitate shared key');
     }
   };
 
@@ -598,10 +599,10 @@ export default function SettingsScreen() {
             }
 
             await loadRevokedKeys();
-            Alert.alert('Success', 'Shared key queued for permanent deletion');
+            await showMessageAlert('Success', 'Shared key queued for permanent deletion');
           } catch (error) {
             console.error('SettingsScreen: Error deleting key:', error);
-            Alert.alert('Error', 'Failed to delete shared key');
+            await showMessageAlert('Error', 'Failed to delete shared key');
           }
         },
       },
@@ -633,10 +634,10 @@ export default function SettingsScreen() {
             // Trigger HomeScreen refresh to show resuscitated keys
             WalletService.triggerSharedKeysRefresh();
 
-            Alert.alert('Success', 'All revoked keys resuscitated successfully');
+            await showMessageAlert('Success', 'All revoked keys resuscitated successfully');
           } catch (error) {
             console.error('SettingsScreen: Error resuscitating all keys:', error);
-            Alert.alert('Error', 'Failed to resuscitate all keys');
+            await showMessageAlert('Error', 'Failed to resuscitate all keys');
           }
         },
       },
@@ -657,10 +658,10 @@ export default function SettingsScreen() {
             await StorageService.saveSharedKeys(filteredKeys);
             await loadRevokedKeys(); // Refresh the list
 
-            Alert.alert('Success', 'All revoked keys deleted successfully');
+            await showMessageAlert('Success', 'All revoked keys deleted successfully');
           } catch (error) {
             console.error('SettingsScreen: Error deleting all keys:', error);
-            Alert.alert('Error', 'Failed to delete all keys');
+            await showMessageAlert('Error', 'Failed to delete all keys');
           }
         },
       },
@@ -673,7 +674,7 @@ export default function SettingsScreen() {
 
   const handleRescanFromCreationHeight = async () => {
     if (!wallet) {
-      Alert.alert('Error', 'No wallet available for rescan');
+      await showMessageAlert('Error', 'No wallet available for rescan');
       return;
     }
 
@@ -698,13 +699,16 @@ export default function SettingsScreen() {
               await WalletService.rescanWalletFromHeight(rescanHeight, 'rescan from creation height');
               await refreshWallet();
 
-              Alert.alert('Success', `Rescan initiated from block ${rescanHeight.toLocaleString()}. Synchronization will restart.`);
+              await showMessageAlert(
+                'Success',
+                `Rescan initiated from block ${rescanHeight.toLocaleString()}. Synchronization will restart.`
+              );
               setShowRescanOptions(false);
               setIsEditingHeight(false);
               setCustomHeightInput('');
             } catch (error) {
               console.error('SettingsScreen: Error during rescan:', error);
-              Alert.alert('Error', 'Failed to initiate rescan. Please try again.');
+              await showMessageAlert('Error', 'Failed to initiate rescan. Please try again.');
             }
           },
         },
@@ -714,7 +718,7 @@ export default function SettingsScreen() {
 
   const handleRescanFromZero = async () => {
     if (!wallet) {
-      Alert.alert('Error', 'No wallet available for rescan');
+      await showMessageAlert('Error', 'No wallet available for rescan');
       return;
     }
 
@@ -736,11 +740,11 @@ export default function SettingsScreen() {
               await WalletService.rescanWalletFromHeight(0, 'rescan from block 0');
               await refreshWallet();
 
-              Alert.alert('Success', 'Rescan initiated from block 0. Synchronization will restart from the beginning.');
+              await showMessageAlert('Success', 'Rescan initiated from block 0. Synchronization will restart from the beginning.');
               setShowRescanOptions(false);
             } catch (error) {
               console.error('SettingsScreen: Error during rescan from zero:', error);
-              Alert.alert('Error', 'Failed to initiate rescan. Please try again.');
+              await showMessageAlert('Error', 'Failed to initiate rescan. Please try again.');
             }
           },
         },
@@ -776,7 +780,7 @@ export default function SettingsScreen() {
               });
             } catch (error) {
               console.error('SettingsScreen: Error in handleClearWalletData:', error);
-              Alert.alert('Error', 'Failed to clear wallet data. Please try again.', [{ text: 'OK' }]);
+              await showMessageAlert('Error', 'Failed to clear wallet data. Please try again.');
             }
           },
         },
@@ -806,15 +810,14 @@ export default function SettingsScreen() {
             await refreshWallet();
 
             // Navigate to HomeScreen
+            await showMessageAlert('Success', 'All data cleared successfully. The app will restart.');
             navigation.reset({
               index: 0,
               routes: [{ name: 'Home' }],
             });
-
-            Alert.alert('Success', 'All data cleared successfully. The app will restart.');
           } catch (error) {
             console.error('SettingsScreen: Error in handleClearData:', error);
-            Alert.alert('Error', 'Failed to clear data. Please try again.', [{ text: 'OK' }]);
+            await showMessageAlert('Error', 'Failed to clear data. Please try again.');
           }
         },
       },
@@ -843,8 +846,9 @@ export default function SettingsScreen() {
       // Note: No need to update biometric salt since we're in password mode
       // Biometric salt is only relevant when biometric authentication is enabled
 
-      Alert.alert('Success', 'Password changed successfully');
       setShowPasswordChangeAlert(false);
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      await showMessageAlert('Success', 'Password changed successfully');
     } catch (error) {
       console.error('Error changing password:', error);
       Alert.alert('Error', 'Failed to change password. Please try again.');
@@ -897,13 +901,9 @@ export default function SettingsScreen() {
         biometricAuth: true,
       });
 
-      // Close the modal first, then show success alert
       setShowUnlockWalletAlert(false);
-
-      // Show success alert after modal is closed
-      setTimeout(() => {
-        Alert.alert('Success', 'Biometric authentication enabled successfully');
-      }, 200);
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      await showMessageAlert('Success', 'Biometric authentication enabled successfully');
     } catch (error) {
       console.error('SettingsScreen: Error enabling biometric:', error);
       Alert.alert('Error', 'Failed to enable biometric authentication. Please try again.');
@@ -934,13 +934,9 @@ export default function SettingsScreen() {
         biometricAuth: false,
       });
 
-      // Close the modal first, then show success alert
       setShowPasswordCreationAlert(false);
-
-      // Show success alert after modal is closed
-      setTimeout(() => {
-        Alert.alert('Success', 'Biometric authentication disabled. You will now use password authentication.');
-      }, 200);
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      await showMessageAlert('Success', 'Biometric authentication disabled. You will now use password authentication.');
     } catch (error) {
       console.error('SettingsScreen: Error disabling biometric:', error);
       Alert.alert('Error', 'Failed to disable biometric authentication. Please try again.');
@@ -994,20 +990,20 @@ export default function SettingsScreen() {
         paymentIdWhiteList: updatedList,
       });
 
-      Alert.alert('Success', 'New Payment ID generated and added to whitelist');
+      await showMessageAlert('Success', 'New Payment ID generated and added to whitelist');
     } catch (error) {
       console.error('Error generating payment ID:', error);
-      Alert.alert('Error', 'Failed to generate payment ID');
+      await showMessageAlert('Error', 'Failed to generate payment ID');
     }
   };
 
   const handleCopyPaymentId = async (paymentId: string) => {
     try {
       await Clipboard.setStringAsync(paymentId);
-      Alert.alert('Copied', 'Payment ID copied to clipboard!');
+      await showMessageAlert('Copied', 'Payment ID copied to clipboard!');
     } catch (error) {
       console.error('SettingsScreen: Error copying payment ID to clipboard:', error);
-      Alert.alert('Error', 'Failed to copy payment ID');
+      await showMessageAlert('Error', 'Failed to copy payment ID');
     }
   };
 
@@ -1023,10 +1019,10 @@ export default function SettingsScreen() {
         paymentIdWhiteList: updatedList,
       });
 
-      Alert.alert('Deleted', 'Payment ID removed from whitelist');
+      await showMessageAlert('Deleted', 'Payment ID removed from whitelist');
     } catch (error) {
       console.error('SettingsScreen: Error deleting payment ID:', error);
-      Alert.alert('Error', 'Failed to delete payment ID');
+      await showMessageAlert('Error', 'Failed to delete payment ID');
     }
   };
 
@@ -1038,17 +1034,17 @@ export default function SettingsScreen() {
     const trimmedPaymentId = manualPaymentId.trim();
 
     if (!trimmedPaymentId) {
-      Alert.alert('Error', 'Please enter a payment ID');
+      await showMessageAlert('Error', 'Please enter a payment ID');
       return;
     }
 
     if (!handleValidatePaymentId(trimmedPaymentId)) {
-      Alert.alert('Invalid Payment ID', 'Payment ID must be exactly 64 hexadecimal characters (0-9, a-f, A-F)');
+      await showMessageAlert('Invalid Payment ID', 'Payment ID must be exactly 64 hexadecimal characters (0-9, a-f, A-F)');
       return;
     }
 
     if (paymentIdWhiteList.includes(trimmedPaymentId)) {
-      Alert.alert('Duplicate', 'This payment ID is already in the whitelist');
+      await showMessageAlert('Duplicate', 'This payment ID is already in the whitelist');
       return;
     }
 
@@ -1064,10 +1060,10 @@ export default function SettingsScreen() {
       });
 
       setManualPaymentId(''); // Clear input
-      Alert.alert('Success', 'Payment ID added to whitelist');
+      await showMessageAlert('Success', 'Payment ID added to whitelist');
     } catch (error) {
       console.error('SettingsScreen: Error adding manual payment ID:', error);
-      Alert.alert('Error', 'Failed to add payment ID');
+      await showMessageAlert('Error', 'Failed to add payment ID');
     }
   };
 
@@ -1405,25 +1401,16 @@ export default function SettingsScreen() {
                       <TouchableOpacity
                         className="flex-row items-center p-3 rounded-lg mb-2 border"
                         style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border }}
-                        onPress={() => {
-                          Alert.prompt(
-                            'Enter CCX Address',
-                            'Enter the CCX address to broadcast to:',
-                            [
-                              { text: 'Cancel', style: 'cancel' },
-                              {
-                                text: 'Save',
-                                onPress: (text) => {
-                                  if (text) {
-                                    handleManualBroadcastAddress(text.trim());
-                                  }
-                                },
-                              },
-                            ],
-                            'plain-text',
-                            broadcastAddress || wallet?.getPublicAddress() || '',
-                            'default'
-                          );
+                        onPress={async () => {
+                          const text = await showTextInputAlert('Enter CCX Address', 'Enter the CCX address to broadcast to:', {
+                            placeholder: 'ccx7...',
+                            confirmLabel: 'Save',
+                            skipLabel: 'Cancel',
+                            initialValue: broadcastAddress || wallet?.getPublicAddress() || '',
+                          });
+                          if (text) {
+                            await handleManualBroadcastAddress(text.trim());
+                          }
                         }}
                       >
                         <Ionicons name="create-outline" size={20} color={theme.colors.primary} />

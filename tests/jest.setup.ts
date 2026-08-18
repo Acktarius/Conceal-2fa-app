@@ -84,6 +84,20 @@ jest.mock('../contexts/ThemeContext', () => ({
   }),
 }));
 
+jest.mock('../contexts/AppAlertContext', () => ({
+  AppAlertProvider: ({ children }: { children: React.ReactNode }) => children,
+  useAppAlert: () => ({
+    showMessageAlert: jest.fn().mockResolvedValue(undefined),
+    showChoiceAlert: jest.fn().mockResolvedValue('cancel'),
+    showTextInputAlert: jest.fn().mockResolvedValue(null),
+  }),
+  getAppAlertContext: () => ({
+    showMessageAlert: jest.fn().mockResolvedValue(undefined),
+    showChoiceAlert: jest.fn().mockResolvedValue('cancel'),
+    showTextInputAlert: jest.fn().mockResolvedValue(null),
+  }),
+}));
+
 jest.mock('../contexts/PasswordPromptContext', () => ({
   PasswordPromptProvider: ({ children }: { children: React.ReactNode }) => children,
   usePasswordPrompt: () => ({

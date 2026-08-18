@@ -30,7 +30,7 @@ export interface CustomAlertProps {
   children?: React.ReactNode;
 }
 
-/** Themed modal: fixed top anchor, grows with content, scrolls after 85% screen height. */
+/** Themed modal: fixed top anchor, grows with content, scrolls after 85% screen height. iOS needs overFullScreen for a transparent overlay. */
 export const CustomAlert: React.FC<CustomAlertProps> = ({
   visible,
   title,
@@ -115,7 +115,7 @@ export const CustomAlert: React.FC<CustomAlertProps> = ({
     );
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleRequestClose}>
+    <Modal visible={visible} transparent animationType="fade" presentationStyle="overFullScreen" onRequestClose={handleRequestClose}>
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={styles.overlay}>

@@ -80,7 +80,7 @@ export const SeedInputModal: React.FC<SeedInputModalProps> = ({ visible, onCance
     .filter((word) => word.length > 0).length;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleCancel}>
+    <Modal visible={visible} transparent animationType="fade" presentationStyle="overFullScreen" onRequestClose={handleCancel}>
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={styles.blurContainer}>
           <View style={styles.modalContainer}>

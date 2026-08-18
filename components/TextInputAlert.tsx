@@ -1,5 +1,5 @@
 import type React from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 import { CustomAlert } from './CustomAlert';
@@ -14,6 +14,7 @@ export type TextInputAlertProps = {
   onCancel: () => void;
   onConfirm: (value: string) => void;
   validate?: (value: string) => string | null;
+  initialValue?: string;
 };
 
 /** Themed single-line input inside CustomAlert (Add / Skip). */
@@ -27,13 +28,21 @@ export const TextInputAlert: React.FC<TextInputAlertProps> = ({
   onCancel,
   onConfirm,
   validate,
+  initialValue = '',
 }) => {
   const { theme } = useTheme();
-  const [value, setValue] = useState('');
+  const [value, setValue] = useState(initialValue);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (visible) {
+      setValue(initialValue);
+      setError(null);
+    }
+  }, [visible, initialValue]);
+
   const reset = () => {
-    setValue('');
+    setValue(initialValue);
     setError(null);
   };
 

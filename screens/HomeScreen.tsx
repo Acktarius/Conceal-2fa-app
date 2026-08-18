@@ -6,12 +6,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import AddServiceModal from '../components/AddServiceModal';
 import FundingBanner from '../components/FundingBanner';
 import GestureNavigator from '../components/GestureNavigator';
 import Header from '../components/Header';
 import ServiceCard from '../components/ServiceCard';
+import { useAppAlert } from '../contexts/AppAlertContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useWallet } from '../contexts/WalletContext';
 import { SharedKey } from '../model/Transaction';
@@ -32,6 +33,7 @@ export default function HomeScreen() {
   const [sortMode, setSortMode] = useState<SortMode>('creationDate');
   const { balance, maxKeys, isAuthenticated, wallet } = useWallet();
   const { theme } = useTheme();
+  const { showMessageAlert } = useAppAlert();
   const serviceCardRefs = React.useRef<{ [key: string]: any }>({});
 
   useEffect(() => {
@@ -224,7 +226,7 @@ export default function HomeScreen() {
       setShowAddModal(false);
 
       if (newSharedKey.toBePush) {
-        Alert.alert('Success', 'Service added! It will be automatically saved to blockchain.');
+        await showMessageAlert('Success', 'Service added! It will be automatically saved to blockchain.');
 
         // Force CronBuddy to check immediately for the new key
         try {
@@ -234,11 +236,14 @@ export default function HomeScreen() {
           getGlobalWorkletLogging().logging2string('DEBUG: Error triggering CronBuddy for new service:', String(error));
         }
       } else {
-        Alert.alert('Success', 'Service added locally! Enable blockchain sync or use individual save buttons to sync to blockchain.');
+        await showMessageAlert(
+          'Success',
+          'Service added locally! Enable blockchain sync or use individual save buttons to sync to blockchain.'
+        );
       }
     } catch (error) {
       getGlobalWorkletLogging().logging2string('Error adding service:', String(error));
-      Alert.alert('Error', 'Failed to add service. Please try again.');
+      await showMessageAlert('Error', 'Failed to add service. Please try again.');
     }
   };
 
@@ -252,7 +257,7 @@ export default function HomeScreen() {
       const broadcastAddress = settings.broadcastAddress || wallet?.getPublicAddress();
 
       if (!broadcastAddress) {
-        Alert.alert('Error', 'No broadcast address configured. Please set one in Settings.');
+        await showMessageAlert('Error', 'No broadcast address configured. Please set one in Settings.');
         return;
       }
 
@@ -274,7 +279,7 @@ export default function HomeScreen() {
       }
     } catch (error) {
       console.error('HomeScreen: Error broadcasting code:', error);
-      Alert.alert('Error', 'Failed to broadcast code.');
+      await showMessageAlert('Error', 'Failed to broadcast code.');
     }
   };
 
@@ -285,13 +290,13 @@ export default function HomeScreen() {
     try {
       // Check if wallet is blockchain-enabled
       if (!wallet || wallet.isLocal()) {
-        Alert.alert('Error', 'Blockchain features require a blockchain wallet. Please upgrade your wallet first.');
+        await showMessageAlert('Error', 'Blockchain features require a blockchain wallet. Please upgrade your wallet first.');
         return;
       }
 
       // Check if shared key is already on blockchain
       if (!sharedKey.isLocal) {
-        Alert.alert('Info', 'This service is already saved on the blockchain.');
+        await showMessageAlert('Info', 'This service is already saved on the blockchain.');
         return;
       }
 
@@ -308,7 +313,10 @@ export default function HomeScreen() {
         CronBuddy.start();
       }
 
-      Alert.alert('Success', 'Service will be saved to blockchain automatically. Operation will be processed in the background.');
+      await showMessageAlert(
+        'Success',
+        'Service will be saved to blockchain automatically. Operation will be processed in the background.'
+      );
 
       try {
         await CronBuddy.forceCheck();
@@ -317,17 +325,17 @@ export default function HomeScreen() {
       }
     } catch (error) {
       getGlobalWorkletLogging().logging2string('Error saving to blockchain:', String(error));
-      Alert.alert('Error', 'Failed to save key to blockchain.');
+      await showMessageAlert('Error', 'Failed to save key to blockchain.');
     }
   };
 
   const handleCopyCode = async (code: string, sharedKeyName: string) => {
     try {
       await Clipboard.setStringAsync(code);
-      Alert.alert('Copied', `${sharedKeyName} code copied to clipboard!`);
+      await showMessageAlert('Copied', `${sharedKeyName} code copied to clipboard!`);
     } catch (error) {
       console.error('HomeScreen: Error copying code to clipboard:', error);
-      Alert.alert('Error', 'Failed to copy code to clipboard.');
+      await showMessageAlert('Error', 'Failed to copy code to clipboard.');
     }
   };
 
