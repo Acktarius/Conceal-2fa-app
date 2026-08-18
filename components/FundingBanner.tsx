@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -12,7 +12,7 @@ interface FundingBannerProps {
 export default function FundingBanner({ balance, maxKeys, onPress }: FundingBannerProps) {
   const [currentText, setCurrentText] = useState(0);
   const [showBanner, setShowBanner] = useState(true);
-  const [cycleCount, setCycleCount] = useState(0);
+  const [, setCycleCount] = useState(0);
   const fadeAnim = new Animated.Value(1);
   const { theme } = useTheme();
 

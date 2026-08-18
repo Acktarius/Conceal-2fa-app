@@ -31,7 +31,7 @@
 
 import { config } from '../config';
 import type { BlockchainExplorer, RawDaemon_Transaction } from './blockchain/BlockchainExplorer';
-import { Deposit, Transaction, TransactionData } from './Transaction';
+import { TransactionData } from './Transaction';
 import { TransactionsExplorer } from './TransactionsExplorer';
 import type { Wallet } from './Wallet';
 

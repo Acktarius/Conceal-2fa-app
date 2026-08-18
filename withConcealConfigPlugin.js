@@ -1,12 +1,9 @@
-const { withAppBuildGradle, withAndroidManifest, withGradleProperties } = require('@expo/config-plugins');
+const { withAppBuildGradle, withAndroidManifest } = require('@expo/config-plugins');
 
 function withConcealConfigPlugin(config) {
   // Android build.gradle modifications
   config = withAppBuildGradle(config, (config) => {
-    config.modResults.contents = config.modResults.contents.replace(
-      /defaultConfig \{/,
-      (match) => `${match}\n        missingDimensionStrategy 'react-native-camera', 'general'`
-    );
+    // Removed react-native-camera dimension strategy (no longer used)
 
     // Add network security config for HTTP connections (if needed for blockchain nodes)
     config.modResults.contents = config.modResults.contents.replace(
@@ -27,7 +24,12 @@ function withConcealConfigPlugin(config) {
     }
 
     const permissions = androidManifest.manifest['uses-permission'];
-    const requiredPermissions = ['android.permission.INTERNET', 'android.permission.ACCESS_NETWORK_STATE', 'android.permission.VIBRATE'];
+    const requiredPermissions = [
+      'android.permission.INTERNET',
+      'android.permission.ACCESS_NETWORK_STATE',
+      'android.permission.VIBRATE',
+      'android.permission.CAMERA',
+    ];
 
     // Add missing permissions
     requiredPermissions.forEach((permission) => {
@@ -35,18 +37,6 @@ function withConcealConfigPlugin(config) {
       if (!exists) {
         permissions.push({ $: { 'android:name': permission } });
       }
-    });
-
-    return config;
-  });
-
-  // Gradle properties modifications
-  config = withGradleProperties(config, (config) => {
-    // Add any custom gradle properties needed for Conceal Authenticator
-    config.modResults.push({
-      type: 'property',
-      key: 'org.gradle.jvmargs',
-      value: '-Xmx4g -XX:MaxMetaspaceSize=512m',
     });
 
     return config;

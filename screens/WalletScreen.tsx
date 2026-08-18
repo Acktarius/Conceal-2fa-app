@@ -6,28 +6,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
 import React, { useEffect, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Keyboard,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Alert, Keyboard, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { ExpandableSection } from '../components/ExpandableSection';
 import GestureNavigator from '../components/GestureNavigator';
 import Header from '../components/Header';
 import QRScannerModal from '../components/QRScannerModal';
+import { SpinningSyncIcon } from '../components/SpinningSyncIcon';
 import { config } from '../config';
 import { useTheme } from '../contexts/ThemeContext';
 import { useWallet } from '../contexts/WalletContext';
 import { JSBigInt } from '../lib/biginteger';
 import { CoinUri } from '../model/CoinUri';
-import { WalletService } from '../services/WalletService';
 import { getGlobalWorkletLogging } from '../services/interfaces/IWorkletLogging';
+import { WalletService } from '../services/WalletService';
 
 export default function WalletScreen() {
   const { wallet, balance, maxKeys, isLoading, refreshBalance, refreshWallet, refreshCounter } = useWallet();
@@ -177,7 +169,6 @@ export default function WalletScreen() {
   };
 
   const handleQRScan = (data: string) => {
-    let parsed = false;
     try {
       const txDetails = CoinUri.decodeTx(data);
       if (txDetails !== null) {
@@ -185,14 +176,12 @@ export default function WalletScreen() {
         if (typeof txDetails.amount !== 'undefined') {
           setSendAmount(txDetails.amount);
         }
-        parsed = true;
       }
     } catch (e) {
       // If CoinUri parsing fails, try basic validation
       getGlobalWorkletLogging().logging2string('WalletScreen: Error decoding QR data:', String(e));
       if (data.startsWith('ccx') && data.length > 97) {
         setSendAddress(data);
-        parsed = true;
       } else {
         setSendAddress(''); // Invalid address
       }
@@ -371,7 +360,7 @@ export default function WalletScreen() {
                 activeOpacity={0.8}
               >
                 <Ionicons name="arrow-up-outline" size={20} color="white" />
-                <Text className="text-base font-semibold text-white ml-2">Upgrade to Blockchain Wallet</Text>
+                <Text className="text-base font-semibold text-white ml-2">Create 2FA Wallet</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -416,11 +405,11 @@ export default function WalletScreen() {
                   activeOpacity={0.8}
                 >
                   <View className="flex-row items-center mb-2">
-                    <Ionicons
-                      name={syncStatus.isRunning ? 'sync-outline' : 'checkmark-circle-outline'}
-                      size={24}
-                      color={syncStatus.isWalletSynced ? theme.colors.success : theme.colors.warning}
-                    />
+                    {syncStatus.isWalletSynced ? (
+                      <Ionicons name="checkmark-circle-outline" size={24} color={theme.colors.success} />
+                    ) : (
+                      <SpinningSyncIcon size={24} color={theme.colors.warning} />
+                    )}
                     <Text className="text-base font-semibold ml-2" style={{ color: theme.colors.text }}>
                       {syncStatus.isWalletSynced ? 'Wallet Synced' : 'Synchronizing...'}
                     </Text>
@@ -429,7 +418,7 @@ export default function WalletScreen() {
                   {syncStatus.isRunning && (
                     <View className="mt-2">
                       <Text className="text-sm mb-1" style={{ color: theme.colors.textSecondary }}>
-                        Block: {syncStatus.lastBlockLoading} / {syncStatus.lastMaximumHeight}
+                        Block: {syncStatus.walletLastHeight} / {syncStatus.lastMaximumHeight}
                       </Text>
                       {syncStatus.transactionsInQueue > 0 && (
                         <Text className="text-sm" style={{ color: theme.colors.textSecondary }}>
@@ -452,16 +441,26 @@ export default function WalletScreen() {
                 </TouchableOpacity>
               )}
 
-              {/* Key Storage Info */}
-              {balance.compare(new JSBigInt(0)) === 0 && wallet?.getPublicAddress() ? (
+              {/* New local wallet — zero balance onboarding only (not after rescan) */}
+              {balance.compare(new JSBigInt(0)) === 0 && wallet?.isLocal() && wallet?.getPublicAddress() ? (
                 <View className="rounded-2xl p-5 items-center m-4" style={{ backgroundColor: theme.colors.primaryLight }}>
                   <Ionicons name="wallet-outline" size={32} color={theme.colors.primary} />
                   <Text className="text-lg font-semibold mt-3 mb-2" style={{ color: theme.colors.primary }}>
-                    Welcome to SecureAuth!
+                    Welcome to Conceal Authenticator!
                   </Text>
                   <Text className="text-sm text-center leading-5" style={{ color: theme.colors.primary }}>
                     Your wallet has been created with 0 CCX. To sync your 2FA keys to the blockchain, ask a friend to send you some CCX to
                     your address below.
+                  </Text>
+                </View>
+              ) : balance.compare(new JSBigInt(0)) === 0 && wallet && !wallet.isLocal() && syncStatus && !syncStatus.isWalletSynced ? (
+                <View className="rounded-2xl p-5 items-center m-4" style={{ backgroundColor: theme.colors.primaryLight }}>
+                  <SpinningSyncIcon size={32} color={theme.colors.primary} />
+                  <Text className="text-lg font-semibold mt-3 mb-2" style={{ color: theme.colors.primary }}>
+                    Wallet resync in progress
+                  </Text>
+                  <Text className="text-sm text-center leading-5" style={{ color: theme.colors.primary }}>
+                    Balance will update as blocks are scanned. 2FA services will reappear from on-chain smart messages.
                   </Text>
                 </View>
               ) : (

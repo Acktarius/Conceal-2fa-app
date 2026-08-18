@@ -3,18 +3,38 @@ node_modules/
 .env_private
 .cursorrules
 .expo/
-.idea
+.idea/
+scripts/__pycache__/
 
 # Custom quick-crypto build artifacts
-ios/
-android/
-android/app/build.gradle
+
 
 *.apk
 
-android/app/build/
-android/.kotlin/
+/android
+/ios
+
 
 add.sh
 
 local-release-key.keystore
+
+*.backup
+
+collect-expo-deps.sh
+restore-expo-deps.sh
+fdroid-deps/
+
+# AI
+AGENTS.md
+.chat/
+.continue/
+.cursorrules
+.cursor/
+decisions.md
+docs/
+.forge/
+openspec/
+.repo-kit/
+security/
+scripts/hooks/

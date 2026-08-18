@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import type React from 'react';
-import { Switch, Text, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 
 export interface ToggleOption {
@@ -72,6 +72,11 @@ export const ExpSectionToggle: React.FC<ExpSectionToggleProps> = ({
   const toggleValue = getToggleValue();
   const hasMoreThanTwoOptions = options.length > 2;
 
+  // Calculate adaptive font size based on screen width for options
+  const screenWidth = Dimensions.get('window').width;
+  const optionFontSize = screenWidth < 380 ? 11 : screenWidth < 420 ? 12 : 14;
+  const optionIconSize = screenWidth < 380 ? 14 : screenWidth < 420 ? 15 : 16;
+
   // Get track color based on selected theme
   const getTrackColor = () => {
     if (selectedOptionId === 'orange') return '#FF8C00';
@@ -136,7 +141,7 @@ export const ExpSectionToggle: React.FC<ExpSectionToggleProps> = ({
               </Text>
 
               {/* Options list - Left to Right, icon + text */}
-              <View className="flex-row items-center gap-4">
+              <View className="flex-row items-center gap-3">
                 {options.map((option) => (
                   <TouchableOpacity
                     key={option.id}
@@ -145,11 +150,17 @@ export const ExpSectionToggle: React.FC<ExpSectionToggleProps> = ({
                     activeOpacity={0.7}
                   >
                     {option.icon && (
-                      <Ionicons name={option.icon as any} size={16} color={theme.colors.textSecondary} style={{ marginRight: 4 }} />
+                      <Ionicons
+                        name={option.icon as any}
+                        size={optionIconSize}
+                        color={theme.colors.textSecondary}
+                        style={{ marginRight: 4 }}
+                      />
                     )}
                     <Text
-                      className="text-sm font-poppins-medium"
+                      className="font-poppins-medium"
                       style={{
+                        fontSize: optionFontSize,
                         color: selectedOptionId === option.id ? theme.colors.primary : theme.colors.text,
                       }}
                     >

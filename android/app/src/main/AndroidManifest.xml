@@ -1,13 +1,12 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
   <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
   <uses-permission android:name="android.permission.CAMERA"/>
   <uses-permission android:name="android.permission.INTERNET"/>
   <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
-  <uses-permission android:name="android.permission.RECORD_AUDIO"/>
   <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
   <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
   <uses-permission android:name="android.permission.USE_FINGERPRINT"/>
-  <uses-permission android:name="android.permission.VIBRATE"/>
+  <uses-permission android:name="android.permission.VIBRATE" tools:node="remove"/>
   <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
   <queries>
     <intent>
@@ -25,12 +24,36 @@
         <action android:name="android.intent.action.MAIN"/>
         <category android:name="android.intent.category.LAUNCHER"/>
       </intent-filter>
-      <intent-filter>
-        <action android:name="android.intent.action.VIEW"/>
-        <category android:name="android.intent.category.DEFAULT"/>
-        <category android:name="android.intent.category.BROWSABLE"/>
-        <data android:scheme="exp+conceal-authenticator"/>
-      </intent-filter>
     </activity>
+    <activity-alias android:name="com.acktarius.concealauthenticator.MainActivitypink" android:enabled="false" android:exported="true" android:icon="@mipmap/ic_launcher_adaptive_pink" android:targetActivity=".MainActivity" android:roundIcon="@mipmap/ic_launcher_adaptive_pink">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN"/>
+        <category android:name="android.intent.category.LAUNCHER"/>
+      </intent-filter>
+    </activity-alias>
+    <activity-alias android:name="com.acktarius.concealauthenticator.MainActivityvelvet" android:enabled="false" android:exported="true" android:icon="@mipmap/ic_launcher_adaptive_velvet" android:targetActivity=".MainActivity" android:roundIcon="@mipmap/ic_launcher_adaptive_velvet">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN"/>
+        <category android:name="android.intent.category.LAUNCHER"/>
+      </intent-filter>
+    </activity-alias>
+    <activity-alias android:name="com.acktarius.concealauthenticator.MainActivityorange" android:enabled="false" android:exported="true" android:icon="@mipmap/ic_launcher_adaptive_orange" android:targetActivity=".MainActivity" android:roundIcon="@mipmap/ic_launcher_adaptive_orange">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN"/>
+        <category android:name="android.intent.category.LAUNCHER"/>
+      </intent-filter>
+    </activity-alias>
+    <activity-alias android:name="com.acktarius.concealauthenticator.MainActivitylight" android:enabled="false" android:exported="true" android:icon="@mipmap/ic_launcher_adaptive_light" android:targetActivity=".MainActivity" android:roundIcon="@mipmap/ic_launcher_adaptive_light">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN"/>
+        <category android:name="android.intent.category.LAUNCHER"/>
+      </intent-filter>
+    </activity-alias>
+    <activity-alias android:name="com.acktarius.concealauthenticator.MainActivitydark" android:enabled="false" android:exported="true" android:icon="@mipmap/ic_launcher_adaptive_dark" android:targetActivity=".MainActivity" android:roundIcon="@mipmap/ic_launcher_adaptive_dark">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN"/>
+        <category android:name="android.intent.category.LAUNCHER"/>
+      </intent-filter>
+    </activity-alias>
   </application>
 </manifest>

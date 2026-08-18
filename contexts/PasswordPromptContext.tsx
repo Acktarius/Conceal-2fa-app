@@ -1,17 +1,26 @@
 import type React from 'react';
 import { createContext, useContext, useState } from 'react';
 
+interface PasswordCreationOptions {
+  confirmText?: string;
+  passwordPlaceholder?: string;
+  confirmPlaceholder?: string;
+}
+
 interface PasswordPromptContextType {
   showPasswordPrompt: boolean;
   passwordPromptMessage: string;
   passwordPromptTitle: string;
   showPasswordPromptAlert: (title: string, message: string) => Promise<string | null>;
-  showPasswordCreationAlert: (title: string, message: string) => Promise<string | null>;
+  showPasswordCreationAlert: (title: string, message: string, options?: PasswordCreationOptions) => Promise<string | null>;
   handlePasswordPrompt: (password: string | null) => void;
   // Password creation state
   showPasswordCreation: boolean;
   passwordCreationMessage: string;
   passwordCreationTitle: string;
+  passwordCreationConfirmText: string;
+  passwordCreationPasswordPlaceholder: string;
+  passwordCreationConfirmPlaceholder: string;
   handlePasswordCreation: (password: string | null) => void;
 }
 
@@ -27,6 +36,9 @@ export function PasswordPromptProvider({ children }: { children: React.ReactNode
   const [showPasswordCreation, setShowPasswordCreation] = useState(false);
   const [passwordCreationMessage, setPasswordCreationMessage] = useState('');
   const [passwordCreationTitle, setPasswordCreationTitle] = useState('');
+  const [passwordCreationConfirmText, setPasswordCreationConfirmText] = useState('Create Password');
+  const [passwordCreationPasswordPlaceholder, setPasswordCreationPasswordPlaceholder] = useState('Enter new password');
+  const [passwordCreationConfirmPlaceholder, setPasswordCreationConfirmPlaceholder] = useState('Confirm new password');
   const [passwordCreationResolve, setPasswordCreationResolve] = useState<((password: string | null) => void) | null>(null);
 
   const showPasswordPromptAlert = (title: string, message: string): Promise<string | null> => {
@@ -41,12 +53,15 @@ export function PasswordPromptProvider({ children }: { children: React.ReactNode
     });
   };
 
-  const showPasswordCreationAlert = (title: string, message: string): Promise<string | null> => {
+  const showPasswordCreationAlert = (title: string, message: string, options?: PasswordCreationOptions): Promise<string | null> => {
     console.log('PASSWORD CREATION CONTEXT: showPasswordCreationAlert called with:', title, message);
     return new Promise((resolve) => {
       console.log('PASSWORD CREATION CONTEXT: Setting state...');
       setPasswordCreationTitle(title);
       setPasswordCreationMessage(message);
+      setPasswordCreationConfirmText(options?.confirmText ?? 'Create Password');
+      setPasswordCreationPasswordPlaceholder(options?.passwordPlaceholder ?? 'Enter new password');
+      setPasswordCreationConfirmPlaceholder(options?.confirmPlaceholder ?? 'Confirm new password');
       setPasswordCreationResolve(() => resolve);
       setShowPasswordCreation(true);
       console.log('PASSWORD CREATION CONTEXT: State set, alert should be visible');
@@ -89,6 +104,9 @@ export function PasswordPromptProvider({ children }: { children: React.ReactNode
         showPasswordCreation,
         passwordCreationMessage,
         passwordCreationTitle,
+        passwordCreationConfirmText,
+        passwordCreationPasswordPlaceholder,
+        passwordCreationConfirmPlaceholder,
         handlePasswordCreation,
       }}
     >

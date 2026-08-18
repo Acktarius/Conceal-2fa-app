@@ -21,13 +21,7 @@ import { getGlobalWorkletLogging } from '../../services/interfaces/IWorkletLoggi
 import { WalletStorageManager } from '../../services/WalletStorageManager';
 import type { Wallet } from '../Wallet';
 import { WalletWatchdog } from '../WalletWatchdog';
-import {
-  type BlockchainExplorer,
-  NetworkInfo,
-  type RawDaemon_Out,
-  type RawDaemon_Transaction,
-  type RemoteNodeInformation,
-} from './BlockchainExplorer';
+import { type BlockchainExplorer, type RawDaemon_Out, type RawDaemon_Transaction, type RemoteNodeInformation } from './BlockchainExplorer';
 
 export type NodeInfo = {
   url: string;
@@ -46,7 +40,7 @@ class NodeWorker {
   private _allErrors: number;
   private _requests: number;
   private _isWorking: boolean;
-  private errorInterval: NodeJS.Timer;
+  private errorInterval: ReturnType<typeof setInterval>;
 
   constructor(url: string) {
     this._url = url;
@@ -207,6 +201,12 @@ class NodeWorker {
       return 2;
     }
     return 3;
+  };
+
+  cleanup = (): void => {
+    if (this.errorInterval) {
+      clearInterval(this.errorInterval);
+    }
   };
 }
 
@@ -393,6 +393,10 @@ class NodeWorkersList {
   };
 
   stop = () => {
+    // Clean up intervals before clearing nodes
+    for (const node of this.nodes) {
+      node.cleanup();
+    }
     this.nodes = [];
     this.usedNodeUrls.clear(); // Clear used nodes to allow fresh random selection
     this.sessionNode = null; // Clear current session node

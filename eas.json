@@ -28,7 +28,7 @@
       },
       "env": {
         "NODE_ENV": "preview",
-        "APP_VERSION": "1.0.3-preview"
+        "APP_VERSION": "1.1.3"
       }
     },
     "production": {

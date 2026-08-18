@@ -3,10 +3,7 @@ const { withAppBuildGradle, withAndroidManifest, withGradleProperties } = requir
 function withConcealConfigPlugin(config) {
   // Android build.gradle modifications
   config = withAppBuildGradle(config, (config) => {
-    config.modResults.contents = config.modResults.contents.replace(
-      /defaultConfig \{/,
-      (match) => `${match}\n        missingDimensionStrategy 'react-native-camera', 'general'`
-    );
+    // Removed react-native-camera dimension strategy (no longer used)
 
     // Add network security config for HTTP connections (if needed for blockchain nodes)
     config.modResults.contents = config.modResults.contents.replace(

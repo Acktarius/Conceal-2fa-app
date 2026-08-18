@@ -30,14 +30,13 @@
  *     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-import { createWorkletRuntime, scheduleOnRuntime } from 'react-native-worklets';
+import { scheduleOnRuntime } from 'react-native-worklets';
 import { config } from '../config';
 import { CronBuddy } from '../services/CronBuddy';
 import { dependencyContainer } from '../services/DependencyContainer';
-import { IWalletOperations } from '../services/interfaces/IWalletOperations';
 import { getGlobalWorkletLogging } from '../services/interfaces/IWorkletLogging';
 import type { BlockchainExplorer, RawDaemon_Transaction } from './blockchain/BlockchainExplorer';
-import { Deposit, Transaction, TransactionData } from './Transaction';
+import { TransactionData } from './Transaction';
 import { TransactionsExplorer } from './TransactionsExplorer';
 import type { Wallet } from './Wallet';
 
@@ -61,7 +60,7 @@ try {
   } else {
     console.log('WalletWatchdogRN: react-native-multithreading detected but not functional - using single-threaded fallback');
   }
-} catch (error) {
+} catch {
   console.log('WalletWatchdogRN: react-native-multithreading not available - using single-threaded fallback');
 }
 
@@ -186,12 +185,18 @@ class TxQueueRN {
       // We destroy the worker in charge of decoding the transactions every 5k transactions to ensure the memory is not corrupted
       // cnUtil bug, see https://github.com/mymonero/mymonero-core-js/issues/8
       if (this.countProcessed >= 5 * 1000) {
-        getGlobalWorkletLogging().logging1string('TxQueueRN: Recreating parseWorker for memory management...');
-        this.restartWorker();
-        setTimeout(() => {
-          this.runProcessLoop();
-        }, 1000);
-        return;
+        if (threadSupportAvailable && this.workerProcess) {
+          // Thread-based path: teardown and recreate the worker, then resume after 1s
+          getGlobalWorkletLogging().logging1string('TxQueueRN: Recreating parseWorker for memory management...');
+          this.restartWorker();
+          setTimeout(() => {
+            this.runProcessLoop();
+          }, 1000);
+          return;
+        } else {
+          // Synchronous fallback: there is no worker to restart, just reset the counter and keep going
+          this.countProcessed = 0;
+        }
       }
 
       if (!this.isRunning) {
@@ -286,6 +291,12 @@ class TxQueueRN {
     }
 
     this.workerProcess = this.initWorker();
+
+    // initWorker() only sets isReady in the constructor's else-branch, not here.
+    // In synchronous fallback mode isReady must stay true so runProcessLoop can continue.
+    if (!threadSupportAvailable) {
+      this.isReady = true;
+    }
   };
 
   setIsReady = (value: boolean) => {
@@ -576,20 +587,35 @@ class SyncWorkerRN {
   fetchBlocks = (startBlock: number, endBlock: number): Promise<{ transactions: RawDaemon_Transaction[]; lastBlock: number }> => {
     this.isWorking = true;
 
+    const FETCH_TIMEOUT_MS = 60000; // 60-second hard timeout per block range
+
     return new Promise<any>((resolve, reject) => {
+      let settled = false;
+
+      const timeoutId = setTimeout(() => {
+        if (!settled) {
+          settled = true;
+          this.isWorking = false;
+          console.warn(`SyncWorkerRN: fetchBlocks timeout for range ${startBlock}-${endBlock}, marking idle for retry`);
+          reject({ transactions: [], lastBlock: endBlock });
+        }
+      }, FETCH_TIMEOUT_MS);
+
       this.explorer
         .getTransactionsForBlocks(startBlock, endBlock, this.wallet.options.checkMinerTx)
         .then((transactions: RawDaemon_Transaction[]) => {
-          resolve({
-            transactions: transactions,
-            lastBlock: endBlock,
-          });
+          if (!settled) {
+            settled = true;
+            clearTimeout(timeoutId);
+            resolve({ transactions, lastBlock: endBlock });
+          }
         })
         .catch((err) => {
-          reject({
-            transactions: [],
-            lastBlock: endBlock,
-          });
+          if (!settled) {
+            settled = true;
+            clearTimeout(timeoutId);
+            reject({ transactions: [], lastBlock: endBlock });
+          }
         })
         .finally(() => {
           this.isWorking = false;
@@ -772,6 +798,8 @@ export class WalletWatchdogRN {
     this.stopped = true;
   };
 
+  isRunning = (): boolean => !this.stopped;
+
   start = () => {
     // Init the mempool
     this.initMempool();
@@ -865,10 +893,8 @@ export class WalletWatchdogRN {
         },
         transactions.length
       );
-      //console.log(`WalletWatchdogRN: Processing ${transactions.length} transactions synchronously`);
 
       for (const rawTx of transactions) {
-        // Debug: Check if this transaction belongs to us
         const isOwned = TransactionsExplorer.ownsTx(rawTx, this.wallet);
 
         if (isOwned) {
@@ -899,15 +925,21 @@ export class WalletWatchdogRN {
         }
       }
 
-      const walletOperations = dependencyContainer.getWalletOperations();
-      if (walletOperations) {
-        walletOperations.janitor();
+      try {
+        const walletOperations = dependencyContainer.getWalletOperations();
+        if (walletOperations) {
+          walletOperations.janitor();
+        }
+      } catch (janitorError) {
+        // janitor failure must NOT block finishBlockRange — wallet.lastHeight must still advance
+        console.error('WalletWatchdogRN: janitor() error (non-fatal, sync continues):', janitorError);
       }
-
-      // Finish the block range
-      this.blockList.finishBlockRange(lastBlock, transactions);
     } catch (error) {
       console.error('WalletWatchdogRN: Error processing transactions synchronously:', error);
+    } finally {
+      // Always finish the block range so wallet.lastHeight advances and the block is dequeued.
+      // Skipping this call is what causes the sync to get permanently stuck.
+      this.blockList.finishBlockRange(lastBlock, transactions);
     }
   };
 

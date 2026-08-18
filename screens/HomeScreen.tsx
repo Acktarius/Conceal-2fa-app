@@ -3,8 +3,9 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import AddServiceModal from '../components/AddServiceModal';
 import FundingBanner from '../components/FundingBanner';
@@ -27,6 +28,7 @@ export default function HomeScreen() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const [blockchainSyncEnabled, setBlockchainSyncEnabled] = useState(false);
+  const [futureDisplaySetting, setFutureDisplaySetting] = useState<string>('off');
   const [sortMode, setSortMode] = useState<SortMode>('creationDate');
   const { balance, maxKeys, isAuthenticated, wallet } = useWallet();
   const { theme } = useTheme();
@@ -34,7 +36,6 @@ export default function HomeScreen() {
 
   useEffect(() => {
     loadSharedKeys();
-    loadBlockchainSyncSetting();
 
     // Register shared keys refresh callback
     WalletService.registerSharedKeysRefreshCallback(loadSharedKeys);
@@ -54,8 +55,21 @@ export default function HomeScreen() {
           // Create proper SharedKey instance
           const sharedKey = new SharedKey();
           Object.assign(sharedKey, savedKey);
-          sharedKey.code = await TOTPService.generateTOTP(sharedKey.secret);
-          sharedKey.timeRemaining = TOTPService.getTimeRemaining();
+          sharedKey.code = await TOTPService.generateTOTP(
+            sharedKey.secret,
+            undefined,
+            sharedKey.algorithm,
+            sharedKey.digits,
+            sharedKey.period
+          );
+          sharedKey.timeRemaining = TOTPService.getTimeRemaining(sharedKey.period);
+          const nextCounter = Math.floor(Date.now() / (sharedKey.period * 1000)) + 1;
+          sharedKey.futureCode = await TOTPService.generateTOTPForTimeStep(
+            sharedKey.secret,
+            nextCounter,
+            sharedKey.algorithm,
+            sharedKey.digits
+          );
           return sharedKey;
         })
       );
@@ -65,35 +79,79 @@ export default function HomeScreen() {
     }
   };
 
-  const loadBlockchainSyncSetting = async () => {
+  const loadSettings = async () => {
     try {
       const settings = await StorageService.getSettings();
-      const syncEnabled = settings.blockchainSync || false;
-      setBlockchainSyncEnabled(syncEnabled);
-      // getGlobalWorkletLogging().logging2string('HomeScreen: Loaded blockchain sync setting:', String(syncEnabled));
+      setBlockchainSyncEnabled(settings.blockchainSync || false);
+      setFutureDisplaySetting(settings.futureCodeDisplay || 'off');
     } catch (error) {
-      getGlobalWorkletLogging().logging2string('Error loading blockchain sync setting:', String(error));
+      getGlobalWorkletLogging().logging2string('Error loading settings:', String(error));
     }
   };
+
+  // Reload tiles and settings when this tab gains focus (e.g. after Clear All Data in Settings)
+  useFocusEffect(
+    useCallback(() => {
+      loadSharedKeys();
+      loadSettings();
+    }, [])
+  );
 
   const updateCodes = async () => {
     setSharedKeys((prevSharedKeys) => {
       Promise.all(
         prevSharedKeys.map(async (sharedKey) => {
-          const updatedCode = await TOTPService.generateTOTP(sharedKey.secret);
-          const updatedTimeRemaining = TOTPService.getTimeRemaining();
+          // getTimeRemaining is pure math — no HMAC. Check this first to know if the period rolled over.
+          const updatedTimeRemaining = TOTPService.getTimeRemaining(sharedKey.period);
+          const periodRolledOver = updatedTimeRemaining > sharedKey.timeRemaining;
+
+          // Only run the HMAC when the period actually changes (once per 30/60 s).
+          // All other seconds reuse the stored code and futureCode — 0 HMACs.
+          let updatedCode = sharedKey.code;
+          let updatedFutureCode = sharedKey.futureCode;
+
+          if (periodRolledOver || sharedKey.code === '') {
+            updatedCode = await TOTPService.generateTOTP(
+              sharedKey.secret,
+              undefined,
+              sharedKey.algorithm,
+              sharedKey.digits,
+              sharedKey.period
+            );
+          }
+
+          // Delay futureCode by 1 second after rollover to avoid CPU spike at the same tick
+          const oneShotAfterRollover = updatedTimeRemaining === sharedKey.period - 1;
+          if (oneShotAfterRollover || sharedKey.futureCode === '') {
+            updatedFutureCode = await TOTPService.generateTOTPForTimeStep(
+              sharedKey.secret,
+              Math.floor(Date.now() / (sharedKey.period * 1000)) + 1,
+              sharedKey.algorithm,
+              sharedKey.digits
+            );
+          }
 
           // Create new SharedKey instance with all properties preserved
           const updatedSharedKey = new SharedKey();
           Object.assign(updatedSharedKey, sharedKey, {
             code: updatedCode,
             timeRemaining: updatedTimeRemaining,
+            futureCode: updatedFutureCode,
           });
 
           return updatedSharedKey;
         })
       ).then((updatedSharedKeys) => {
-        setSharedKeys(updatedSharedKeys);
+        // Use functional form so keys removed by loadSharedKeys() between snapshot and
+        // resolution are NOT resurrected (stale-snapshot resurrection race condition).
+        setSharedKeys((currentKeys) =>
+          currentKeys.map((currentKey) => {
+            const updated = updatedSharedKeys.find(
+              (uk) => uk.name === currentKey.name && uk.timeStampSharedKeyCreate === currentKey.timeStampSharedKeyCreate
+            );
+            return updated ?? currentKey;
+          })
+        );
       });
 
       return prevSharedKeys;
@@ -108,6 +166,9 @@ export default function HomeScreen() {
         name: serviceData.name,
         issuer: serviceData.issuer,
         secret: serviceData.secret,
+        algorithm: serviceData.algorithm,
+        digits: serviceData.digits,
+        period: serviceData.period,
       });
 
       /* getGlobalWorkletLogging().logging2string(
@@ -119,8 +180,20 @@ export default function HomeScreen() {
         })
       ); */
 
-      newSharedKey.code = await TOTPService.generateTOTP(serviceData.secret);
-      newSharedKey.timeRemaining = TOTPService.getTimeRemaining();
+      newSharedKey.code = await TOTPService.generateTOTP(
+        serviceData.secret,
+        undefined,
+        newSharedKey.algorithm,
+        newSharedKey.digits,
+        newSharedKey.period
+      );
+      newSharedKey.timeRemaining = TOTPService.getTimeRemaining(newSharedKey.period);
+      newSharedKey.futureCode = await TOTPService.generateTOTPForTimeStep(
+        serviceData.secret,
+        Math.floor(Date.now() / (newSharedKey.period * 1000)) + 1,
+        newSharedKey.algorithm,
+        newSharedKey.digits
+      );
 
       // Set toBePush based on wallet type and blockchain sync setting
       if (wallet && !wallet.isLocal()) {
@@ -224,48 +297,23 @@ export default function HomeScreen() {
 
       // Set toBePush flag to true - CronBuddy will handle the rest
       sharedKey.toBePush = true;
-      getGlobalWorkletLogging().logging2string(
-        'DEBUG: Set toBePush=true for sharedKey:',
-        `${sharedKey.name}, toBePush: ${sharedKey.toBePush}`
-      );
 
       const updatedSharedKeys = sharedKeys.map((sk) => (sk === sharedKey ? sharedKey : sk));
 
       setSharedKeys(updatedSharedKeys);
       await StorageService.saveSharedKeys(updatedSharedKeys);
-      // getGlobalWorkletLogging().logging1string('DEBUG: Saved sharedKeys to storage, toBePush flag should be persisted');
-
-      // Verify the flag was saved
-      const savedKeys = await StorageService.getSharedKeys();
-      const savedKey = savedKeys.find((sk) => sk.name === sharedKey.name);
-      // getGlobalWorkletLogging().logging2string('DEBUG: Verified saved key toBePush flag:', String(savedKey?.toBePush));
 
       // Ensure CronBuddy is running
       if (!CronBuddy.isActive()) {
-        getGlobalWorkletLogging().logging1string('DEBUG: CronBuddy not active, starting it...');
         CronBuddy.start();
-        getGlobalWorkletLogging().logging2string('DEBUG: CronBuddy started, is now active:', String(CronBuddy.isActive()));
-      } else {
-        getGlobalWorkletLogging().logging1string('DEBUG: CronBuddy already active');
       }
 
       Alert.alert('Success', 'Service will be saved to blockchain automatically. Operation will be processed in the background.');
 
-      // Debug: Check CronBuddy status and force a check
-      /*
-      getGlobalWorkletLogging().logging2string('DEBUG: CronBuddy is active:', String(CronBuddy.isActive()));
-      getGlobalWorkletLogging().logging2string('DEBUG: Wallet is local:', String(wallet?.isLocal()));
-      getGlobalWorkletLogging().logging2string(
-        'DEBUG: Wallet sync status:',
-        JSON.stringify(WalletService.getWalletSyncStatus())
-      );
-     */
-      // Force CronBuddy to check immediately
       try {
         await CronBuddy.forceCheck();
-        // getGlobalWorkletLogging().logging1string('DEBUG: CronBuddy force check completed');
-      } catch (error) {
-        getGlobalWorkletLogging().logging2string('DEBUG: CronBuddy force check failed:', String(error));
+      } catch (_error) {
+        // Key will be picked up on next CronBuddy run
       }
     } catch (error) {
       getGlobalWorkletLogging().logging2string('Error saving to blockchain:', String(error));
@@ -298,7 +346,7 @@ export default function HomeScreen() {
         await StorageService.saveSharedKeys(updatedSharedKeys);
       } else {
         // SharedKey is on blockchain, set revokeInQueue and hide from screen
-        sharedKey.revokeInQueue = true;
+        // sharedKey.revokeInQueue = true;
         sharedKey.timeStampSharedKeyRevoke = Date.now(); // Set immediately to prevent gap
         const updatedSharedKeys = sharedKeys.map((sk) => (sk === sharedKey ? sharedKey : sk));
 
@@ -421,6 +469,7 @@ export default function HomeScreen() {
                       isSelected={selectedServiceId === sharedKeyId}
                       walletBalance={balance}
                       blockchainSyncEnabled={blockchainSyncEnabled}
+                      futureDisplaySetting={futureDisplaySetting}
                       onCopy={() => handleCopyCode(sharedKey.code, sharedKey.name)}
                       onDelete={() => handleDeleteSharedKey(sharedKeyId)}
                       onSelect={() => handleSelectSharedKey(sharedKeyId)}

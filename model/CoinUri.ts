@@ -165,7 +165,7 @@ export class CoinUri {
     try {
       CoinUri.decodeWallet(str);
       return true;
-    } catch (e) {
+    } catch {
       return false;
     }
   }

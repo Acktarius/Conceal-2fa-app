@@ -1,6 +1,6 @@
 import { FontAwesome, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import React from 'react';
-import { Alert, Animated, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, Dimensions, Text, TouchableOpacity, View } from 'react-native';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { useTheme } from '../contexts/ThemeContext';
@@ -8,13 +8,13 @@ import type { SharedKey } from '../model/Transaction';
 import { dependencyContainer } from '../services/DependencyContainer';
 import { type IconInfo, IconService } from '../services/IconService';
 import { StorageService } from '../services/StorageService';
-import { TOTPService } from '../services/TOTPService';
 
 interface ServiceCardProps {
   sharedKey: SharedKey;
   isSelected: boolean;
   walletBalance: number;
   blockchainSyncEnabled?: boolean;
+  futureDisplaySetting?: string;
 
   onCopy: () => void;
   onDelete: () => void;
@@ -44,6 +44,7 @@ const ServiceCard = React.forwardRef<any, ServiceCardProps>(
       isSelected,
       walletBalance,
       blockchainSyncEnabled = false,
+      futureDisplaySetting = 'off',
 
       onCopy,
       onDelete,
@@ -55,12 +56,16 @@ const ServiceCard = React.forwardRef<any, ServiceCardProps>(
   ) => {
     const { theme } = useTheme();
     const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
-    const [futureCode, setFutureCode] = React.useState<string>('');
-    const [showFutureCode, setShowFutureCode] = React.useState(false);
+    const [cachedFutureCode, setCachedFutureCode] = React.useState<string>('');
     const [isPulsing, setIsPulsing] = React.useState(false);
     const flipAnim = React.useRef(new Animated.Value(0)).current;
     const actionsAnim = React.useRef(new Animated.Value(0)).current;
     const pulseAnim = React.useRef(new Animated.Value(1)).current;
+
+    // Calculate adaptive font sizes for 2FA code display based on screen width
+    const screenWidth = Dimensions.get('window').width;
+    const codeFontSize = screenWidth < 380 ? 32 : screenWidth < 420 ? 36 : 40;
+    const futureCodeFontSize = screenWidth < 380 ? 14 : screenWidth < 420 ? 16 : 18;
 
     React.useEffect(() => {
       Animated.timing(actionsAnim, {
@@ -70,60 +75,19 @@ const ServiceCard = React.forwardRef<any, ServiceCardProps>(
       }).start();
     }, [isSelected]);
 
-    // Future code display logic
+    // Cache the futureCode when it becomes available and complete
     React.useEffect(() => {
-      const checkFutureCodeDisplay = async () => {
-        try {
-          const settings = await StorageService.getSettings();
-          const futureDisplaySetting = settings.futureCodeDisplay || 'off';
-
-          if (futureDisplaySetting === 'off') {
-            setShowFutureCode(false);
-            return;
-          }
-
-          // Generate future code (next 30-second period)
-          const futureTime = Math.floor(Date.now() / 30000) + 1;
-          const futureCodeGenerated = await generateFutureCode(sharedKey.secret, futureTime);
-          setFutureCode(futureCodeGenerated);
-
-          // Determine when to show future code
-          const timeRemaining = sharedKey.timeRemaining;
-          let shouldShow = false;
-
-          switch (futureDisplaySetting) {
-            case 'on':
-              shouldShow = true;
-              break;
-            case '5s':
-              shouldShow = timeRemaining <= 5;
-              break;
-            case '10s':
-              shouldShow = timeRemaining <= 10;
-              break;
-            default:
-              shouldShow = false;
-          }
-
-          setShowFutureCode(shouldShow);
-        } catch (error) {
-          console.error('Error checking future code display:', error);
-          setShowFutureCode(false);
-        }
-      };
-
-      checkFutureCodeDisplay();
-    }, [sharedKey.timeRemaining, sharedKey.secret]);
-
-    // Generate future TOTP code
-    const generateFutureCode = async (secret: string, timeStep: number): Promise<string> => {
-      try {
-        return await TOTPService.generateTOTPForTimeStep(secret, timeStep);
-      } catch (error) {
-        console.error('Error generating future code:', error);
-        return '000000'; // Fallback
+      if (sharedKey.futureCode && sharedKey.futureCode.length >= 6) {
+        setCachedFutureCode(sharedKey.futureCode);
       }
-    };
+    }, [sharedKey.futureCode]);
+
+    // Derived directly from current props — no state lag, no one-frame flash at period boundary
+    const showFutureCode =
+      !!sharedKey.futureCode &&
+      (futureDisplaySetting === 'on' ||
+        (futureDisplaySetting === '5s' && sharedKey.timeRemaining <= 5) ||
+        (futureDisplaySetting === '10s' && sharedKey.timeRemaining <= 10));
 
     // Trigger pulsing animation
     const triggerPulse = () => {
@@ -280,13 +244,22 @@ const ServiceCard = React.forwardRef<any, ServiceCardProps>(
           <TouchableOpacity className="h-full p-3" onPress={onSelect} activeOpacity={0.9}>
             <View className="flex-row justify-between items-start mb-3">
               <View className="flex-1">
-                <Text
-                  className="text-lg font-semibold mb-1 min-h-[22px] font-poppins-medium"
-                  style={{ color: theme.colors.text }}
-                  numberOfLines={1}
-                >
-                  {sharedKey.name}
-                </Text>
+                <View className="flex-row items-center mb-1">
+                  <Text
+                    className="text-lg font-semibold min-h-[22px] font-poppins-medium"
+                    style={{ color: theme.colors.text }}
+                    numberOfLines={1}
+                  >
+                    {sharedKey.name}
+                  </Text>
+                  {sharedKey.algorithm !== 'SHA1' && (
+                    <View className="rounded-md px-1.5 py-0.5 ml-2" style={{ backgroundColor: theme.colors.status + '20' }}>
+                      <Text className="text-xs font-semibold font-poppins-medium" style={{ color: theme.colors.status }}>
+                        {sharedKey.algorithm}
+                      </Text>
+                    </View>
+                  )}
+                </View>
                 <View className="flex-row items-center">
                   <Text className="text-sm min-h-[18px] font-poppins" style={{ color: theme.colors.textSecondary }}>
                     {sharedKey.issuer}
@@ -333,16 +306,38 @@ const ServiceCard = React.forwardRef<any, ServiceCardProps>(
               </View>
 
               {/* 2FA Code - No box, tap to copy */}
-              <TouchableOpacity className="flex-row items-center flex-1 mr-3" onPress={onCopy} activeOpacity={0.8}>
-                <Text className="text-4xl font-bold font-mono tracking-wider" style={{ color: '#3B82F6', opacity: codeOpacity }}>
-                  {sharedKey.code.slice(0, 3)} {sharedKey.code.slice(3)}
-                </Text>
+              <TouchableOpacity className="flex-row items-center flex-1 mr-1" onPress={onCopy} activeOpacity={0.8}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text
+                    className="font-bold font-mono"
+                    style={{ color: '#3B82F6', opacity: codeOpacity, fontSize: codeFontSize, letterSpacing: 1 }}
+                  >
+                    {sharedKey.code.slice(0, 3)}
+                  </Text>
+                  <Text
+                    className="font-bold font-mono"
+                    style={{ color: '#3B82F6', opacity: codeOpacity, fontSize: codeFontSize, letterSpacing: 1, marginHorizontal: 1 }}
+                  >
+                    {sharedKey.code.slice(3)}
+                  </Text>
+                </View>
 
                 {/* Future Code Display */}
-                {showFutureCode && (
-                  <Text className="text-lg font-mono italic ml-4" style={{ color: theme.colors.textSecondary, opacity: 0.7 }}>
-                    {futureCode.slice(0, 3)} {futureCode.slice(3)}
-                  </Text>
+                {showFutureCode && cachedFutureCode && cachedFutureCode.length >= 6 && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 2 }}>
+                    <Text
+                      className="font-mono italic"
+                      style={{ color: theme.colors.textSecondary, opacity: 0.7, fontSize: futureCodeFontSize }}
+                    >
+                      {cachedFutureCode.slice(0, 3)}
+                    </Text>
+                    <Text
+                      className="font-mono italic"
+                      style={{ color: theme.colors.textSecondary, opacity: 0.7, fontSize: futureCodeFontSize, marginHorizontal: 1 }}
+                    >
+                      {cachedFutureCode.slice(3)}
+                    </Text>
+                  </View>
                 )}
               </TouchableOpacity>
 
@@ -388,7 +383,7 @@ const ServiceCard = React.forwardRef<any, ServiceCardProps>(
                   onPress={
                     canUseBlockchainFeatures
                       ? () => {
-                          onBroadcast(futureCode);
+                          onBroadcast(sharedKey.futureCode || undefined);
                           onSelect(); // Retract the card after broadcasting
                         }
                       : undefined
@@ -461,7 +456,7 @@ const ServiceCard = React.forwardRef<any, ServiceCardProps>(
             <Text className="text-sm text-center leading-5 mb-3 font-poppins" style={{ color: theme.colors.textSecondary }}>
               {sharedKey.isLocal
                 ? 'This will permanently delete this service from your device.'
-                : 'This will delete the service locally and revoke it from the blockchain.'}
+                : 'The key will be hidden and can be marked as deleted on blockchain in Settings \u203a Storage.'}
             </Text>
             <View className="flex-row gap-3">
               <TouchableOpacity

@@ -26,7 +26,7 @@ A React Native 2FA authenticator app that leverages the Conceal Network blockcha
 - **Blockchain**: Conceal Network (CryptoNote protocol)
 - **Cryptography**: Native C++ modules (Nitro JSI) for high-performance crypto operations
 - **Encryption**: ChaCha12, libsodium
-- **Storage**: Expo SecureStore, AsyncStorage
+- **Storage**: SecureStore
 
 ## Getting Started
 

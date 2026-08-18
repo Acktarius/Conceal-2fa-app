@@ -429,18 +429,32 @@ export class SharedKey extends Transaction {
   name: string = '';
   issuer: string = '';
   secret: string = '';
+  algorithm: 'SHA1' | 'SHA256' | 'SHA512' = 'SHA1'; // SHA1 (default), SHA256, SHA512
+  digits: 6 | 7 | 8 = 6; // 6 digits (default), 7, 8
+  period: 30 | 60 = 30; // 30 seconds (default), 60 seconds
   code: string = '';
+  futureCode: string = '';
   timeRemaining: number = 0;
   revokeInQueue: boolean = false;
   toBePush: boolean = false; // Flag to indicate if shared key needs to be pushed to blockchain
   unknownSource: boolean = false; // Flag to indicate if shared key comes from unknown source
   isLocal: boolean = true; // Flag to indicate if shared key is local-only (not on blockchain)
 
-  static fromRaw(serviceData: { name: string; issuer: string; secret: string }): SharedKey {
+  static fromRaw(serviceData: {
+    name: string;
+    issuer: string;
+    secret: string;
+    algorithm?: 'SHA1' | 'SHA256' | 'SHA512';
+    digits?: 6 | 7 | 8;
+    period?: 30 | 60;
+  }): SharedKey {
     const sharedKey = new SharedKey();
     sharedKey.name = serviceData.name;
     sharedKey.issuer = serviceData.issuer;
     sharedKey.secret = serviceData.secret;
+    sharedKey.algorithm = serviceData.algorithm ?? 'SHA1';
+    sharedKey.digits = serviceData.digits ?? 6;
+    sharedKey.period = serviceData.period ?? 30;
     sharedKey.timeStampSharedKeyCreate = Date.now();
     sharedKey.hash = ''; // Ensure it starts as local
     sharedKey.revokeInQueue = false; // Ensure it's not in revoke queue
@@ -458,7 +472,7 @@ export class SharedKey extends Transaction {
     sharedKey.sharedKeySaved = true;
     sharedKey.isLocal = false; // Blockchain-imported services are not local
 
-    // Parse extra data (second byte indicates creation, rest contains name, issuer, secret)
+    // Parse extra data (second byte indicates creation, rest contains name, issuer, secret, algorithm, digits, period)
     if (txData.extraType && txData.extraType.length > 1) {
       const isCreation = txData.extraType[1] === '01'; // Second byte indicates creation
       if (isCreation) {
@@ -468,6 +482,9 @@ export class SharedKey extends Transaction {
           sharedKey.name = parsed.name || '';
           sharedKey.issuer = parsed.issuer || '';
           sharedKey.secret = parsed.secret || '';
+          sharedKey.algorithm = parsed.algorithm === 'SHA256' || parsed.algorithm === 'SHA512' ? parsed.algorithm : 'SHA1';
+          sharedKey.digits = parsed.digits === 7 || parsed.digits === 8 ? parsed.digits : 6;
+          sharedKey.period = parsed.period === 60 ? 60 : 30;
         } catch (error) {
           console.error('Error parsing SharedKey extra data:', error);
         }
@@ -487,6 +504,9 @@ export class SharedKey extends Transaction {
       name: this.name,
       issuer: this.issuer,
       secret: this.secret,
+      algorithm: this.algorithm,
+      digits: this.digits,
+      period: this.period,
     });
     return '01' + data; // '01' prefix for creation type
   }

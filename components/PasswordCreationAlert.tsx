@@ -7,6 +7,8 @@ import { PasswordInput } from './PasswordInput';
 
 interface PasswordCreationAlertProps extends Omit<CustomAlertProps, 'children' | 'onConfirm'> {
   onConfirm: (password: string) => void;
+  passwordPlaceholder?: string;
+  confirmPlaceholder?: string;
 }
 
 export const PasswordCreationAlert: React.FC<PasswordCreationAlertProps> = ({
@@ -17,6 +19,8 @@ export const PasswordCreationAlert: React.FC<PasswordCreationAlertProps> = ({
   onConfirm,
   cancelText = 'Cancel',
   confirmText = 'Create Password',
+  passwordPlaceholder = 'Enter new password',
+  confirmPlaceholder = 'Confirm new password',
 }) => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -70,7 +74,7 @@ export const PasswordCreationAlert: React.FC<PasswordCreationAlertProps> = ({
     >
       <View style={styles.content}>
         <PasswordInput
-          placeholder="Enter new password"
+          placeholder={passwordPlaceholder}
           value={password}
           onChangeText={handlePasswordChange}
           isValid={passwordValidation.isValid}
@@ -78,7 +82,7 @@ export const PasswordCreationAlert: React.FC<PasswordCreationAlertProps> = ({
         />
 
         <PasswordInput
-          placeholder="Confirm new password"
+          placeholder={confirmPlaceholder}
           value={confirmPassword}
           onChangeText={handleConfirmPasswordChange}
           isValid={passwordsMatch}

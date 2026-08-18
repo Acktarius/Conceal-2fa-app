@@ -1,0 +1,4 @@
+# act defaults for this repo — see scripts/act-ci.sh and README4DEVS.md
+# Medium Ubuntu runner. inned digest optional but recommended.
+-P ubuntu-latest=catthehacker/ubuntu:act-latest@sha256:b839c14c4410998529ec18f951262bdf87a2b23bc1467304d07b491b9455e074
+--container-architecture linux/amd64

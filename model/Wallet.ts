@@ -16,7 +16,6 @@
  */
 
 import { config } from '../config';
-import { DependencyInjectorInstance } from '../lib/numbersLab/DependencyInjector';
 import { Observable } from '../lib/numbersLab/Observable';
 import type { BlockchainExplorer, RawDaemon_Out } from './blockchain/BlockchainExplorer';
 import { Cn, CnNativeBride, CnTransactions } from './Cn';
@@ -24,7 +23,7 @@ import { Currency } from './Currency';
 import { KeysRepository, type UserKeys } from './KeysRepository';
 
 import { MathUtil } from './MathUtil';
-import { Deposit, SharedKey, Transaction, TransactionIn, type TransactionOut, Withdrawal } from './Transaction';
+import { Deposit, Transaction, type TransactionOut, Withdrawal } from './Transaction';
 import { TransactionsExplorer } from './TransactionsExplorer';
 
 type RawOutForTx = {
@@ -744,7 +743,7 @@ export class Wallet extends Observable {
           let derivation = '';
           try {
             derivation = CnNativeBride.generate_key_derivation(tx.txPubKey, this.keys.priv.view);
-          } catch (e) {
+          } catch {
             continue;
           }
           for (const out of tx.outs) {
@@ -1018,6 +1017,7 @@ export class Wallet extends Observable {
             neededFee,
             '',
             '',
+            'chacha8',
             0,
             'regular',
             0

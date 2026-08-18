@@ -3,12 +3,13 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Clipboard from 'expo-clipboard';
 import type React from 'react';
-import { useEffect, useState } from 'react';
-import { Alert, Dimensions, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Alert, Dimensions, ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import concealCrypto from 'react-native-conceal-crypto';
 import QRCode from 'react-native-qrcode-svg';
 import { CustomNodeModal } from '../components/CustomNodeModal';
 import { ExpandableSection } from '../components/ExpandableSection';
@@ -21,18 +22,20 @@ import QRScannerModal from '../components/QRScannerModal';
 import { TermsModal } from '../components/TermsModal';
 import { UnlockWalletAlert } from '../components/UnlockWalletAlert';
 import { config } from '../config';
+import { useAppAlert } from '../contexts/AppAlertContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useWallet } from '../contexts/WalletContext';
 import { CnUtils } from '../model/Cn';
 import { CoinUri } from '../model/CoinUri';
-import { Mnemonic } from '../model/Mnemonic';
 import { WalletRepository } from '../model/WalletRepository';
 import packageJson from '../package.json';
 import { ExportService } from '../services/ExportService';
+import { getGlobalWorkletLogging } from '../services/interfaces/IWorkletLogging';
 import { StorageService } from '../services/StorageService';
+import { requestWalletExportDirectory, saveWalletExportFile, WALLET_EXPORT_CANCELLED } from '../services/WalletFileIO';
+import { WALLET_FILE_EXPORT_NOTE, WalletFileService } from '../services/WalletFileService';
 import { WalletService } from '../services/WalletService';
 import { WalletStorageManager } from '../services/WalletStorageManager';
-import { getGlobalWorkletLogging } from '../services/interfaces/IWorkletLogging';
 
 // verifyOldPassword function moved here to avoid circular dependencies
 
@@ -45,8 +48,9 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function SettingsScreen() {
   const [blockchainSync, setBlockchainSync] = useState(false);
-  const [autoShare, setAutoShare] = useState(false);
+  const [_autoShare, setAutoShare] = useState(false);
   const [biometricAuth, setBiometricAuth] = useState(false);
+  const [extraSecurityEnabled, setExtraSecurityEnabled] = useState(false);
   const [showBlockchainSyncToggle, setShowBlockchainSyncToggle] = useState(false);
 
   // Trust Anchor (Payment ID Whitelist) state
@@ -69,7 +73,7 @@ export default function SettingsScreen() {
   const [isBroadcastExpanded, setIsBroadcastExpanded] = useState(false);
   const [broadcastAddress, setBroadcastAddress] = useState('');
   const [showBroadcastQRScanner, setShowBroadcastQRScanner] = useState(false);
-  const [biometricAction, setBiometricAction] = useState<'enable' | 'disable'>('enable');
+  const [_biometricAction, setBiometricAction] = useState<'enable' | 'disable'>('enable');
   const [manualPaymentId, setManualPaymentId] = useState('');
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [isEditingHeight, setIsEditingHeight] = useState(false);
@@ -81,6 +85,7 @@ export default function SettingsScreen() {
     { id: 'light', label: 'Light', icon: 'sunny', color: '#FFD700' },
     { id: 'orange', label: 'Orange', icon: 'flame', color: '#FF8C00' },
     { id: 'velvet', label: 'Velvet', icon: 'flower', color: '#8852d2' },
+    { id: 'pink', label: 'Pink', icon: 'heart', color: '#E91E8C' },
     { id: 'dark', label: 'Dark', icon: 'moon', color: '#2C2C2C' },
   ];
 
@@ -189,17 +194,26 @@ export default function SettingsScreen() {
   const maxQRWidth = (screenWidth - cardPadding - expandablePadding) * 0.95;
   const qrSize = Math.min(maxQRWidth, 250); // Cap at 250px for readability
 
-  const { theme, toggleTheme, setTheme, currentThemeId } = useTheme();
-  const { wallet, refreshWallet } = useWallet();
+  const { theme, setTheme, currentThemeId } = useTheme();
+  const { showMessageAlert } = useAppAlert();
+  const { wallet, refreshWallet, balance, refreshCounter } = useWallet();
   const navigation = useNavigation<NavigationProp>();
 
-  // Load settings on mount
+  // Load settings on mount and when dependencies change
   useEffect(() => {
     loadSettings();
     checkBlockchainSyncVisibility();
     loadNodeInfo();
     loadRevokedKeys();
-  }, [wallet]);
+  }, [wallet, balance, refreshCounter]);
+
+  // Refresh revoked keys every time the screen comes into focus so a HomeScreen
+  // soft-delete is reflected immediately without waiting for a wallet/balance change.
+  useFocusEffect(
+    useCallback(() => {
+      loadRevokedKeys();
+    }, [])
+  );
 
   const loadNodeInfo = async () => {
     try {
@@ -254,6 +268,7 @@ export default function SettingsScreen() {
       setBroadcastAddress(settings.broadcastAddress || '');
       // Enable biometric auth by default since we're using it
       setBiometricAuth(settings.biometricAuth !== false); // Default to true unless explicitly set to false
+      setExtraSecurityEnabled(settings.extraSecurityEnabled || false);
       // Load payment ID whitelist
       setPaymentIdWhiteList(settings.paymentIdWhiteList || []);
     } catch (error) {
@@ -326,17 +341,22 @@ export default function SettingsScreen() {
 
   const handleCustomNodeSave = async (newNodeUrl: string): Promise<boolean> => {
     try {
+      const defaultNodeUrl = 'https://explorer.conceal.network/daemon/';
       let success: boolean;
       if (newNodeUrl.trim() === '') {
-        // Empty string means reset to default (clear custom node)
         success = await WalletStorageManager.clearCustomNode();
       } else {
-        // Save the custom node
         success = await WalletStorageManager.setCustomNode(newNodeUrl);
       }
 
       if (success) {
-        // Re-initialize blockchain explorer to pick up custom node changes
+        const activeWallet = WalletService.getCachedWallet();
+        if (activeWallet) {
+          activeWallet.options.customNode = newNodeUrl.trim() !== '';
+          activeWallet.options.nodeUrl = newNodeUrl.trim() || defaultNodeUrl;
+          await WalletService.saveWallet('custom node preference');
+        }
+
         await WalletService.reinitializeBlockchainExplorer();
 
         // Reload node info to update display
@@ -354,21 +374,37 @@ export default function SettingsScreen() {
     setShowCustomNodeModal(false);
   };
 
-  const handleShowSeed = () => {
+  // Handle extra security check - returns true if authentication is successful or not required
+  const handleExtraSecurity = async (): Promise<boolean> => {
+    if (extraSecurityEnabled) {
+      const authenticated = await WalletService.authenticateUser();
+      return authenticated;
+    }
+    return true;
+  };
+
+  const handleShowSeed = async () => {
     if (showRecoverySeed) {
       // Collapse the section
       setShowRecoverySeed(false);
       setRecoverySeed('');
     } else {
+      // Check extra security first
+      const authenticated = await handleExtraSecurity();
+      if (!authenticated) {
+        Alert.alert('Authentication Required', 'Please authenticate to view your recovery seed.');
+        return;
+      }
+
       // Expand and generate seed
       if (wallet?.keys?.priv?.spend) {
         try {
-          // Derive seed from private key using Mnemonic.mn_encode()
-          const mnemonic = Mnemonic.mn_encode(wallet.keys.priv.spend, 'english');
+          // Derive seed from private key using concealCrypto instead of Mnemonic.mn_encode()
+          const mnemonic = concealCrypto.mnemonics.mn_encode(wallet.keys.priv.spend);
           setRecoverySeed(mnemonic);
           setShowRecoverySeed(true);
-        } catch (error) {
-          console.error('SettingsScreen: Error generating recovery seed:', error);
+        } catch {
+          getGlobalWorkletLogging().logging1string('SettingsScreen: recovery seed generation failed');
           Alert.alert('Error', 'Failed to generate recovery seed from wallet keys.');
         }
       } else {
@@ -377,12 +413,85 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleExportWallet = () => {
+  const handleExportWalletAsFile = async () => {
+    if (!wallet) {
+      await showMessageAlert('Error', 'No wallet available for export');
+      return;
+    }
+
+    if (wallet.isLocal()) {
+      await showMessageAlert('Error', 'Cannot export local-only wallet. Please upgrade to blockchain wallet first.');
+      return;
+    }
+
+    const appAuthenticated = await WalletStorageManager.authenticateForSensitiveAction();
+    if (!appAuthenticated) {
+      await showMessageAlert('Authentication Required', 'Please authenticate to export your wallet.');
+      return;
+    }
+
+    const passwordPromptContext = (global as any).passwordPromptContext;
+    if (!passwordPromptContext) {
+      await showMessageAlert('Error', 'Password prompt is not available.');
+      return;
+    }
+
+    const exportPassword = await passwordPromptContext.showPasswordCreationAlert(
+      'Export Wallet Password',
+      'Choose a password to encrypt your wallet backup file. You will need this password to import the wallet later.',
+      {
+        confirmText: 'Export',
+        passwordPlaceholder: 'Enter encryption password',
+        confirmPlaceholder: 'Confirm encryption password',
+      }
+    );
+    if (!exportPassword) {
+      return;
+    }
+
+    try {
+      const directoryUri = await requestWalletExportDirectory();
+
+      const customNode = await WalletStorageManager.getCustomNode();
+      if (customNode) {
+        wallet.options.customNode = true;
+        wallet.options.nodeUrl = customNode;
+      } else {
+        wallet.options.customNode = false;
+      }
+
+      const content = WalletFileService.createExportFileContent(wallet, exportPassword);
+      const filename = WalletFileService.buildExportFilename();
+      await saveWalletExportFile(content, filename, directoryUri);
+      await showMessageAlert(
+        'Export Successful',
+        `Saved "${filename}" to the folder you selected in the system picker (may not appear under Downloads or Documents).\n\n${WALLET_FILE_EXPORT_NOTE}`
+      );
+    } catch (error) {
+      if (error instanceof Error && error.message === WALLET_EXPORT_CANCELLED) {
+        return;
+      }
+      const message =
+        error instanceof Error && error.message && !error.message.includes('password')
+          ? error.message
+          : 'Failed to export wallet file. Please try again.';
+      await showMessageAlert('Error', message);
+    }
+  };
+
+  const handleExportWallet = async () => {
     if (showExportQR) {
       // Collapse the section
       setShowExportQR(false);
       setExportQRData('');
     } else {
+      // Check extra security first
+      const authenticated = await handleExtraSecurity();
+      if (!authenticated) {
+        Alert.alert('Authentication Required', 'Please authenticate to export your wallet.');
+        return;
+      }
+
       // Expand and generate QR
       if (!wallet) {
         Alert.alert('Error', 'No wallet available for export');
@@ -409,8 +518,8 @@ export default function SettingsScreen() {
     try {
       await Clipboard.setStringAsync(recoverySeed);
       Alert.alert('Copied', 'Recovery seed copied to clipboard!');
-    } catch (error) {
-      console.error('SettingsScreen: Error copying seed to clipboard:', error);
+    } catch {
+      getGlobalWorkletLogging().logging1string('SettingsScreen: recovery seed copy failed');
       Alert.alert('Error', 'Failed to copy seed.');
     }
   };
@@ -436,7 +545,9 @@ export default function SettingsScreen() {
   const loadRevokedKeys = async () => {
     try {
       const sharedKeys = await StorageService.getSharedKeys();
-      const revoked = sharedKeys.filter((key) => key.timeStampSharedKeyRevoke > 0);
+      // Filter for revoked keys: has revoke timestamp but NOT in the process of being deleted
+      // Keys with revokeInQueue=true are being/has been deleted from blockchain, so don't show them
+      const revoked = sharedKeys.filter((key) => key.timeStampSharedKeyRevoke > 0 && !key.revokeInQueue);
       setRevokedKeys(revoked);
     } catch (error) {
       console.error('SettingsScreen: Error loading revoked keys:', error);
@@ -478,12 +589,16 @@ export default function SettingsScreen() {
         onPress: async () => {
           try {
             const sharedKeys = await StorageService.getSharedKeys();
-            const filteredKeys = sharedKeys.filter((key) => key.hash !== keyId);
+            const keyIndex = sharedKeys.findIndex((key) => key.hash === keyId);
 
-            await StorageService.saveSharedKeys(filteredKeys);
-            await loadRevokedKeys(); // Refresh the list
+            if (keyIndex !== -1) {
+              // Set revokeInQueue to true to signal CronBuddy to send {2FA,d,hash} to blockchain.
+              sharedKeys[keyIndex].revokeInQueue = true;
+              await StorageService.saveSharedKeys(sharedKeys);
+            }
 
-            Alert.alert('Success', 'Shared key deleted successfully');
+            await loadRevokedKeys();
+            Alert.alert('Success', 'Shared key queued for permanent deletion');
           } catch (error) {
             console.error('SettingsScreen: Error deleting key:', error);
             Alert.alert('Error', 'Failed to delete shared key');
@@ -580,20 +695,8 @@ export default function SettingsScreen() {
             try {
               getGlobalWorkletLogging().logging1string1number('RESCAN: Starting rescan from height:', rescanHeight);
 
-              // Clear all transactions, deposits, and withdrawals
-              wallet.clearTransactions();
-
-              // Set lastHeight to the specified rescan height
-              wallet.lastHeight = rescanHeight;
-
-              // Save the wallet with cleared data
-              await WalletService.saveWallet('rescan from creation height');
-
-              // Trigger wallet refresh to update UI
-              refreshWallet();
-
-              // Signal wallet update to trigger watchdog rescan
-              await WalletService.signalWalletUpdate();
+              await WalletService.rescanWalletFromHeight(rescanHeight, 'rescan from creation height');
+              await refreshWallet();
 
               Alert.alert('Success', `Rescan initiated from block ${rescanHeight.toLocaleString()}. Synchronization will restart.`);
               setShowRescanOptions(false);
@@ -630,20 +733,8 @@ export default function SettingsScreen() {
             try {
               getGlobalWorkletLogging().logging1string('RESCAN: Starting rescan from block 0');
 
-              // Clear all transactions, deposits, and withdrawals
-              wallet.clearTransactions();
-
-              // Set lastHeight to 0
-              wallet.lastHeight = 0;
-
-              // Save the wallet with cleared data
-              await WalletService.saveWallet('rescan from block 0');
-
-              // Trigger wallet refresh to update UI
-              refreshWallet();
-
-              // Signal wallet update to trigger watchdog rescan
-              await WalletService.signalWalletUpdate();
+              await WalletService.rescanWalletFromHeight(0, 'rescan from block 0');
+              await refreshWallet();
 
               Alert.alert('Success', 'Rescan initiated from block 0. Synchronization will restart from the beginning.');
               setShowRescanOptions(false);
@@ -672,6 +763,8 @@ export default function SettingsScreen() {
 
               // Reset upgrade prompt flags so new local wallet can show prompts
               await WalletService.resetUpgradeFlags();
+
+              WalletService.triggerSharedKeysRefresh();
 
               // Clear the wallet context state to force reinitialization
               await refreshWallet();
@@ -707,7 +800,6 @@ export default function SettingsScreen() {
             // Reset upgrade prompt flags so new local wallet can show prompts
             await WalletService.resetUpgradeFlags();
 
-            // console.log('=== AFTER CLEAR ALL ===');
             await StorageService.debugStorage();
 
             // Clear the wallet context state to force reinitialization
@@ -1188,6 +1280,14 @@ export default function SettingsScreen() {
                 rightElement={<Ionicons name={showExportQR ? 'chevron-up' : 'chevron-down'} size={20} color={theme.colors.textSecondary} />}
               />
 
+              <SettingItem
+                icon="document-outline"
+                title="Export Wallet as File"
+                subtitle="Save encrypted JSON backup to your device"
+                onPress={handleExportWalletAsFile}
+                rightElement={<Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />}
+              />
+
               {/* Export QR Expandable Section */}
               {showExportQR && (
                 <View
@@ -1472,13 +1572,41 @@ export default function SettingsScreen() {
               </View>
             </View>
           )}
-
           {/* Security Settings */}
           <View className="mb-6">
             <Text className="text-base font-semibold mb-2 ml-1" style={{ color: theme.colors.text }}>
               Security
             </Text>
+            {/* Extra Security Settings */}
             <View className="rounded-2xl shadow-lg" style={{ backgroundColor: theme.colors.card }}>
+              <SettingItem
+                icon="lock-closed-outline"
+                title="Extra Security"
+                subtitle="Request identification to display sensitive information"
+                rightElement={
+                  <Switch
+                    value={extraSecurityEnabled}
+                    onValueChange={async (value) => {
+                      if (!value) {
+                        const authenticated = await WalletService.authenticateUser();
+                        if (!authenticated) return;
+                      }
+                      setExtraSecurityEnabled(value);
+                      await StorageService.saveSettings({
+                        ...(await StorageService.getSettings()),
+                        extraSecurityEnabled: value,
+                      });
+                    }}
+                    trackColor={{
+                      false: theme.colors.border,
+                      true: theme.colors.primary,
+                    }}
+                    thumbColor={theme.colors.background}
+                    ios_backgroundColor={theme.colors.border}
+                  />
+                }
+              />
+              {/* Biometric Authentication or Password */}
               <SettingItem
                 icon="finger-print-outline"
                 title="Biometric Authentication"

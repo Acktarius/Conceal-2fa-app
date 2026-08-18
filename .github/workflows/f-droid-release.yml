@@ -26,6 +26,10 @@ jobs:
       - name: Install NPM dependencies
         run: npm ci
 
+      - name: Remove dev-only modules
+        run: rm -rf node_modules/expo-dev-client node_modules/expo-dev-menu node_modules/expo-dev-launcher node_modules/@biomejs/biome || true
+
+
       - name: Set up Java (for Android build)
         uses: actions/setup-java@v4
         with:
@@ -68,6 +72,13 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           GITHUB_ACTIONS: 'true'
       
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      
+      - name: Apply F-Droid Fixes
+        run: python3 ./scripts/fix-for-fdroid.py
       
       - name: Get Tag Name
         id: get_tag
@@ -88,8 +99,36 @@ jobs:
       
       - name: Build Release APK
         working-directory: android
-        run: ./gradlew assembleRelease
-      
+        run: ./gradlew assembleRelease -x lintVitalAnalyzeRelease
+
+      - name: Get reproducible-apk-tools
+        run: |
+          git clone --depth 1 --branch v0.3.0 https://github.com/obfusk/reproducible-apk-tools.git /tmp/reproducible-apk-tools
+
+      - name: Add build-tools to PATH
+        run: |
+          BUILD_TOOLS_DIR=$(find $ANDROID_HOME/build-tools -type d -maxdepth 1 | sort -V | tail -1)
+          echo "$BUILD_TOOLS_DIR" >> $GITHUB_PATH
+          echo "Added $BUILD_TOOLS_DIR to PATH"
+
+      - name: Normalize APK for reproducibility
+        run: |
+          APK_FILE=$(find android/app/build/outputs/apk/release -name "ConcealAuthenticator*.apk" | head -1)
+          UNSIGNED_APK="${APK_FILE}.unsigned"
+          cp "$APK_FILE" "$UNSIGNED_APK"
+          python3 /tmp/reproducible-apk-tools/inplace-fix.py --zipalign fix-newlines "$UNSIGNED_APK" "META-INF/*.MF" "META-INF/*.SF" "META-INF/*.RSA" "assets/*.txt" "assets/*.properties"
+          zip -d "$UNSIGNED_APK" 'META-INF/*.SF' 'META-INF/*.RSA' 'META-INF/*.DSA' 'META-INF/*.EC' 'META-INF/MANIFEST.MF' 2>/dev/null || true
+          apksigner sign \
+            --ks android/app/local-release-key.keystore \
+            --ks-pass pass:${{ secrets.ANDROID_KEYSTORE_PASSWORD }} \
+            --key-pass pass:${{ secrets.ANDROID_KEY_PASSWORD }} \
+            --ks-key-alias ${{ secrets.ANDROID_KEY_ALIAS }} \
+            --v1-signing-enabled true \
+            --v2-signing-enabled true \
+            --v3-signing-enabled true \
+            "$UNSIGNED_APK"
+          mv "$UNSIGNED_APK" "$APK_FILE"
+
       - name: Get APK filename and SHA256
         id: apk_info
         run: |
@@ -112,9 +151,9 @@ jobs:
         uses: softprops/action-gh-release@v2.0.4
         with:
           files: ${{ steps.apk_info.outputs.apk_file }}
-          name: Conceal Authenticator v${{ steps.get_version.outputs.VERSION }} F-Droid
+          name: Conceal Authenticator v${{ steps.get_version.outputs.VERSION }} (F-Droid Release)
           body: |
-            **F-DROID RELEASE**
+            **RELEASE for F-Droid**
             *signed APK, in repo without signing for F-Droid to append*
             [Download APK](../../releases/download/${{ steps.get_tag.outputs.TAG_NAME }}/${{ steps.apk_info.outputs.apk_name }}) **${{ steps.apk_info.outputs.apk_name }}**
             `SHA256: ${{ steps.apk_info.outputs.apk_sha256 }}`

@@ -1,7 +1,7 @@
+import { setAppIcon } from '@g9k/expo-dynamic-app-icon';
 import type React from 'react';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useColorScheme } from 'react-native';
-import { setDynamicAppIcon } from 'react-native-dynamic-app-icon';
 import { StorageService } from '../services/StorageService';
 
 export interface Theme {
@@ -164,6 +164,38 @@ const velvetTheme: Theme = {
   },
 };
 
+const pinkTheme: Theme = {
+  isDark: true,
+  themeId: 'pink',
+  colors: {
+    background: '#FFF0F5', // Lavender blush
+    surface: '#FFFFFF', // White — Hello
+    card: '#FFF5F9', // Blush white card
+    text: '#B5006A', // Deep rose — readable on light backgrounds
+    textSecondary: '#E91E8C', // hot pink
+    primary: '#E91E8C', // Signature bow pink
+    primaryLight: '#FCE4EC', // Petal pink highlight
+    accent: '#FF4081', // Vivid pink accent
+    success: '#66BB6A', // Soft green
+    warning: '#CC0000', // red bow — used for trashcan/danger
+    status: '#34D399', // Mint status
+    error: '#CC0000', // Red bow
+    border: '#F8BBD9', // Soft pink border
+    tabBar: '#FFFFFF', // White tab bar
+    tabBarActive: '#E91E8C', // Hot pink active tab
+    tabBarInactive: '#F48FB1', // Pale pink inactive
+    switchTrack: '#F8BBD9', // Petal pink track
+    switchThumb: '#FFFFFF', // White thumb
+    switchTrackTrue: '#E91E8C', // Hot pink when ON
+    switchTrackFalse: '#F8BBD9', // Petal pink when OFF
+    switchThumbColor: '#FFFFFF',
+    pulseColor: '#E91E8C', // Hot pink pulse
+    buttonText: '#FFFFFF', // White text on pink buttons
+    bannerBkg: 'rgba(204, 0, 0, 0.07)', // Red bow warning background
+    bannerBorder: 'rgba(204, 0, 0, 0.15)', // Red bow warning border
+  },
+};
+
 interface ThemeContextType {
   theme: Theme;
   toggleTheme: () => void;
@@ -173,6 +205,20 @@ interface ThemeContextType {
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+
+/**
+ * Safely change app icon on iOS only
+ * Note: Only works on physical iOS devices, not simulator or TestFlight
+ */
+const changeAppIcon = async (iconName: 'light' | 'orange' | 'velvet' | 'pink' | 'dark') => {
+  try {
+    setAppIcon(iconName as Parameters<typeof setAppIcon>[0]);
+    console.log(`App icon changed to: ${iconName}`);
+  } catch (error) {
+    // Expected to fail in Simulator, TestFlight, or on first launch
+    console.log('Icon change not available:', error);
+  }
+};
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemColorScheme = useColorScheme();
@@ -188,17 +234,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       if (settings.themeId) {
         setCurrentThemeId(settings.themeId);
         // Restore app icon on app start
-        setDynamicAppIcon(settings.themeId);
+        changeAppIcon(settings.themeId);
       } else if (settings.darkMode !== undefined) {
         // Migrate from old darkMode setting
         const themeId = settings.darkMode ? 'dark' : 'light';
         setCurrentThemeId(themeId);
-        setDynamicAppIcon(themeId);
+        changeAppIcon(themeId);
       } else {
         // No saved preference - use system color scheme as fallback
         const themeId = systemColorScheme === 'light' ? 'light' : 'dark';
         setCurrentThemeId(themeId);
-        setDynamicAppIcon(themeId);
+        changeAppIcon(themeId);
       }
     } catch (error) {
       console.error('Error loading theme preference:', error);
@@ -214,7 +260,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       await StorageService.saveSettings({ ...settings, themeId: newThemeId });
 
       // Change app icon to match theme
-      setDynamicAppIcon(newThemeId);
+      changeAppIcon(newThemeId);
     } catch (error) {
       console.error('Error saving theme preference:', error);
     }
@@ -228,7 +274,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       await StorageService.saveSettings({ ...settings, themeId });
 
       // Change app icon to match theme
-      setDynamicAppIcon(themeId);
+      changeAppIcon(themeId as 'light' | 'orange' | 'velvet' | 'pink' | 'dark');
     } catch (error) {
       console.error('Error saving theme preference:', error);
     }
@@ -244,6 +290,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         return orangeTheme;
       case 'velvet':
         return velvetTheme;
+      case 'pink':
+        return pinkTheme;
       default:
         return darkTheme;
     }

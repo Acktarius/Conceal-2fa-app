@@ -26,15 +26,12 @@ export const SeedInputProvider: React.FC<SeedInputProviderProps> = ({ children }
   const [onCancelCallback, setOnCancelCallback] = useState<(() => void) | null>(null);
 
   const showSeedInputModal = (onImport: (seedPhrase: string, creationHeight?: number) => void, onCancel: () => void) => {
-    console.log('SEED INPUT CONTEXT: showSeedInputModal called');
     setOnImportCallback(() => onImport);
     setOnCancelCallback(() => onCancel);
     setShowModal(true);
-    console.log('SEED INPUT CONTEXT: Modal should be visible');
   };
 
   const handleImport = (seedPhrase: string, creationHeight?: number) => {
-    console.log('SEED INPUT CONTEXT: handleImport called with seed phrase and height:', creationHeight);
     if (onImportCallback) {
       onImportCallback(seedPhrase, creationHeight);
     }
@@ -44,7 +41,6 @@ export const SeedInputProvider: React.FC<SeedInputProviderProps> = ({ children }
   };
 
   const handleCancel = () => {
-    console.log('SEED INPUT CONTEXT: handleCancel called');
     if (onCancelCallback) {
       onCancelCallback();
     }

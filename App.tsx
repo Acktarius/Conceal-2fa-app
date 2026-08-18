@@ -71,11 +71,14 @@ console.log('APP: nacl.util.encodeBase64 available:', !!(global as any).nacl?.ut
 import { PasswordCreationAlert } from './components/PasswordCreationAlert';
 import { PasswordInputAlert } from './components/PasswordInputAlert';
 import TabNavigator from './components/TabNavigator';
+import { AppAlertProvider } from './contexts/AppAlertContext';
+import { ImportProgressProvider } from './contexts/ImportProgressContext';
 import { PasswordPromptProvider, usePasswordPrompt } from './contexts/PasswordPromptContext';
 import { QRInputProvider, useQRInput } from './contexts/QRInputContext';
 import { SeedInputProvider, useSeedInput } from './contexts/SeedInputContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { WalletProvider } from './contexts/WalletContext';
+import { useWalletFileInput, WalletFileInputProvider } from './contexts/WalletFileInputContext';
 import { StorageService } from './services/StorageService';
 import { WalletService } from './services/WalletService'; // MAINTENANCE MODE: One-time wallet clearing for development/testing
 import { initializeGlobalWorkletLogging } from './services/WorkletLoggingService';
@@ -114,15 +117,21 @@ export default function App() {
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <ThemeProvider>
-          <PasswordPromptProvider>
-            <SeedInputProvider>
-              <QRInputProvider>
-                <WalletProvider>
-                  <AppContent />
-                </WalletProvider>
-              </QRInputProvider>
-            </SeedInputProvider>
-          </PasswordPromptProvider>
+          <AppAlertProvider>
+            <ImportProgressProvider>
+              <PasswordPromptProvider>
+                <SeedInputProvider>
+                  <WalletFileInputProvider>
+                    <QRInputProvider>
+                      <WalletProvider>
+                        <AppContent />
+                      </WalletProvider>
+                    </QRInputProvider>
+                  </WalletFileInputProvider>
+                </SeedInputProvider>
+              </PasswordPromptProvider>
+            </ImportProgressProvider>
+          </AppAlertProvider>
         </ThemeProvider>
       </GestureHandlerRootView>
     </SafeAreaProvider>
@@ -141,9 +150,13 @@ function AppContent() {
     showPasswordCreation,
     passwordCreationMessage,
     passwordCreationTitle,
+    passwordCreationConfirmText,
+    passwordCreationPasswordPlaceholder,
+    passwordCreationConfirmPlaceholder,
     handlePasswordCreation,
   } = usePasswordPrompt();
   const { showSeedInputModal } = useSeedInput();
+  const { showWalletFileInputModal } = useWalletFileInput();
   const { showQRScannerModal } = useQRInput();
 
   // Set global functions for services to access
@@ -163,6 +176,12 @@ function AppContent() {
     };
     console.log('APP: Global seed context set:', !!(global as any).seedInputContext);
   }, [showSeedInputModal]);
+
+  React.useEffect(() => {
+    (global as any).walletFileInputContext = {
+      showWalletFileInputModal,
+    };
+  }, [showWalletFileInputModal]);
 
   React.useEffect(() => {
     console.log('APP: Setting global qrInputContext...');
@@ -228,6 +247,9 @@ function AppContent() {
           visible={showPasswordCreation}
           title={passwordCreationTitle}
           message={passwordCreationMessage}
+          confirmText={passwordCreationConfirmText}
+          passwordPlaceholder={passwordCreationPasswordPlaceholder}
+          confirmPlaceholder={passwordCreationConfirmPlaceholder}
           onCancel={() => handlePasswordCreation(null)}
           onConfirm={handlePasswordCreation}
         />

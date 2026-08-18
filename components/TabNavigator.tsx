@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Platform, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
 import HomeScreen from '../screens/HomeScreen';
 import SettingsScreen from '../screens/SettingsScreen';
@@ -57,6 +58,7 @@ function TabIcon({
 
 export default function TabNavigator() {
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
 
   return (
     <View className="flex-1">
@@ -84,8 +86,8 @@ export default function TabNavigator() {
             borderTopWidth: 1,
             borderTopColor: theme.colors.border,
             paddingTop: 8,
-            paddingBottom: 13,
-            height: 65,
+            paddingBottom: Math.max(13, insets.bottom), // Ensure tab bar is above system navigation
+            height: 65 + insets.bottom, // Add bottom inset to total height
           },
           headerShown: false,
         })}

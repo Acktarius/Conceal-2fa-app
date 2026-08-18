@@ -1,7 +1,174 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Camera, CameraView } from 'expo-camera';
-import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSharedValue } from 'react-native-reanimated';
+import { Camera, type Frame, runAtTargetFps, useCameraDevice, useCameraPermission, useFrameProcessor } from 'react-native-vision-camera';
+import { Worklets } from 'react-native-worklets-core';
+import { zxing } from 'vision-camera-zxing';
+
+export interface QRScannerContentProps {
+  onClose: () => void;
+  onScan: (data: string) => void;
+  /** When true, scanner is shown and camera is active. Use when this content is the visible branch. */
+  isActive: boolean;
+}
+
+/** Scanner UI without a Modal. Use inside a parent Modal or full-screen view so only one modal is used (fixes iOS). */
+export function QRScannerContent({ onClose, onScan, isActive }: QRScannerContentProps) {
+  const { hasPermission, requestPermission } = useCameraPermission();
+  const [scanned, setScanned] = useState(false);
+  const [cameraActive, setCameraActive] = useState(false);
+  const device = useCameraDevice('back');
+  const isProcessingScan = useRef(false);
+  const cameraActiveShared = useSharedValue(false);
+
+  const handleBarCodeScanned = useCallback(
+    (data: string) => {
+      if (isProcessingScan.current || scanned) return;
+      isProcessingScan.current = true;
+      setScanned(true);
+      setCameraActive(false);
+      onScan(data);
+    },
+    [scanned, onScan]
+  );
+
+  const onBarCodeScanned = Worklets.createRunOnJS(handleBarCodeScanned);
+  const onError = Worklets.createRunOnJS((msg: string) => {
+    console.error('QR Scanner frame processor error:', msg);
+  });
+
+  useEffect(() => {
+    cameraActiveShared.value = cameraActive;
+  }, [cameraActive, cameraActiveShared]);
+
+  const frameProcessor = useFrameProcessor(
+    (frame: Frame) => {
+      'worklet';
+      if (!cameraActiveShared.value) return;
+      runAtTargetFps(3, () => {
+        'worklet';
+        if (!cameraActiveShared.value) return;
+        try {
+          const barcodes = zxing(frame, { multiple: true });
+          let firstBarcode: any = null;
+          if (Array.isArray(barcodes) && barcodes.length > 0) {
+            firstBarcode = barcodes[0];
+          } else if (barcodes && typeof barcodes === 'object') {
+            const keys = Object.keys(barcodes);
+            if (keys.length > 0) firstBarcode = barcodes[keys[0]];
+          }
+          if (firstBarcode && typeof firstBarcode === 'object') {
+            const barcodeText = firstBarcode.barcodeText || firstBarcode.displayValue || firstBarcode.text;
+            if (barcodeText && typeof barcodeText === 'string' && barcodeText.length > 0) {
+              onBarCodeScanned(barcodeText);
+            }
+          }
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          onError(errorMessage);
+        }
+      });
+    },
+    [onBarCodeScanned, onError]
+  );
+
+  const handleClose = () => {
+    isProcessingScan.current = false;
+    setScanned(false);
+    setCameraActive(false);
+    onClose();
+  };
+
+  useEffect(() => {
+    if (isActive && hasPermission === true) {
+      isProcessingScan.current = false;
+      setCameraActive(true);
+      setScanned(false);
+    } else {
+      setCameraActive(false);
+    }
+  }, [isActive, hasPermission]);
+
+  useEffect(() => {
+    if (!isActive) {
+      isProcessingScan.current = false;
+      setScanned(false);
+      setCameraActive(false);
+    }
+  }, [isActive]);
+
+  if (hasPermission === null) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <Text>Requesting camera permission...</Text>
+      </View>
+    );
+  }
+
+  if (hasPermission === false) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <Ionicons name="camera-outline" size={64} color="#9CA3AF" />
+        <Text style={styles.permissionTitle}>Camera Permission Required</Text>
+        <Text style={styles.permissionText}>Please allow camera access to scan QR codes for adding 2FA services.</Text>
+        <TouchableOpacity style={styles.closeButton} onPress={requestPermission}>
+          <Text style={styles.closeButtonText}>Grant Permission</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.closeButton, { marginTop: 12, backgroundColor: '#6B7280' }]} onPress={handleClose}>
+          <Text style={styles.closeButtonText}>Cancel</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={handleClose} style={styles.headerButton}>
+          <Ionicons name="close" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Scan QR Code</Text>
+        <View style={styles.placeholder} />
+      </View>
+
+      <View style={styles.cameraContainer}>
+        {device && hasPermission && cameraActive && isActive && (
+          <Camera
+            style={styles.camera}
+            device={device}
+            isActive={cameraActive}
+            frameProcessor={cameraActive ? frameProcessor : undefined}
+          />
+        )}
+
+        <View style={styles.overlay}>
+          <View style={styles.topOverlay} />
+          <View style={styles.middleRow}>
+            <View style={styles.sideOverlay} />
+            <View style={styles.scanArea}>
+              <View style={[styles.corner, styles.topLeft]} />
+              <View style={[styles.corner, styles.topRight]} />
+              <View style={[styles.corner, styles.bottomLeft]} />
+              <View style={[styles.corner, styles.bottomRight]} />
+            </View>
+            <View style={styles.sideOverlay} />
+          </View>
+          <View style={styles.bottomOverlay} />
+        </View>
+      </View>
+
+      <View style={styles.instructions}>
+        <Text style={styles.instructionText}>Position the QR code within the frame to scan</Text>
+        {scanned && (
+          <TouchableOpacity style={styles.scanAgainButton} onPress={() => setScanned(false)}>
+            <Text style={styles.scanAgainText}>Tap to scan again</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+}
 
 interface QRScannerModalProps {
   visible: boolean;
@@ -10,112 +177,9 @@ interface QRScannerModalProps {
 }
 
 export default function QRScannerModal({ visible, onClose, onScan }: QRScannerModalProps) {
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
-  const [scanned, setScanned] = useState(false);
-  const [cameraActive, setCameraActive] = useState(false);
-
-  useEffect(() => {
-    const getCameraPermissions = async () => {
-      const { status } = await Camera.requestCameraPermissionsAsync();
-      setHasPermission(status === 'granted');
-    };
-
-    getCameraPermissions();
-  }, []);
-
-  const handleBarCodeScanned = ({ data }: { data: string }) => {
-    if (!scanned && cameraActive) {
-      setScanned(true);
-      setCameraActive(false); // Deactivate camera immediately after scan
-      onScan(data);
-    }
-  };
-
-  const handleClose = () => {
-    setScanned(false);
-    setCameraActive(false); // Ensure camera is deactivated
-    onClose();
-  };
-
-  // Control camera activation based on modal visibility
-  useEffect(() => {
-    if (visible && hasPermission === true) {
-      setCameraActive(true);
-      setScanned(false);
-    } else {
-      setCameraActive(false);
-    }
-  }, [visible, hasPermission]);
-
-  if (hasPermission === null) {
-    return (
-      <Modal visible={visible} animationType="slide" transparent={true} statusBarTranslucent={true}>
-        <View style={[styles.container, styles.centered]}>
-          <Text>Requesting camera permission...</Text>
-        </View>
-      </Modal>
-    );
-  }
-
-  if (hasPermission === false) {
-    return (
-      <Modal visible={visible} animationType="slide" transparent={true} statusBarTranslucent={true}>
-        <View style={[styles.container, styles.centered]}>
-          <Ionicons name="camera-outline" size={64} color="#9CA3AF" />
-          <Text style={styles.permissionTitle}>Camera Permission Required</Text>
-          <Text style={styles.permissionText}>Please allow camera access to scan QR codes for adding 2FA services.</Text>
-          <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-            <Text style={styles.closeButtonText}>Close</Text>
-          </TouchableOpacity>
-        </View>
-      </Modal>
-    );
-  }
-
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={handleClose}>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={handleClose} style={styles.headerButton}>
-            <Ionicons name="close" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Scan QR Code</Text>
-          <View style={styles.placeholder} />
-        </View>
-
-        <View style={styles.cameraContainer}>
-          {visible && <CameraView style={styles.camera} facing="back" onBarcodeScanned={cameraActive ? handleBarCodeScanned : undefined} />}
-
-          <View style={styles.overlay}>
-            {/* Top overlay */}
-            <View style={styles.topOverlay} />
-
-            {/* Middle row with left overlay, scan area, and right overlay */}
-            <View style={styles.middleRow}>
-              <View style={styles.sideOverlay} />
-              <View style={styles.scanArea}>
-                <View style={[styles.corner, styles.topLeft]} />
-                <View style={[styles.corner, styles.topRight]} />
-                <View style={[styles.corner, styles.bottomLeft]} />
-                <View style={[styles.corner, styles.bottomRight]} />
-              </View>
-              <View style={styles.sideOverlay} />
-            </View>
-
-            {/* Bottom overlay */}
-            <View style={styles.bottomOverlay} />
-          </View>
-        </View>
-
-        <View style={styles.instructions}>
-          <Text style={styles.instructionText}>Position the QR code within the frame to scan</Text>
-          {scanned && (
-            <TouchableOpacity style={styles.scanAgainButton} onPress={() => setScanned(false)}>
-              <Text style={styles.scanAgainText}>Tap to scan again</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
+    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
+      <QRScannerContent onClose={onClose} onScan={onScan} isActive={visible} />
     </Modal>
   );
 }
@@ -124,16 +188,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000000',
-    zIndex: 9999,
-    ...(Platform.OS === 'ios' && {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      width: '100%',
-      height: '100%',
-    }),
   },
   centered: {
     alignItems: 'center',

@@ -1,0 +1,4 @@
+# Normalize text files to LF. Adjust binary rules per project as needed.
+* text=auto eol=lf
+
+*.{cmd,bat} text eol=crlf

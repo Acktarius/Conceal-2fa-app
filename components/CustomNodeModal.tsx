@@ -1,10 +1,8 @@
 import type React from 'react';
 import { useState } from 'react';
 import { Alert, Dimensions, KeyboardAvoidingView, Modal, Platform, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { config } from '../config';
-import { useTheme } from '../contexts/ThemeContext';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 export interface CustomNodeModalProps {
   visible: boolean;
@@ -14,7 +12,6 @@ export interface CustomNodeModalProps {
 }
 
 export const CustomNodeModal: React.FC<CustomNodeModalProps> = ({ visible, currentNode, onCancel, onSave }) => {
-  const { theme } = useTheme();
   const [nodeUrl, setNodeUrl] = useState(currentNode);
   const [isTesting, setIsTesting] = useState(false);
 

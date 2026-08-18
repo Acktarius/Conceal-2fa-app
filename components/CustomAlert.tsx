@@ -1,19 +1,36 @@
 import type React from 'react';
-import { Dimensions, KeyboardAvoidingView, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Dimensions, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme } from '../contexts/ThemeContext';
 
-const { width, height } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+/** Top edge of the dialog — fixed Y so growth extends downward only. */
+const ALERT_TOP_OFFSET = SCREEN_HEIGHT * 0.35;
+const ALERT_MAX_HEIGHT = SCREEN_HEIGHT * 0.85;
+
+export type CustomAlertAction = {
+  text: string;
+  variant?: 'primary' | 'secondary' | 'cancel';
+  value?: string;
+};
 
 export interface CustomAlertProps {
   visible: boolean;
   title: string;
   message?: string;
   onCancel: () => void;
-  onConfirm: (data?: any) => void;
+  onConfirm: (data?: unknown) => void;
   cancelText?: string;
   confirmText?: string;
+  cancelable?: boolean;
+  showCancelButton?: boolean;
+  actions?: CustomAlertAction[];
+  onAction?: (action: CustomAlertAction) => void;
   children?: React.ReactNode;
 }
 
+/** Themed modal: fixed top anchor, grows with content, scrolls after 85% screen height. */
 export const CustomAlert: React.FC<CustomAlertProps> = ({
   visible,
   title,
@@ -22,81 +39,161 @@ export const CustomAlert: React.FC<CustomAlertProps> = ({
   onConfirm,
   cancelText = 'Cancel',
   confirmText = 'Confirm',
+  cancelable = true,
+  showCancelButton = true,
+  actions,
+  onAction,
   children,
 }) => {
+  const { theme } = useTheme();
+
+  const handleRequestClose = () => {
+    if (cancelable) {
+      onCancel();
+    }
+  };
+
+  const renderActionButton = (action: CustomAlertAction, index: number) => {
+    const isPrimary = action.variant === 'primary';
+    const isCancel = action.variant === 'cancel';
+
+    return (
+      <TouchableOpacity
+        key={`${action.text}-${index}`}
+        style={[
+          styles.actionButton,
+          isPrimary && { backgroundColor: theme.colors.primary },
+          isCancel && {
+            backgroundColor: theme.colors.surface,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+          },
+          !isPrimary &&
+            !isCancel && {
+              backgroundColor: theme.colors.primaryLight,
+              borderWidth: 1,
+              borderColor: theme.colors.border,
+            },
+        ]}
+        onPress={() => onAction?.(action)}
+      >
+        <Text
+          style={[
+            styles.actionButtonText,
+            isPrimary && { color: theme.colors.buttonText },
+            isCancel && { color: theme.colors.textSecondary },
+            !isPrimary && !isCancel && { color: theme.colors.primary },
+          ]}
+        >
+          {action.text}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
+  const footer =
+    actions && actions.length > 0 ? (
+      <View style={styles.actionsContainer}>{actions.map(renderActionButton)}</View>
+    ) : (
+      <View style={[styles.buttonContainer, !showCancelButton && styles.singleButtonContainer]}>
+        {showCancelButton && (
+          <TouchableOpacity
+            style={[styles.button, styles.cancelButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+            onPress={onCancel}
+          >
+            <Text style={[styles.cancelButtonText, { color: theme.colors.textSecondary }]}>{cancelText}</Text>
+          </TouchableOpacity>
+        )}
+
+        <TouchableOpacity
+          style={[styles.button, styles.confirmButton, { backgroundColor: theme.colors.primary }, !showCancelButton && styles.singleButton]}
+          onPress={() => onConfirm()}
+        >
+          <Text style={[styles.confirmButtonText, { color: theme.colors.buttonText }]}>{confirmText}</Text>
+        </TouchableOpacity>
+      </View>
+    );
+
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <View style={styles.blurContainer}>
-          <View style={styles.alertContainer}>
-            <Text style={styles.title}>{title}</Text>
-            {message && <Text style={styles.message}>{message}</Text>}
-
-            {children}
-
-            <View style={styles.buttonContainer}>
-              <TouchableOpacity style={[styles.button, styles.cancelButton]} onPress={onCancel}>
-                <Text style={styles.cancelButtonText}>{cancelText}</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={[styles.button, styles.confirmButton]} onPress={() => onConfirm()}>
-                <Text style={styles.confirmButtonText}>{confirmText}</Text>
-              </TouchableOpacity>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleRequestClose}>
+      <SafeAreaView style={styles.safeArea}>
+        <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={styles.overlay}>
+            <View style={[styles.alertContainer, { backgroundColor: theme.colors.card, maxHeight: ALERT_MAX_HEIGHT }]}>
+              <ScrollView
+                style={styles.bodyScroll}
+                contentContainerStyle={styles.bodyScrollContent}
+                bounces={false}
+                nestedScrollEnabled
+                showsVerticalScrollIndicator
+                keyboardShouldPersistTaps="handled"
+              >
+                <Text style={[styles.title, { color: theme.colors.text }]}>{title}</Text>
+                {message ? <Text style={[styles.message, { color: theme.colors.textSecondary }]}>{message}</Text> : null}
+                {children}
+                {footer}
+              </ScrollView>
             </View>
           </View>
-        </View>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
-  blurContainer: {
+  overlay: {
     flex: 1,
     width: '100%',
-    justifyContent: 'center',
+    paddingTop: ALERT_TOP_OFFSET,
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Semi-transparent overlay
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   alertContainer: {
-    backgroundColor: 'white',
+    width: SCREEN_WIDTH * 0.85,
+    maxWidth: SCREEN_WIDTH * 0.9,
     borderRadius: 16,
-    padding: 24,
-    margin: 20,
-    minWidth: width * 0.8,
-    maxWidth: width * 0.9,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 10,
-    },
+    shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.25,
     shadowRadius: 20,
     elevation: 10,
   },
+  bodyScroll: {
+    flexGrow: 0,
+    flexShrink: 1,
+  },
+  bodyScrollContent: {
+    flexGrow: 0,
+  },
   title: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#1a1a1a',
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   message: {
     fontSize: 16,
-    color: '#666',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 4,
     lineHeight: 22,
   },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 20,
+    marginTop: 12,
+  },
+  singleButtonContainer: {
+    justifyContent: 'center',
   },
   button: {
     flex: 1,
@@ -105,22 +202,35 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginHorizontal: 4,
   },
+  singleButton: {
+    flex: 0,
+    minWidth: '100%',
+    marginHorizontal: 0,
+  },
   cancelButton: {
-    backgroundColor: '#f5f5f5',
     borderWidth: 1,
-    borderColor: '#ddd',
   },
-  confirmButton: {
-    backgroundColor: '#007AFF',
-  },
+  confirmButton: {},
   cancelButtonText: {
-    color: '#666',
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
   },
   confirmButtonText: {
-    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  actionsContainer: {
+    marginTop: 8,
+    gap: 8,
+  },
+  actionButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  actionButtonText: {
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',

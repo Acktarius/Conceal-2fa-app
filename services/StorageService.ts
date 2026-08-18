@@ -81,7 +81,8 @@ export class StorageService implements IStorageService {
       if (Platform.OS === 'web') {
         localStorage.setItem(StorageService.SHARED_KEYS_KEY, encryptedData);
       } else {
-        await AsyncStorage.setItem(StorageService.SHARED_KEYS_KEY, encryptedData);
+        // Use SecureStore for better persistence
+        await SecureStore.setItemAsync(StorageService.SHARED_KEYS_KEY, encryptedData);
       }
     } catch (error) {
       console.error('Error saving shared keys:', error);
@@ -89,13 +90,65 @@ export class StorageService implements IStorageService {
     }
   }
 
+  // Migration: Check if shared keys exist in AsyncStorage and migrate to SecureStore
+  private static async migrateSharedKeysIfNeeded(): Promise<void> {
+    // Only run migration on native platforms (not web)
+    if (Platform.OS === 'web') return;
+
+    try {
+      // First check if we already have valid data in SecureStore
+      const existingData = await SecureStore.getItemAsync(StorageService.SHARED_KEYS_KEY);
+      if (existingData && existingData.length > 0) {
+        // Already migrated and has data - try to decrypt to verify it's valid
+        try {
+          await StorageService.decryptData(existingData);
+          // Valid data exists in SecureStore
+          return;
+        } catch {
+          // Invalid data in SecureStore - will try to migrate from AsyncStorage
+          console.log('StorageService: Invalid data in SecureStore, will try migration');
+        }
+      }
+
+      // Check for old data in AsyncStorage
+      const oldData = await AsyncStorage.getItem(StorageService.SHARED_KEYS_KEY);
+      if (oldData && oldData.length > 0) {
+        console.log('StorageService: Migrating shared keys from AsyncStorage to SecureStore');
+
+        // Try to migrate - first verify if it's encrypted or plain JSON
+        try {
+          // Try to decrypt as encrypted data
+          await StorageService.decryptData(oldData);
+          // It's encrypted - migrate directly
+          await SecureStore.setItemAsync(StorageService.SHARED_KEYS_KEY, oldData);
+        } catch {
+          // It's plain JSON - encrypt before saving
+          const encryptedData = await StorageService.encryptData(oldData);
+          await SecureStore.setItemAsync(StorageService.SHARED_KEYS_KEY, encryptedData);
+        }
+
+        // Delete from AsyncStorage after successful migration
+        await AsyncStorage.removeItem(StorageService.SHARED_KEYS_KEY);
+
+        console.log('StorageService: Migration complete - shared keys moved to SecureStore');
+      }
+    } catch (error) {
+      console.error('StorageService: Error during migration:', error);
+      // Don't throw - let the app try to continue
+    }
+  }
+
   static async getSharedKeys(): Promise<SharedKey[]> {
     try {
+      // Migration: Check if shared keys exist in AsyncStorage and migrate to SecureStore
+      await StorageService.migrateSharedKeysIfNeeded();
+
       let encryptedData: string | null;
       if (Platform.OS === 'web') {
         encryptedData = localStorage.getItem(StorageService.SHARED_KEYS_KEY);
       } else {
-        encryptedData = await AsyncStorage.getItem(StorageService.SHARED_KEYS_KEY);
+        // Read from SecureStore for persistence
+        encryptedData = await SecureStore.getItemAsync(StorageService.SHARED_KEYS_KEY);
       }
 
       if (!encryptedData) return [];
@@ -115,6 +168,9 @@ export class StorageService implements IStorageService {
           name: item.name || '',
           issuer: item.issuer || '',
           secret: item.secret || '',
+          algorithm: item.algorithm === 'SHA256' || item.algorithm === 'SHA512' ? item.algorithm : 'SHA1',
+          digits: item.digits === 7 || item.digits === 8 ? item.digits : 6,
+          period: item.period === 60 ? 60 : 30,
           code: item.code || '',
           timeRemaining: item.timeRemaining || 0,
           timeStampSharedKeyCreate: item.timeStampSharedKeyCreate || Date.now(),
@@ -159,13 +215,39 @@ export class StorageService implements IStorageService {
     }
   }
 
+  /** Remove legacy AsyncStorage copies so migration cannot restore cleared data. */
+  private static async clearLegacyAsyncStorage(): Promise<void> {
+    if (Platform.OS === 'web') return;
+
+    const legacyKeys = [
+      StorageService.SHARED_KEYS_KEY,
+      StorageService.SETTINGS_KEY,
+      StorageService.WALLET_KEY,
+      'shared_keys',
+      'app_settings',
+      'wallet_data',
+      'wallet_encryption_key',
+      'wallet_has_password',
+      'biometric_salt',
+      'password_derived_key',
+      'password_hash',
+      'custom_node_url',
+    ];
+
+    await Promise.all(legacyKeys.map((key) => AsyncStorage.removeItem(key)));
+  }
+
+  private static async deleteSecureStoreKey(key: string): Promise<void> {
+    try {
+      await SecureStore.deleteItemAsync(key);
+    } catch {
+      // Missing keys are fine during wipe
+    }
+  }
+
   static async clearAll(): Promise<void> {
     try {
-      console.log('Starting clearAll...');
-
       if (Platform.OS === 'web') {
-        console.log('Clearing web storage...');
-        // Clear all known keys
         localStorage.removeItem(StorageService.SHARED_KEYS_KEY);
         localStorage.removeItem(StorageService.SETTINGS_KEY);
         localStorage.removeItem('shared_keys');
@@ -173,26 +255,27 @@ export class StorageService implements IStorageService {
         localStorage.removeItem('wallet_data');
         localStorage.removeItem('wallet_encryption_key');
         localStorage.removeItem('wallet_has_password');
-        // Clear any other possible keys
         localStorage.clear();
       } else {
-        console.log('Clearing native storage...');
-        // Clear all known keys
-        await SecureStore.deleteItemAsync(StorageService.SHARED_KEYS_KEY);
-        await SecureStore.deleteItemAsync(StorageService.SETTINGS_KEY);
-        await SecureStore.deleteItemAsync('shared_keys');
-        await SecureStore.deleteItemAsync('app_settings');
-        await SecureStore.deleteItemAsync('wallet_data');
-        await SecureStore.deleteItemAsync('wallet_encryption_key');
-        await SecureStore.deleteItemAsync('wallet_has_password');
-        // Clear AsyncStorage
-        await AsyncStorage.removeItem(StorageService.SHARED_KEYS_KEY);
+        await StorageService.clearLegacyAsyncStorage();
+
+        const secureKeys = [
+          StorageService.SHARED_KEYS_KEY,
+          StorageService.SETTINGS_KEY,
+          'shared_keys',
+          'app_settings',
+          'wallet_data',
+          'wallet_encryption_key',
+          'wallet_has_password',
+          'biometric_salt',
+          'password_derived_key',
+          'password_hash',
+          'custom_node_url',
+        ];
+        await Promise.all(secureKeys.map((key) => StorageService.deleteSecureStoreKey(key)));
       }
 
-      // Clear wallet data
       await WalletStorageManager.clearWallet();
-
-      console.log('ClearAll completed successfully');
     } catch (error) {
       console.error('Error clearing storage:', error);
       throw new Error('Failed to clear storage');
@@ -201,33 +284,7 @@ export class StorageService implements IStorageService {
 
   static async debugStorage(): Promise<void> {
     try {
-      console.log('=== STORAGE DEBUG ===');
-
-      // Check shared keys
-      const sharedKeys = await StorageService.getSharedKeys();
-      console.log('Shared keys count:', sharedKeys.length);
-      sharedKeys.forEach((key, index) => {
-        console.log(`Shared key ${index}:`, {
-          name: key.name,
-          issuer: key.issuer,
-          hash: key.hash,
-          isLocal: key.isLocal,
-          unknownSource: key.unknownSource,
-        });
-      });
-
-      // Check wallet
-      const wallet = await WalletStorageManager.getWallet();
-      console.log('Wallet exists:', !!wallet);
-      if (wallet) {
-        console.log('Wallet address:', wallet.getPublicAddress());
-      }
-
-      // Check settings
-      const settings = await StorageService.getSettings();
-      console.log('Settings:', settings);
-
-      console.log('=== END STORAGE DEBUG ===');
+      // No-op: debug logging removed. Callers (e.g. SettingsScreen) may still invoke this.
     } catch (error) {
       console.error('Error debugging storage:', error);
     }

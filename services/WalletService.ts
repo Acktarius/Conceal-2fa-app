@@ -11,6 +11,7 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
 import { Alert, BackHandler, Platform } from 'react-native';
 import { config, logDebugMsg } from '../config';
+import { getAppAlertContext } from '../contexts/AppAlertContext';
 import { JSBigInt } from '../lib/biginteger';
 import { BlockchainExplorerRpcDaemon } from '../model/blockchain/BlockchainExplorerRPCDaemon';
 import { Cn, CnNativeBride, CnRandom } from '../model/Cn';
@@ -18,15 +19,18 @@ import { KeysRepository } from '../model/KeysRepository';
 import { SmartMessageParser } from '../model/SmartMessage';
 import { SharedKey } from '../model/Transaction';
 import { TransactionsExplorer } from '../model/TransactionsExplorer';
-import { RawWallet, Wallet } from '../model/Wallet';
+import { Wallet } from '../model/Wallet';
 import { WalletRepository } from '../model/WalletRepository';
 import { WalletWatchdogRN } from '../model/WalletWatchdogRN';
 import { BiometricService } from './BiometricService';
+import { CronBuddy } from './CronBuddy';
 import { dependencyContainer } from './DependencyContainer';
 import { ImportService } from './ImportService';
 import type { IWalletOperations } from './interfaces/IWalletOperations';
 import { getGlobalWorkletLogging } from './interfaces/IWorkletLogging';
 import { WalletStorageManager } from './WalletStorageManager';
+
+declare const global: any;
 
 export class WalletService implements IWalletOperations {
   private static readonly ENCRYPTION_KEY = 'wallet_encryption_key';
@@ -108,6 +112,10 @@ export class WalletService implements IWalletOperations {
 
   static getCachedWallet(): Wallet | null {
     return WalletService.wallet;
+  }
+
+  static setCachedWallet(wallet: Wallet | null): void {
+    WalletService.wallet = wallet;
   }
 
   // Pragmatic approach: Register a callback for balance refresh
@@ -209,7 +217,8 @@ export class WalletService implements IWalletOperations {
   private static async hasAnyWalletData(): Promise<boolean> {
     try {
       // Use WalletStorageManager to check if wallet data exists
-      return await WalletStorageManager.hasAnyWalletData();
+      const result = await WalletStorageManager.hasAnyWalletData();
+      return result;
     } catch (error) {
       console.error('Error checking for wallet data:', error);
       return false;
@@ -275,6 +284,18 @@ export class WalletService implements IWalletOperations {
     }
   }
 
+  private static async pickUpgradeChoice(message: string, dismissLabel: string): Promise<'create' | 'import' | 'cancel'> {
+    const choice = await getAppAlertContext().showChoiceAlert('Upgrade Wallet', message, [
+      { label: 'Create 2FA Wallet', value: 'create', variant: 'primary' },
+      { label: 'Import Existing', value: 'import' },
+      { label: dismissLabel, value: 'cancel', variant: 'cancel' },
+    ]);
+    if (choice === 'create' || choice === 'import') {
+      return choice;
+    }
+    return 'cancel';
+  }
+
   static async getOrCreateWallet(callerScreen?: 'home' | 'wallet'): Promise<Wallet> {
     try {
       // Load upgrade prompt flags from storage
@@ -298,6 +319,7 @@ export class WalletService implements IWalletOperations {
 
         // Check if this is a new user (no data) vs auth failure (data exists but can't decrypt)
         const hasAnyWalletData = await WalletService.hasAnyWalletData();
+
         if (hasAnyWalletData) {
           getGlobalWorkletLogging().logging1string(
             'WALLET SERVICE: Wallet data exists but authentication failed - EXITING APP for security'
@@ -322,30 +344,12 @@ export class WalletService implements IWalletOperations {
 
       // If wallet exists but is local-only (no keys), check flags and show prompt
       if (wallet && wallet.isLocal()) {
-        // Only show prompt if not prompted before
+        // Only show prompt if not prompted before on this tab
         if (!WalletService.flag_prompt_main_tab || !WalletService.flag_prompt_wallet_tab) {
-          const result = await new Promise<'create' | 'import' | 'cancel'>((resolve) => {
-            Alert.alert(
-              'Upgrade Wallet',
-              'Your wallet is currently local-only. Would you like to upgrade it to blockchain-compatible or import an existing one?',
-              [
-                {
-                  text: 'Upgrade to Blockchain',
-                  onPress: () => resolve('create'),
-                },
-                {
-                  text: 'Import Existing',
-                  onPress: () => resolve('import'),
-                },
-                {
-                  text: 'Stay Local',
-                  onPress: () => resolve('cancel'),
-                  style: 'cancel',
-                },
-              ],
-              { cancelable: true }
-            );
-          });
+          const result = await WalletService.pickUpgradeChoice(
+            'Your wallet is currently local-only. Would you like to upgrade it to blockchain-compatible or import an existing one?',
+            'Stay Local'
+          );
 
           // Set flag based on calling screen and save to storage
           if (callerScreen === 'home') {
@@ -365,9 +369,9 @@ export class WalletService implements IWalletOperations {
           }
 
           if (result === 'import') {
-            wallet = await ImportService.importWallet();
-            // Update cached instance with the imported wallet
-            WalletService.wallet = wallet;
+            wallet = await ImportService.importWallet(wallet);
+            WalletService.setCachedWallet(wallet);
+            await WalletService.reinitializeBlockchainExplorer();
           } else {
             wallet = await WalletService.upgradeToBlockchainWallet();
             // Update cached instance with the upgraded wallet
@@ -379,12 +383,11 @@ export class WalletService implements IWalletOperations {
       return wallet;
     } catch (error) {
       console.error('Error getting/creating wallet:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       console.error('Wallet initialization error details:', {
-        message: error.message,
-        stack: error.stack,
-        name: error.name,
+        message: errorMessage,
       });
-      throw new Error(`Failed to initialize wallet: ${error.message}`);
+      throw new Error(`Failed to initialize wallet: ${errorMessage}`);
     }
   }
 
@@ -397,14 +400,20 @@ export class WalletService implements IWalletOperations {
 
       if (await BiometricService.isBiometricEnabled()) {
         // Biometric mode: Encrypt with biometric key
-        // Generate cryptographically secure biometric salt
-        const randomBytes = new Uint8Array(32);
-        crypto.getRandomValues(randomBytes);
-        const randomSalt = await Crypto.digestStringAsync(
-          Crypto.CryptoDigestAlgorithm.SHA256,
-          'biometric_salt_' + Date.now() + Array.from(randomBytes).join('')
-        );
-        await WalletStorageManager.generateAndStoreBiometricSalt(randomSalt);
+        // First check if biometric salt already exists (don't overwrite!)
+        const existingSalt = await WalletStorageManager.getBiometricSalt();
+        if (!existingSalt) {
+          // Generate cryptographically secure biometric salt ONLY if none exists
+          const randomBytes = new Uint8Array(32);
+          crypto.getRandomValues(randomBytes);
+          const randomSalt = await Crypto.digestStringAsync(
+            Crypto.CryptoDigestAlgorithm.SHA256,
+            'biometric_salt_' + Date.now() + Array.from(randomBytes).join('')
+          );
+          await WalletStorageManager.generateAndStoreBiometricSalt(randomSalt);
+        } else {
+          console.log('WALLET SERVICE: Using existing biometric salt');
+        }
 
         // THEN derive the biometric key
         const biometricKey = await WalletStorageManager.deriveBiometricKey();
@@ -418,7 +427,7 @@ export class WalletService implements IWalletOperations {
         if (!password) {
           throw new Error('Password required to create local wallet');
         }
-        await WalletStorageManager.saveEncryptedWallet(wallet, password);
+        await WalletStorageManager.saveEncryptedWalletWithPersistentKey(wallet, password);
 
         // Generate biometric salt from user password (for future biometric enablement)
         await WalletStorageManager.generateAndStoreBiometricSalt(password);
@@ -433,7 +442,7 @@ export class WalletService implements IWalletOperations {
 
   static async promptForPassword(message: string): Promise<string | null> {
     // Get the password prompt context from global state
-    const passwordPromptContext = (global as any).passwordPromptContext;
+    const passwordPromptContext = global.passwordPromptContext;
 
     if (!passwordPromptContext) {
       throw new Error('Password prompt context not available. App must be properly initialized.');
@@ -483,8 +492,8 @@ export class WalletService implements IWalletOperations {
       const keys = Cn.create_address(seed);
 
       // Set initial creation height
-      // If offline, we'll start from 0 and sync later
-      let creationHeight = 0;
+      // If offline, we'll start from conservative creation height from config.minCreationHeight
+      let creationHeight = config.minCreationHeight;
 
       // Try to get blockchain height if possible, but don't block on it
       try {
@@ -497,22 +506,45 @@ export class WalletService implements IWalletOperations {
             new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 5000)),
           ]);
 
-          // Get current height (already cached for 20s, no need for additional race)
-          const currentHeight = await WalletService.blockchainExplorer.getHeight();
-
-          // Current height is 1930143+ as of 2025 September, so currentHeight - 10 is safe minimum
-          creationHeight = Math.max(1920000, currentHeight - 10);
+          // Small delay to ensure session node is ready after resetNodes()
+          await new Promise((resolve) => setTimeout(resolve, 300));
         }
-      } catch (error) {
-        // If we can't get height, use a conservative starting point, 2FA creation September 2025
-        creationHeight = 1920000;
-        getGlobalWorkletLogging().logging1string('UPGRADE: Failed to get blockchain height, using conservative creationHeight 1920000');
+
+        // Race: Try to get height (with retries) vs 5-second timeout
+        const currentHeight = await Promise.race([
+          (async (): Promise<number> => {
+            let attempt = 0;
+            while (attempt < 3) {
+              try {
+                const height = await WalletService.blockchainExplorer!.getHeight();
+                if (height && height > 0) {
+                  return height;
+                }
+              } catch {
+                // Continue to retry - errors are expected during initialization
+              }
+              attempt++;
+              if (attempt < 3) {
+                await new Promise((resolve) => setTimeout(resolve, 500));
+              }
+            }
+            throw new Error('Failed to get height after 3 attempts');
+          })(),
+          new Promise<number>((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 1500)),
+        ]);
+        // Current height is 1944500+ as of 2025 November 15, so currentHeight - 10 is safe minimum
+        creationHeight = Math.max(config.minCreationHeight, currentHeight - 10);
+      } catch (error: any) {
+        // If we can't get height, fallback to config.minCreationHeight as set above
+        const errorMsg = error?.message || error?.toString() || 'Unknown error';
+        console.error('WALLET SERVICE: Error getting blockchain height:', errorMsg);
       }
 
       // Upgrade the existing wallet with blockchain data
       const wallet = existingWallet;
       wallet.keys = KeysRepository.fromPriv(keys.spend.sec, keys.view.sec);
       wallet.creationHeight = creationHeight;
+      wallet.lastHeight = creationHeight;
 
       // Save the upgraded wallet with appropriate encryption
       if (await BiometricService.isBiometricChecked()) {
@@ -554,7 +586,14 @@ export class WalletService implements IWalletOperations {
     }
   }
 
-  static async addSharedKey(serviceData: { name: string; issuer: string; secret: string }): Promise<void> {
+  static async addSharedKey(serviceData: {
+    name: string;
+    issuer: string;
+    secret: string;
+    algorithm?: 'SHA1' | 'SHA256' | 'SHA512';
+    digits?: 6 | 7 | 8;
+    period?: 30 | 60;
+  }): Promise<void> {
     if (!WalletService.wallet) {
       throw new Error('Wallet not initialized');
     }
@@ -656,21 +695,26 @@ export class WalletService implements IWalletOperations {
    */
   static async forceClearAll(): Promise<void> {
     try {
-      // Stop wallet synchronization
       WalletService.stopWalletSynchronization();
+      CronBuddy.stop();
 
-      // Clear blockchain connections
       if (WalletService.blockchainExplorer) {
         WalletService.blockchainExplorer.cleanupSession();
         WalletService.blockchainExplorer = null;
       }
 
-      // Clear wallet instance
+      if (WalletService.walletWatchdog) {
+        WalletService.walletWatchdog.stop();
+        WalletService.walletWatchdog = null;
+      }
+
       WalletService.wallet = null;
 
-      // Clear all storage using StorageService
       const storageService = dependencyContainer.getStorageService();
       await storageService.clearAll();
+      await WalletStorageManager.clearCustomNode();
+
+      WalletService.triggerSharedKeysRefresh();
     } catch (error) {
       console.error('Error in force clear all:', error);
       throw error;
@@ -762,6 +806,10 @@ export class WalletService implements IWalletOperations {
    */
   static async startWalletSynchronization(): Promise<void> {
     try {
+      if (WalletService.isWalletSynchronizationRunning()) {
+        return;
+      }
+
       // Load wallet from storage if cached instance is null
       if (!WalletService.wallet) {
         WalletService.wallet = await WalletStorageManager.getWallet();
@@ -798,6 +846,10 @@ export class WalletService implements IWalletOperations {
     }
   }
 
+  static isWalletSynchronizationRunning(): boolean {
+    return WalletService.walletWatchdog?.isRunning() ?? false;
+  }
+
   /**
    * Get wallet synchronization status
    */
@@ -806,10 +858,12 @@ export class WalletService implements IWalletOperations {
       const lastBlockLoading = WalletService.walletWatchdog.getLastBlockLoading();
       const blockList = WalletService.walletWatchdog.getBlockList();
       const blockchainHeight = WalletService.walletWatchdog.getBlockchainHeight();
+      const walletLastHeight = WalletService.wallet.lastHeight;
 
       return {
         isRunning: true,
         lastBlockLoading: lastBlockLoading,
+        walletLastHeight: walletLastHeight, // Actual synced height
         lastMaximumHeight: blockchainHeight,
         transactionsInQueue: blockList ? blockList.getTxQueue().getSize() : 0,
         //isWalletSynced: lastBlockLoading >= blockchainHeight - 1 // Allow 1 block tolerance
@@ -819,6 +873,7 @@ export class WalletService implements IWalletOperations {
     return {
       isRunning: false,
       lastBlockLoading: 0,
+      walletLastHeight: 0,
       lastMaximumHeight: 0,
       transactionsInQueue: 0,
       isWalletSynced: false,
@@ -876,36 +931,15 @@ export class WalletService implements IWalletOperations {
    */
   static async triggerWalletUpgrade(): Promise<Wallet> {
     try {
-      const result = await new Promise<'create' | 'import' | 'cancel'>((resolve) => {
-        Alert.alert(
-          'Upgrade Wallet',
-          'Choose how you would like to upgrade your wallet:',
-          [
-            {
-              text: 'Upgrade to Blockchain',
-              onPress: () => resolve('create'),
-            },
-            {
-              text: 'Import Existing',
-              onPress: () => resolve('import'),
-            },
-            {
-              text: 'Cancel',
-              onPress: () => resolve('cancel'),
-              style: 'cancel',
-            },
-          ],
-          { cancelable: true }
-        );
-      });
+      const result = await WalletService.pickUpgradeChoice('Choose how you would like to upgrade your wallet:', 'Cancel');
 
       if (result === 'cancel') {
         return WalletService.wallet!; // Return current wallet without changes
       }
       if (result === 'import') {
-        const importedWallet = await ImportService.importWallet();
-        // Update cached instance with the imported wallet
-        WalletService.wallet = importedWallet;
+        const importedWallet = await ImportService.importWallet(WalletService.wallet);
+        WalletService.setCachedWallet(importedWallet);
+        await WalletService.reinitializeBlockchainExplorer();
         return importedWallet;
       }
       return await WalletService.upgradeToBlockchainWallet();
@@ -924,6 +958,39 @@ export class WalletService implements IWalletOperations {
     } catch (error) {
       console.error('WalletService: Error signaling wallet update:', error);
     }
+  }
+
+  /**
+   * Clear wallet history and restart blockchain sync from `rescanHeight`.
+   * Uses the cached wallet instance (same object the watchdog must scan).
+   */
+  static async rescanWalletFromHeight(rescanHeight: number, reason: string): Promise<void> {
+    let wallet = WalletService.wallet;
+    if (!wallet) {
+      wallet = await WalletStorageManager.getWallet();
+    }
+    if (!wallet) {
+      throw new Error('No wallet available for rescan');
+    }
+    if (wallet.isLocal()) {
+      throw new Error('Cannot rescan a local-only wallet');
+    }
+
+    wallet.clearTransactions();
+    wallet.lastHeight = Math.max(0, Math.round(rescanHeight));
+    wallet.signalChanged();
+    WalletService.wallet = wallet;
+
+    await WalletService.saveWallet(reason);
+
+    if (!WalletService.blockchainExplorer) {
+      WalletService.blockchainExplorer = new BlockchainExplorerRpcDaemon();
+      await WalletService.blockchainExplorer.initialize();
+    }
+
+    WalletService.stopWalletSynchronization();
+    WalletService.walletWatchdog = new WalletWatchdogRN(wallet, WalletService.blockchainExplorer);
+    WalletService.walletWatchdog.start();
   }
 
   /**
@@ -1106,7 +1173,15 @@ export class WalletService implements IWalletOperations {
 
       if (action === 'create') {
         // Use SmartMessageParser.encode2FA() for encoding create command
-        smartMessageResult = await SmartMessageParser.encode2FA('c', sharedKey.name, sharedKey.issuer, sharedKey.secret);
+        smartMessageResult = await SmartMessageParser.encode2FA(
+          'c',
+          sharedKey.name,
+          sharedKey.issuer,
+          sharedKey.secret,
+          sharedKey.algorithm ?? 'SHA1',
+          String(sharedKey.digits ?? 6),
+          String(sharedKey.period ?? 30)
+        );
       } else if (action === 'delete') {
         // Use SmartMessageParser.encode2FA() for encoding delete command
         if (!sharedKey.hash) {
@@ -1152,7 +1227,7 @@ export class WalletService implements IWalletOperations {
           if (settings.paymentIdWhiteList && settings.paymentIdWhiteList.length > 0) {
             finalPaymentId = settings.paymentIdWhiteList[0];
           }
-        } catch (error) {
+        } catch {
           getGlobalWorkletLogging().logging1string('WalletService: Could not get payment ID whitelist, using empty payment ID');
           //console.log('WalletService: Could not get payment ID whitelist, using empty payment ID');
         }
@@ -1203,21 +1278,6 @@ export class WalletService implements IWalletOperations {
       };
     } catch (error) {
       console.error('WalletService: Error sending smart message:', error);
-
-      // Provide user-friendly error messages
-      let errorMessage = 'Failed to send smart message';
-
-      if (error.message.includes('balance_too_low')) {
-        errorMessage = 'Insufficient balance for smart message';
-      } else if (error.message.includes('invalid')) {
-        errorMessage = error.message;
-      } else if (error.message.includes('Address')) {
-        errorMessage = error.message;
-      } else if (error.message.includes('Amount')) {
-        errorMessage = error.message;
-      } else {
-        errorMessage = `Smart message failed: ${error.message}`;
-      }
 
       return {
         success: false,

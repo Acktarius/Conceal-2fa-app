@@ -6,6 +6,10 @@ echo "🔄 Starting Android rebuild process..."
 echo "📁 Removing existing android folder..."
 rm -rf android
 
+# Step 1.1: Remove dev-only modules
+echo "📁 Removing dev-only modules..."
+rm -rf node_modules/expo-dev-client node_modules/expo-dev-menu node_modules/expo-dev-launcher node_modules/@biomejs/biome || true
+
 # Step 2: Eject to recreate android and ios folders
 echo "🚀 Running expo prebuild to recreate native folders..."
 CI=1 npx expo prebuild --platform android --clean
@@ -48,9 +52,9 @@ sleep 2
 node hooks/android/2_pre-build.js
 
 # Step 8: Clean unwanted activity aliases (MUST be after 2_pre-build.js)
-echo "🧹 Cleaning unwanted activity aliases from AndroidManifest.xml..."
-sleep 2
-node hooks/android/22_clean_aliases.js
+# echo "🧹 Cleaning unwanted activity aliases from AndroidManifest.xml..."
+# sleep 2
+# node hooks/android/22_clean_aliases.js
 
 # Step 9: Signing/Unsigning prompts
 # Accept command-line arguments or prompt interactively
@@ -88,6 +92,9 @@ else
     echo "🔄 Unsigning build for F-Droid..."
     sleep 2
     node hooks/android/31_unsign.js
+#    echo "🔄 Fixing Expo module dependencies for F-Droid..."
+#    sleep 2
+#    node hooks/android/32_fix_expo_dependencies.js
     echo "✅ Unsign complete. Don't forget to tag vxxx-f-droid before pushing!"
   else
     echo "ℹ️  Neither sign or unsign. You will be ready for app-debug.apk"
