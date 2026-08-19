@@ -305,7 +305,7 @@ Or submit a specific build:
 eas submit -p ios --id <build-id>
 ```
 
-Apple Team ID is configured in [`eas.json`](eas.json) (`appleTeamId: U4D6B43275`).
+Signing uses EAS remote credentials. Do not commit Apple Team IDs, ASC keys, or certificates.
 
 ---
 

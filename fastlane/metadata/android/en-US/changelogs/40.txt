@@ -1,3 +1,4 @@
 - add feature : import/export encrypted wallet backup file
 - uniformize dialog and harmonize with theme colour
+- add search filter per issuer.
 - update dependencies
