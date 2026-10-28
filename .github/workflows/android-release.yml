@@ -5,19 +5,19 @@ on:
 
 jobs:
   build-release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
       actions: read
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Install NPM dependencies
         run: npm ci
@@ -26,7 +26,7 @@ jobs:
         run: rm -rf node_modules/expo-dev-client node_modules/expo-dev-menu node_modules/expo-dev-launcher node_modules/@biomejs/biome || true
 
       - name: Set up Java (for Android build)
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: "temurin"
           java-version: 17
@@ -94,7 +94,7 @@ jobs:
           echo "APK_SHA256=$APK_SHA256" >> $GITHUB_ENV
 
       - name: Upload APK as workflow artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: conceal-authenticator-${{ steps.get_version.outputs.VERSION }}
           path: ${{ steps.apk_info.outputs.apk_file }}
