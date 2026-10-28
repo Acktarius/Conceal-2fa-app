@@ -32,9 +32,12 @@ AGENTS.md
 .cursorrules
 .cursor/
 decisions.md
-docs/
+docs/*
+!docs/security/
+docs/security/*
+!docs/security/message-chacha-ietf.md
 .forge/
 openspec/
 .repo-kit/
-security/
+/security/
 scripts/hooks/
