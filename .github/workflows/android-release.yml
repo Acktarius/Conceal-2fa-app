@@ -28,7 +28,7 @@ jobs:
       - name: Set up Java (for Android build)
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: "temurin"
           java-version: 17
 
       - name: Set up Android SDK
@@ -50,7 +50,7 @@ jobs:
         run: echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > $GITHUB_WORKSPACE/android/app/local-release-key.keystore
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-      
+
       - name: Check if Keystore Exists
         run: |
           if [ ! -f android/app/local-release-key.keystore ]; then
@@ -65,9 +65,8 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          GITHUB_ACTIONS: 'true'
-      
-      
+          GITHUB_ACTIONS: "true"
+
       - name: Read App Version
         id: get_version
         run: |
@@ -77,11 +76,11 @@ jobs:
           echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_OUTPUT
-      
+
       - name: Build Release APK
         working-directory: android
         run: ./gradlew assembleRelease
-      
+
       - name: Get APK filename and SHA256
         id: apk_info
         run: |
@@ -93,13 +92,13 @@ jobs:
           echo "apk_sha256=$APK_SHA256" >> $GITHUB_OUTPUT
           echo "APK_NAME=$APK_NAME" >> $GITHUB_ENV
           echo "APK_SHA256=$APK_SHA256" >> $GITHUB_ENV
-      
+
       - name: Upload APK as workflow artifact
         uses: actions/upload-artifact@v4
         with:
           name: conceal-authenticator-${{ steps.get_version.outputs.VERSION }}
           path: ${{ steps.apk_info.outputs.apk_file }}
-      
+
       - name: Create Release
         uses: softprops/action-gh-release@v2.0.4
         with:
@@ -108,7 +107,7 @@ jobs:
           body: |
             [Download APK](../../releases/download/v${{ steps.get_version.outputs.VERSION }}/${{ steps.apk_info.outputs.apk_name }}) **${{ steps.apk_info.outputs.apk_name }}**
             `SHA256: ${{ steps.apk_info.outputs.apk_sha256 }}`
-            
+
             **NOTE**: Version Code `${{ steps.get_version.outputs.VERSION_CODE }}`
           tag_name: v${{ steps.get_version.outputs.VERSION }}
           draft: true

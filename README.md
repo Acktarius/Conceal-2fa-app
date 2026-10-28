@@ -5,17 +5,20 @@ A React Native 2FA authenticator app that leverages the Conceal Network blockcha
 ## Features
 
 ### 🔐 Flexible Backup Options
-- **Your Choice**: Use as a local-only 2FA app, enable manual backup, or automatic  backup to the Conceal Network blockchain.   
-- **ChaCha12 Stream Cipher**: All sensitive data is encrypted using the ChaCha12 stream cipher before blockchain storage  
-- **Lite Wallet**: Built-in lightweight wallet for seamless blockchain interactions when backup is enabled  
+
+- **Your Choice**: Use as a local-only 2FA app, enable manual backup, or automatic backup to the Conceal Network blockchain.
+- **ChaCha12 Stream Cipher**: All sensitive data is encrypted using the ChaCha12 stream cipher before blockchain storage
+- **Lite Wallet**: Built-in lightweight wallet for seamless blockchain interactions when backup is enabled
 - **Self-Custody**: You control your keys and data - no third-party servers
 
 ### 🎨 User Experience
+
 - **Multiple Themes**: Choose from Light, Orange, Velvet, and Dark themes
 - **Future Codes**: Preview upcoming TOTP codes to prepare for time-sensitive operations
 - **Cross-Platform**: Available for iOS and Android
 
 ### 🛡️ Privacy & Security
+
 - **Biometric Authentication**: Unlock with Face ID, Touch ID, or fingerprint
 - **Local Encryption**: Secure storage using platform-native secure enclaves
 - **No Central Server**: Direct peer-to-peer blockchain interaction

@@ -6,12 +6,12 @@ Developer notes for local work, testing, and release builds (Android / F-Droid /
 
 **Conceal Authenticator** is an Expo 54 / React Native app with custom native crypto (`react-native-conceal-crypto`), Nitro modules, and platform-specific release pipelines:
 
-| Target | Mechanism |
-|--------|-----------|
-| Local dev | Expo dev client + Metro |
-| Android (direct APK) | `./build-android.sh` + Gradle |
-| F-Droid | Tag `*-f-droid` → GitHub Actions + reproducible APK |
-| iOS | EAS Build (Expo account) + TestFlight submit |
+| Target               | Mechanism                                           |
+| -------------------- | --------------------------------------------------- |
+| Local dev            | Expo dev client + Metro                             |
+| Android (direct APK) | `./build-android.sh` + Gradle                       |
+| F-Droid              | Tag `*-f-droid` → GitHub Actions + reproducible APK |
+| iOS                  | EAS Build (Expo account) + TestFlight submit        |
 
 Version numbers live in [`.env`](.env) (not committed with secrets — copy from team or use your own):
 
@@ -313,20 +313,20 @@ Signing uses EAS remote credentials. Do not commit Apple Team IDs, ASC keys, or 
 
 Replay [`.github/workflows/ci-check.yml`](.github/workflows/ci-check.yml) and [`.github/workflows/security-check.yml`](.github/workflows/security-check.yml) in Docker **before push**, without waiting on GitHub runners.
 
-| Tool | Role |
-|------|------|
-| **act** | Runs workflow YAML locally in Docker |
-| **`gh workflow run`** | Triggers workflows on GitHub (remote only) |
-| **`npm run lint` / `test:unit`** | Fastest day-to-day check; no Docker |
+| Tool                             | Role                                       |
+| -------------------------------- | ------------------------------------------ |
+| **act**                          | Runs workflow YAML locally in Docker       |
+| **`gh workflow run`**            | Triggers workflows on GitHub (remote only) |
+| **`npm run lint` / `test:unit`** | Fastest day-to-day check; no Docker        |
 
 ### What maps to what
 
-| GitHub workflow | Jobs replayed locally | Command |
-|-----------------|----------------------|---------|
-| `ci-check.yml` | `check` — `npm ci`, lint, types, unit tests | `npm run ci:act` |
-| `security-check.yml` | `npm-audit` — `npm audit --audit-level=critical` | `npm run ci:act:security` |
-| `security-check.yml` | `secret-scan` — Gitleaks | `npm run ci:act:security` |
-| `security-check.yml` | `dependency-review` | **skipped** (PR-only on GitHub) |
+| GitHub workflow      | Jobs replayed locally                            | Command                         |
+| -------------------- | ------------------------------------------------ | ------------------------------- |
+| `ci-check.yml`       | `check` — `npm ci`, lint, types, unit tests      | `npm run ci:act`                |
+| `security-check.yml` | `npm-audit` — `npm audit --audit-level=critical` | `npm run ci:act:security`       |
+| `security-check.yml` | `secret-scan` — Gitleaks                         | `npm run ci:act:security`       |
+| `security-check.yml` | `dependency-review`                              | **skipped** (PR-only on GitHub) |
 
 Repo files: [`.actrc`](.actrc) (runner image + arch), [`scripts/act-ci.sh`](scripts/act-ci.sh) (wrapper). Copy both to other Node projects and edit workflow paths in the script if needed.
 
@@ -391,14 +391,14 @@ npm audit --audit-level=critical
 
 `scripts/act-ci.sh` is configured to **avoid extra host exposure**:
 
-| Measure | What it does |
-|---------|----------------|
-| **No `--bind`** | Repo is **copied** into the container, not bind-mounted from your disk (container writes do not sync back to your tree). |
-| **No extra `-v` mounts** | Script rejects `--bind`, `-v`, `--volume`, `--mount` passthrough args. |
+| Measure                         | What it does                                                                                                                     |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| **No `--bind`**                 | Repo is **copied** into the container, not bind-mounted from your disk (container writes do not sync back to your tree).         |
+| **No extra `-v` mounts**        | Script rejects `--bind`, `-v`, `--volume`, `--mount` passthrough args.                                                           |
 | **No auto `.env` / `.secrets`** | `--env-file /dev/null` and `--secret-file /dev/null` so act does not inject local env files (including `.env_private` patterns). |
-| **No `--privileged`** | Standard unprivileged container. |
-| **`--rm`** | Container removed after the run. |
-| **Pinned image digest** | [`.actrc`](.actrc) pins `catthehacker/ubuntu:act-latest@sha256:…` for reproducible pulls. |
+| **No `--privileged`**           | Standard unprivileged container.                                                                                                 |
+| **`--rm`**                      | Container removed after the run.                                                                                                 |
+| **Pinned image digest**         | [`.actrc`](.actrc) pins `catthehacker/ubuntu:act-latest@sha256:…` for reproducible pulls.                                        |
 
 **Still required (normal Docker/act behavior):**
 
@@ -417,29 +417,29 @@ npm audit --audit-level=critical
 
 ### Troubleshooting
 
-| Symptom | Fix |
-|---------|-----|
-| `act not found` | Install act; ensure `~/.local/bin` is on `PATH` |
-| `Docker is not running` | Start Docker Desktop / `sudo systemctl start docker` |
-| act prompts for image size | Repo [`.actrc`](.actrc) should prevent that; run from repo root |
+| Symptom                                | Fix                                                                 |
+| -------------------------------------- | ------------------------------------------------------------------- |
+| `act not found`                        | Install act; ensure `~/.local/bin` is on `PATH`                     |
+| `Docker is not running`                | Start Docker Desktop / `sudo systemctl start docker`                |
+| act prompts for image size             | Repo [`.actrc`](.actrc) should prevent that; run from repo root     |
 | Vitest `kill EACCES` in Cursor sandbox | Run `npm run test:unit` in your own terminal, not the agent sandbox |
 
 ---
 
 ## Quick reference
 
-| Goal | Command |
-|------|---------|
-| CI workflow (act) | `npm run ci:act` |
-| Security workflow (act) | `npm run ci:act:security` |
-| CI + security (act) | `npm run ci:act:all` |
-| Lint / types | `npm run preflight` |
-| Unit tests | `npm run test:unit` |
-| Android debug run | `npm run android` |
-| Android release APK | `./build-android.sh y && cd android && ./gradlew assembleRelease` |
-| F-Droid CI release | tag `vX.Y.Z-f-droid` and push |
-| iOS cloud build | `eas build -p ios --profile production` |
-| TestFlight | `eas submit -p ios --latest` |
+| Goal                    | Command                                                           |
+| ----------------------- | ----------------------------------------------------------------- |
+| CI workflow (act)       | `npm run ci:act`                                                  |
+| Security workflow (act) | `npm run ci:act:security`                                         |
+| CI + security (act)     | `npm run ci:act:all`                                              |
+| Lint / types            | `npm run preflight`                                               |
+| Unit tests              | `npm run test:unit`                                               |
+| Android debug run       | `npm run android`                                                 |
+| Android release APK     | `./build-android.sh y && cd android && ./gradlew assembleRelease` |
+| F-Droid CI release      | tag `vX.Y.Z-f-droid` and push                                     |
+| iOS cloud build         | `eas build -p ios --profile production`                           |
+| TestFlight              | `eas submit -p ios --latest`                                      |
 
 ## Related docs
 
