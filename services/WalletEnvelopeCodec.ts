@@ -151,7 +151,7 @@ function parseClosedArgon2idKdf(value: unknown): ParsedClosedArgon2idKdf | null 
     return null;
   }
   for (const key of CLOSED_KDF_KEYS) {
-    if (!Object.hasOwn(obj, key)) {
+    if (!Object.prototype.hasOwnProperty.call(obj, key)) {
       return null;
     }
   }
