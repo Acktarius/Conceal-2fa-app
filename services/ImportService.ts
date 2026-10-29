@@ -22,6 +22,7 @@ import { dependencyContainer } from './DependencyContainer';
 import { getGlobalWorkletLogging } from './interfaces/IWorkletLogging';
 import { SmartMessageService } from './SmartMessageService';
 import { StorageService } from './StorageService';
+import { walletImportUserMessage } from './WalletFileImportUi';
 import { pickWalletImportFile, WALLET_EXPORT_CANCELLED } from './WalletFileIO';
 import { WALLET_FILE_IMPORT_NOTE, WalletFileService } from './WalletFileService';
 import { WalletStorageManager } from './WalletStorageManager';
@@ -236,12 +237,12 @@ export class ImportService {
         throw new Error('USER_CANCELLED');
       }
 
-      let importResult: ReturnType<typeof WalletFileService.decryptWalletImport> = null;
+      let importResult: Awaited<ReturnType<typeof WalletFileService.decryptWalletImport>> = null;
       const importProgress = getImportProgress();
       try {
         importProgress.showImportProgress('Decrypting backup…');
         try {
-          importResult = WalletFileService.decryptWalletImport(envelope, filePassword);
+          importResult = await WalletFileService.decryptWalletImport(envelope, filePassword);
         } finally {
           filePassword = '';
         }
@@ -250,7 +251,7 @@ export class ImportService {
       }
 
       if (importResult === null) {
-        throw new Error('Invalid password or corrupted wallet file');
+        throw new Error(walletImportUserMessage(null));
       }
 
       const { wallet: importedWallet, raw: importedRaw } = importResult;
@@ -291,7 +292,7 @@ export class ImportService {
         throw new Error('USER_CANCELLED');
       }
       ImportService.logFailure('file import failed');
-      throw error instanceof Error ? error : new Error('Failed to import wallet from file');
+      throw new Error(walletImportUserMessage(error));
     }
   }
 

@@ -32,7 +32,8 @@ import packageJson from '../package.json';
 import { ExportService } from '../services/ExportService';
 import { getGlobalWorkletLogging } from '../services/interfaces/IWorkletLogging';
 import { StorageService } from '../services/StorageService';
-import { requestWalletExportDirectory, saveWalletExportFile, WALLET_EXPORT_CANCELLED } from '../services/WalletFileIO';
+import { createExportFileContentWithProgress, walletExportErrorMessage } from '../services/WalletFileExportUi';
+import { requestWalletExportDirectory, saveWalletExportFile } from '../services/WalletFileIO';
 import { WALLET_FILE_EXPORT_NOTE, WalletFileService } from '../services/WalletFileService';
 import { WalletService } from '../services/WalletService';
 import { WalletStorageManager } from '../services/WalletStorageManager';
@@ -461,7 +462,7 @@ export default function SettingsScreen() {
         wallet.options.customNode = false;
       }
 
-      const content = WalletFileService.createExportFileContent(wallet, exportPassword);
+      const content = await createExportFileContentWithProgress(wallet, exportPassword);
       const filename = WalletFileService.buildExportFilename();
       await saveWalletExportFile(content, filename, directoryUri);
       await showMessageAlert(
@@ -469,13 +470,10 @@ export default function SettingsScreen() {
         `Saved "${filename}" to the folder you selected in the system picker (may not appear under Downloads or Documents).\n\n${WALLET_FILE_EXPORT_NOTE}`
       );
     } catch (error) {
-      if (error instanceof Error && error.message === WALLET_EXPORT_CANCELLED) {
+      const message = walletExportErrorMessage(error);
+      if (message === null) {
         return;
       }
-      const message =
-        error instanceof Error && error.message && !error.message.includes('password')
-          ? error.message
-          : 'Failed to export wallet file. Please try again.';
       await showMessageAlert('Error', message);
     }
   };
