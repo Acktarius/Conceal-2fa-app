@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // RN exposes nacl globally; load it for unit tests.
 import '../lib/nacl-fast.js';
 // Real Argon2id (Nitro cannot run here). Same primitive as conceal-wallet-sdk.
-import { crypto as ccxCrypto } from '/home/katana/conceal-wallet-sdk/node_modules/conceal-lib-js/src/index.js';
+import { crypto as ccxCrypto } from 'conceal-lib-js';
 
 const SALT_BYTES = 16;
 const NONCE_BYTES = 24;

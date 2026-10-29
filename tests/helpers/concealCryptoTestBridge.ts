@@ -1,5 +1,5 @@
 import '../../lib/nacl-fast.js';
-import { crypto as ccxCrypto } from '/home/katana/conceal-wallet-sdk/node_modules/conceal-lib-js/src/index.js';
+import { crypto as ccxCrypto } from 'conceal-lib-js';
 
 type NaclSecretbox = {
   (message: Uint8Array, nonce: Uint8Array, key: Uint8Array): Uint8Array;

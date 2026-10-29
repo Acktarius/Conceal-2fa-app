@@ -78,6 +78,7 @@
     "@types/jest": "^29.5.14",
     "@types/node": "^24.9.1",
     "@types/react": "~19.1.10",
+    "conceal-lib-js": "https://github.com/ConcealNetwork/conceal-lib-js/releases/download/v0.3.6/conceal-lib-js-0.3.6.tgz",
     "expo-dev-client": "~6.0.13",
     "jest": "^29.7.0",
     "jest-expo": "~54.0.12",
