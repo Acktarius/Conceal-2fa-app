@@ -82,7 +82,10 @@ export async function requestWalletExportDirectory(): Promise<string | null> {
   return requestWalletExportDirectoryAndroid();
 }
 
-/** Pick an encrypted wallet backup JSON file from device storage. */
+/** Max picked-file bytes. Matches the raw envelope text cap (4 × JSON chars). */
+const MAX_WALLET_PICK_BYTES = 4 * 4 * 8_388_608;
+
+/** Pick an encrypted wallet backup file. Returns text only; parsing happens later. */
 export async function pickWalletImportFile(): Promise<string> {
   const result = await DocumentPicker.getDocumentAsync({
     // Android often labels .json as application/octet-stream; */* keeps picker usable.
@@ -91,25 +94,22 @@ export async function pickWalletImportFile(): Promise<string> {
     multiple: false,
   });
 
-  if (result.canceled || !result.assets?.[0]?.uri) {
+  const asset = result.assets?.[0];
+  if (result.canceled || !asset?.uri) {
     throw new Error(WALLET_EXPORT_CANCELLED);
+  }
+
+  if (typeof asset.size === 'number' && asset.size > MAX_WALLET_PICK_BYTES) {
+    throw new Error('Wallet file is too large');
   }
 
   let content: string;
   try {
-    content = await readAsStringAsync(result.assets[0].uri, { encoding: 'utf8' });
+    content = await readAsStringAsync(asset.uri, { encoding: 'utf8' });
   } catch {
     throw new Error('Could not read wallet file from device storage');
   }
-  content = content.replace(/^\uFEFF/, '').trim();
-
-  try {
-    JSON.parse(content);
-  } catch {
-    throw new Error('Invalid wallet file: not valid JSON');
-  }
-
-  return content;
+  return content.replace(/^\uFEFF/, '').trim();
 }
 
 /** Save encrypted wallet JSON; Android uses SAF (optionally pre-selected folder), iOS uses RN Share. */

@@ -73,6 +73,7 @@ import { Cn, CnNativeBride, CnTransactions, CnUtils } from './Cn';
 import { Currency } from './Currency';
 import { InterestCalculator } from './Interest';
 import { MathUtil } from './MathUtil';
+import { messageIndexToIetfNonce } from './MessageNonce';
 import { SmartMessageParser } from './SmartMessage';
 import { Deposit, Transaction, TransactionData, TransactionIn, TransactionOut } from './Transaction';
 import { decode as varintDecode } from './Varint';
@@ -366,6 +367,7 @@ export class TransactionsExplorer {
     const nonceView = new DataView(nonceBuffer);
     // Fill nonce in big-endian format
     nonceView.setBigUint64(0, BigInt(index), false); // false = big-endian
+    const ietfNonce = messageIndexToIetfNonce(index);
 
     // make a binary array out of raw message
     let rawMessArr = CnUtils.hextobin(rawMessage);
@@ -384,7 +386,7 @@ export class TransactionsExplorer {
 
     try {
       // Try ChaCha12 first (smart messages should use ChaCha12)
-      const nativeResult12 = concealCrypto.chacha12(inputBuffer, keyBuffer, nonceBuffer);
+      const nativeResult12 = concealCrypto.cypher.chacha12(keyBuffer, ietfNonce, inputBuffer);
       const testBuf12 = new Uint8Array(nativeResult12);
       const testMessage12 = new TextDecoder().decode(testBuf12);
       // Strip checksum before checking if it's a smart message
@@ -396,7 +398,7 @@ export class TransactionsExplorer {
         // console.log('decryptMessage: Successfully decrypted with ChaCha12 (smart message)');
       } else {
         // Not a smart message with ChaCha12, try ChaCha8
-        const nativeResult8 = concealCrypto.chacha8(inputBuffer, keyBuffer, nonceBuffer);
+        const nativeResult8 = concealCrypto.cypher.chacha8(keyBuffer, ietfNonce, inputBuffer);
         const testBuf8 = new Uint8Array(nativeResult8);
         const testMessage8 = new TextDecoder().decode(testBuf8);
         // Strip checksum before checking if it's a smart message

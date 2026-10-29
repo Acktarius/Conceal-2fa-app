@@ -65,14 +65,14 @@ describe('WalletFileIO pickWalletImportFile', () => {
     await expect(pickWalletImportFile()).rejects.toThrow(WALLET_EXPORT_CANCELLED);
   });
 
-  it('rejects non-JSON file content', async () => {
+  it('returns raw text and does not parse JSON', async () => {
     mockGetDocumentAsync.mockResolvedValue({
       canceled: false,
       assets: [{ uri: 'file:///tmp/bad.txt' }],
     });
     mockReadAsStringAsync.mockResolvedValue('not json');
 
-    await expect(pickWalletImportFile()).rejects.toThrow('Invalid wallet file: not valid JSON');
+    await expect(pickWalletImportFile()).resolves.toBe('not json');
   });
 });
 

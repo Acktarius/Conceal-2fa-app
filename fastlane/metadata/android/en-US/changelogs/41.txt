@@ -1,0 +1,4 @@
+- update dependencies
+- fix bug where wallet password were requested, after fail biometric authentication
+- improve import/export encrypted wallet backup file now using argon2id
+- older builds cannot open the new backups and may say the password is wrong

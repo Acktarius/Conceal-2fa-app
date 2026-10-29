@@ -159,11 +159,11 @@ export class WalletStorageManager {
         return await WalletStorageManager.authenticateWithPassword();
       }
 
-      // Authenticate with biometric
+      // Authenticate with biometric (OS may offer device passcode via disableDeviceFallback)
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage: 'Authenticate to access your wallet',
-        fallbackLabel: 'Use Password',
-        disableDeviceFallback: false, // Allow PIN fallback for better user experience
+        fallbackLabel: 'Use device passcode',
+        disableDeviceFallback: false,
       });
 
       if (result.success) {
@@ -173,7 +173,8 @@ export class WalletStorageManager {
         }
         return null;
       }
-      return await WalletStorageManager.authenticateWithPassword();
+      // Biometric mode has no wallet password; do not prompt for one
+      return null;
     } catch {
       WalletStorageManager.logFailure('wallet unlock failed');
       return null;
@@ -218,15 +219,12 @@ export class WalletStorageManager {
     }
   }
 
-  /** Step 1 gate for sensitive actions (export file): biometric OR app unlock password. */
+  /** Gate for sensitive actions: biometric/device passcode, or wallet password when not in biometric mode. */
   static async authenticateForSensitiveAction(): Promise<boolean> {
     try {
       const useBiometric = await BiometricService.isBiometricChecked();
       if (useBiometric) {
-        const authenticated = await BiometricService.authenticateWithBiometric();
-        if (authenticated) {
-          return true;
-        }
+        return await BiometricService.authenticateWithBiometric();
       }
 
       const passwordPromptContext = (global as any).passwordPromptContext;
@@ -492,10 +490,10 @@ export class WalletStorageManager {
         return null;
       }
 
-      // Authenticate with biometric
+      // Authenticate with biometric (OS may offer device passcode via disableDeviceFallback)
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage: 'Authenticate to access your wallet',
-        fallbackLabel: 'Use Password',
+        fallbackLabel: 'Use device passcode',
         disableDeviceFallback: false,
       });
 

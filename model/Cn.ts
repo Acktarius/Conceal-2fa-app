@@ -37,6 +37,7 @@
 import concealCrypto from 'react-native-conceal-crypto';
 import { config } from '../config';
 import { JSChaCha8 } from './ChaCha8';
+import { messageIndexToIetfNonce } from './MessageNonce';
 import { Mnemonic } from './Mnemonic';
 
 declare let Module: any;
@@ -3029,6 +3030,7 @@ export namespace CnTransactions {
           const index: number = 0; // Because we only have one message
           // Fill nonce in big-endian format
           nonceView.setBigUint64(0, BigInt(index), false); // false = big-endian
+          const ietfNonce = messageIndexToIetfNonce(index);
 
           // Encode message with 4-byte padding
           const rawMessArr = new TextEncoder().encode(message);
@@ -3051,9 +3053,9 @@ export namespace CnTransactions {
             // Encrypt with native C++ ChaCha (8 or 12 rounds)
             let nativeResult: ArrayBuffer;
             if (cipher === 'chacha8') {
-              nativeResult = concealCrypto.chacha8(inputBuffer, keyBuffer, nonceBuffer);
+              nativeResult = concealCrypto.cypher.chacha8(keyBuffer, ietfNonce, inputBuffer);
             } else if (cipher === 'chacha12') {
-              nativeResult = concealCrypto.chacha12(inputBuffer, keyBuffer, nonceBuffer);
+              nativeResult = concealCrypto.cypher.chacha12(keyBuffer, ietfNonce, inputBuffer);
             } else {
               throw new Error(`Unsupported cipher: ${cipher}`);
             }

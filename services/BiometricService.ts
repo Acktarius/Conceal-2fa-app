@@ -56,8 +56,8 @@ export class BiometricService {
     try {
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage: 'Authenticate to access your wallet',
-        fallbackLabel: 'Use Password',
-        disableDeviceFallback: false, // Allow PIN fallback for better user experience
+        fallbackLabel: 'Use device passcode',
+        disableDeviceFallback: false,
       });
       return result.success;
     } catch (error) {
