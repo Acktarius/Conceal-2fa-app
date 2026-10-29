@@ -128,7 +128,10 @@ npx expo prebuild --platform android --clean
 npx expo prebuild --platform ios --clean
 ```
 
-The Android release script [`build-android.sh`](build-android.sh) wraps prebuild, Nitro hooks, and optional sign/unsign — prefer it for release-like Android trees.
+Prefer the platform wrappers when preparing a release-like tree:
+
+- Android: [`build-android.sh`](build-android.sh) — prebuild, Nitro hooks, optional sign/unsign
+- iOS: [`build-ios.sh`](build-ios.sh) — wipe `ios/` + `expo prebuild --platform ios --clean`, then print EAS next steps
 
 ---
 
@@ -259,22 +262,32 @@ IOS_BUILD_NUMBER=9          # increment for each App Store / TestFlight upload
 
 Production iOS builds use **remote credentials** (`credentialsSource: remote`); EAS manages signing. `production` profile sets `autoIncrement: true` for App Store build numbers on EAS side — still keep `IOS_BUILD_NUMBER` in `.env` aligned for local prebuild consistency.
 
-### Clean native iOS project
+### Regenerate native iOS project
+
+Prefer [`build-ios.sh`](build-ios.sh) (removes `ios/`, runs `npx expo prebuild --platform ios --clean`, prints EAS next steps):
+
+```bash
+./build-ios.sh
+```
+
+Equivalent one-liner if you only need prebuild:
 
 ```bash
 npx expo prebuild --platform ios --clean
+```
+
+### Build on EAS server (preview / internal testing)
+
+After `./build-ios.sh` (or a clean prebuild), for device testing:
+
+```bash
+eas build -p ios --profile preview
 ```
 
 ### Build on EAS server (production → App Store / TestFlight)
 
 ```bash
 eas build -p ios --profile production
-```
-
-### Build on EAS server (preview / internal debug-style release)
-
-```bash
-eas build -p ios --profile preview
 ```
 
 ### Build dev client (simulator, development profile)
@@ -438,7 +451,9 @@ npm audit --audit-level=critical
 | Android debug run       | `npm run android`                                                 |
 | Android release APK     | `./build-android.sh y && cd android && ./gradlew assembleRelease` |
 | F-Droid CI release      | tag `vX.Y.Z-f-droid` and push                                     |
-| iOS cloud build         | `eas build -p ios --profile production`                           |
+| iOS native regenerate   | `./build-ios.sh`                                                  |
+| iOS preview (testing)   | `./build-ios.sh` then `eas build -p ios --profile preview`        |
+| iOS production build    | `eas build -p ios --profile production`                           |
 | TestFlight              | `eas submit -p ios --latest`                                      |
 
 ## Related docs
